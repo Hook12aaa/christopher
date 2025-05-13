@@ -1,0 +1,29 @@
+# Core dependencies
+numpy>=1.24.0
+scipy>=1.10.0
+mlx>=0.0.5  # For efficient tensor operations on Apple Silicon
+gensim>=4.3.0  # For word embeddings
+sentence-transformers>=2.2.2  # For accessing pre-trained embedding models
+
+# API and web framework
+fastapi>=0.95.0
+uvicorn>=0.22.0
+pydantic>=2.0.0
+
+# Database
+psycopg2-binary>=2.9.6  # PostgreSQL adapter
+pgvector>=0.1.8  # Vector operations for PostgreSQL
+
+# Visualization
+plotly>=5.14.0
+pyvista>=0.39.0  # For 3D visualization
+matplotlib>=3.7.0
+
+# Testing
+pytest>=7.3.1
+pytest-cov>=4.1.0
+
+# Development tools
+black>=23.3.0  # Code formatting
+isort>=5.12.0  # Import sorting
+flake8>=6.0.0  # Linting
