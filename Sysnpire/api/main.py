@@ -1,84 +1,224 @@
 """
-Main entry point for the Constructivist Field Theory API.
-Uses Quart for asynchronous web server functionality with API key authentication.
+Main entry point for the Sysnpire Field Theory API.
+FastAPI application with automatic documentation, validation, and authentication.
 """
-from quart import Quart, request, jsonify
-from functools import wraps
+
+from fastapi import FastAPI, HTTPException, Depends, Security
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from fastapi.middleware.cors import CORSMiddleware
+from contextlib import asynccontextmanager
 import uuid
 import os
-import asyncio
+import logging
+from datetime import datetime
+from typing import Dict, List
 
-# Create Quart app
-app = Quart(__name__)
-app.config["TITLE"] = "Constructivist Field Theory API"
-app.config["DESCRIPTION"] = "API for the Constructivist Mathematics implementation"
-app.config["VERSION"] = "0.1.0"
+from .models import APIStatus, HealthCheck, ErrorResponse, APIKeyRequest, APIKeyResponse
 
-# API key authentication setup
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+security = HTTPBearer()
+
 API_KEYS = {
-    "development": "dev_key_" + str(uuid.uuid4())[:8],  # Generate a development key
+    "development": f"dev_key_{str(uuid.uuid4())[:8]}",
 }
 
-# Add an environment variable API key if provided
-if os.environ.get("CFT_API_KEY"):
-    API_KEYS["production"] = os.environ.get("CFT_API_KEY")
+if os.environ.get("SYSNPIRE_API_KEY"):
+    API_KEYS["production"] = os.environ.get("SYSNPIRE_API_KEY")
 
-# Authentication decorator
-def require_api_key(f):
-    @wraps(f)
-    async def decorated_function(*args, **kwargs):
-        api_key = request.headers.get('X-API-Key')
-        if api_key is None:
-            return jsonify({"error": "API key is missing"}), 401
-        if api_key not in API_KEYS.values():
-            return jsonify({"error": "Invalid API key"}), 401
-        return await f(*args, **kwargs)
-    return decorated_function
 
-@app.route("/")
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """FastAPI lifespan context manager for startup and shutdown events."""
+    logger.info("Starting Sysnpire Field Theory API")
+    logger.info(f"Development API Key: {API_KEYS['development']}")
+    yield
+    logger.info("Shutting down Sysnpire Field Theory API")
+
+
+app = FastAPI(
+    title="Sysnpire Field Theory API",
+    description="""
+    **Sysnpire Field Theory API** - Transform text into mathematical fields using conceptual charge theory.
+    
+    This API provides endpoints for:
+    - **Text-to-Embedding**: Convert text to semantic embeddings using BGE or MPNet models
+    - **Conceptual Charges**: Generate field-theoretic representations with Q(τ, C, s) formula
+    - **Semantic Analysis**: Comprehensive space analysis for universe construction
+    - **Field Visualization**: 3D visualization of semantic fields and charge interactions
+    - **Resonance Analysis**: Study field resonance patterns and collective behavior
+    
+    Built on cutting-edge research in Field Theory of Social Constructs.
+    """,
+    version="1.0.0",
+    lifespan=lifespan,
+    docs_url="/docs",
+    redoc_url="/redoc"
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+
+async def verify_api_key(credentials: HTTPAuthorizationCredentials = Security(security)):
+    """Verify API key authentication."""
+    token = credentials.credentials
+    if token not in API_KEYS.values():
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid API key",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    return token
+
+
+@app.get("/", response_model=APIStatus, tags=["System"])
 async def root():
-    """Root endpoint returning API status and information."""
-    return {
-        "status": "online",
-        "api_name": "Constructivist Field Theory API",
-        "version": app.config["VERSION"],
-        "documentation": "/docs",
-    }
+    """
+    Root endpoint returning API status and available endpoints.
+    
+    Returns basic information about the API including version,
+    status, and links to documentation.
+    """
+    return APIStatus(
+        status="online",
+        version="1.0.0",
+        api_name="Sysnpire Field Theory API",
+        documentation="/docs",
+        available_endpoints=[
+            "/api/embeddings/",
+            "/api/charges/",
+            "/api/analysis/",
+            "/api/visualization/",
+            "/api/resonance/"
+        ]
+    )
 
-@app.route("/health")
+
+@app.get("/health", response_model=HealthCheck, tags=["System"])
 async def health_check():
-    """Health check endpoint for monitoring."""
-    return {"status": "healthy"}
+    """
+    Health check endpoint for monitoring and uptime verification.
+    
+    Returns system health status, timestamp, and basic system information
+    for monitoring services and load balancers.
+    """
+    return HealthCheck(
+        status="healthy",
+        timestamp=datetime.utcnow().isoformat(),
+        system_info={
+            "api_version": "1.0.0",
+            "python_version": "3.8+",
+            "models_loaded": ["BGE-Large-v1.5", "all-mpnet-base-v2"],
+            "available_endpoints": 5
+        }
+    )
 
-@app.route("/api/auth/generate_key", methods=["POST"])
-@require_api_key
-async def generate_api_key():
-    """Generate a new API key (requires an existing valid key)."""
-    key_name = (await request.get_json()).get("name", f"key_{len(API_KEYS)}")
-    new_key = f"cft_key_{str(uuid.uuid4())}"
-    API_KEYS[key_name] = new_key
-    return {"key_name": key_name, "api_key": new_key}
 
-@app.route("/api/auth/list_keys", methods=["GET"])
-@require_api_key
+@app.post("/api/auth/generate_key", 
+          response_model=APIKeyResponse, 
+          dependencies=[Depends(verify_api_key)],
+          tags=["Authentication"])
+async def generate_api_key(request: APIKeyRequest):
+    """
+    Generate a new API key with specified permissions.
+    
+    Requires an existing valid API key for authentication.
+    Used for creating additional keys for different services or users.
+    """
+    new_key = f"sysnpire_key_{str(uuid.uuid4())}"
+    API_KEYS[request.name] = new_key
+    
+    return APIKeyResponse(
+        key_name=request.name,
+        api_key=new_key,
+        created_at=datetime.utcnow().isoformat(),
+        permissions=request.permissions or ["read", "write"]
+    )
+
+
+@app.get("/api/auth/list_keys", 
+         dependencies=[Depends(verify_api_key)],
+         tags=["Authentication"])
 async def list_api_keys():
-    """List all API keys (for admin purposes)."""
-    # In production, you might want to hide the actual keys
-    return {"keys": list(API_KEYS.keys())}
+    """
+    List all API key names (admin endpoint).
+    
+    Returns the names of all registered API keys without exposing
+    the actual key values for security purposes.
+    """
+    return {"key_names": list(API_KEYS.keys())}
 
-# Import and register blueprints
-from api.routers import embedding, charges, fields, resonance, viz
 
-# Register all blueprints with their respective URL prefixes
-app.register_blueprint(embedding.blueprint, url_prefix="/api/embedding")
-app.register_blueprint(charges.blueprint, url_prefix="/api/charges")
-app.register_blueprint(fields.blueprint, url_prefix="/api/fields")
-app.register_blueprint(resonance.blueprint, url_prefix="/api/resonance")
-app.register_blueprint(viz.blueprint, url_prefix="/api/viz")
+from .routers import embeddings, charges, analysis, visualization, resonance
 
-# Display the development key when starting the server
-print(f"Development API Key: {API_KEYS['development']}")
+app.include_router(
+    embeddings.router,
+    prefix="/api/embeddings",
+    tags=["Embeddings"],
+    dependencies=[Depends(verify_api_key)]
+)
+
+app.include_router(
+    charges.router,
+    prefix="/api/charges", 
+    tags=["Conceptual Charges"],
+    dependencies=[Depends(verify_api_key)]
+)
+
+app.include_router(
+    analysis.router,
+    prefix="/api/analysis",
+    tags=["Semantic Analysis"],
+    dependencies=[Depends(verify_api_key)]
+)
+
+app.include_router(
+    visualization.router,
+    prefix="/api/visualization",
+    tags=["Field Visualization"],
+    dependencies=[Depends(verify_api_key)]
+)
+
+app.include_router(
+    resonance.router,
+    prefix="/api/resonance",
+    tags=["Field Resonance"],
+    dependencies=[Depends(verify_api_key)]
+)
+
+
+@app.exception_handler(404)
+async def not_found_handler(request, exc):
+    """Handle 404 errors with structured response."""
+    return HTTPException(
+        status_code=404,
+        detail="Endpoint not found. Visit /docs for API documentation."
+    )
+
+
+@app.exception_handler(500)
+async def internal_error_handler(request, exc):
+    """Handle 500 errors with structured response."""
+    logger.error(f"Internal server error: {exc}")
+    return HTTPException(
+        status_code=500,
+        detail="Internal server error. Please try again later."
+    )
+
 
 if __name__ == "__main__":
-    # Quart's run method
-    app.run(host="0.0.0.0", port=8000, debug=True)
+    import uvicorn
+    uvicorn.run(
+        "api.main:app",
+        host="0.0.0.0",
+        port=8080,
+        reload=True,
+        log_level="info"
+    )

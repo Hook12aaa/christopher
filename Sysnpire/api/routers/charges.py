@@ -1,36 +1,84 @@
 """
-Router for conceptual charge-related endpoints.
+Charges Router - FastAPI endpoints for conceptual charge generation
+
+This module provides REST API endpoints for converting text and embeddings
+into conceptual charges using the complete Q(τ, C, s) formula. Supports
+field-theoretic charge generation with trajectory integration and field effects.
 """
-from quart import Blueprint, request, jsonify
-from typing import List, Dict, Any, Optional
-from dataclasses import dataclass
-from api.main import require_api_key
-from embedding_engine.models import ConceptualChargeGenerator
+
+from fastapi import APIRouter, HTTPException
+from typing import List, Dict, Any
+import logging
+import uuid
 import numpy as np
+from datetime import datetime
 
-# Create blueprint for charges routes
-blueprint = Blueprint("charges", __name__)
+from ..models import (
+    ConceptualChargeRequest,
+    ConceptualChargeResponse,
+    BatchChargeResponse,
+    TextInput,
+    BatchTextInput,
+    UniverseStats,
+    ErrorResponse
+)
 
-# Initialize the charge generator
-charge_generator = ConceptualChargeGenerator()
+from model.ingestion import BGEIngestion, MPNetIngestion
+from model.charge_factory import ChargeFactory
+from database.field_universe import FieldUniverse
 
-# Dataclass definitions for request/response objects
-@dataclass
-class ChargeRequest:
-    text: str
-    context: Optional[Dict] = None
-    observational_state: float = 0.0
-    gamma: float = 1.0
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+router = APIRouter()
+
+bge_ingestion = BGEIngestion()
+mpnet_ingestion = MPNetIngestion()
+charge_factory = ChargeFactory()
+field_universe = FieldUniverse()
+
+
+def charge_to_response(charge, charge_id: str = None) -> ConceptualChargeResponse:
+    """Convert conceptual charge object to API response model."""
+    if charge_id is None:
+        charge_id = f"charge_{uuid.uuid4().hex[:12]}"
     
-    @classmethod
-    async def from_request(cls):
-        data = await request.get_json()
-        return cls(
-            text=data.get("text", ""),
-            context=data.get("context"),
-            observational_state=data.get("observational_state", 0.0),
-            gamma=data.get("gamma", 1.0)
-        )
+    if hasattr(charge, 'complete_charge'):
+        complete_charge_value = charge.complete_charge
+        if isinstance(complete_charge_value, complex):
+            complete_charge_dict = {
+                "magnitude": float(abs(complete_charge_value)),
+                "phase": float(np.angle(complete_charge_value)),
+                "real": float(complete_charge_value.real),
+                "imaginary": float(complete_charge_value.imag)
+            }
+        else:
+            complete_charge_dict = {
+                "magnitude": float(abs(complete_charge_value)),
+                "phase": 0.0,
+                "real": float(complete_charge_value),
+                "imaginary": 0.0
+            }
+    else:
+        complete_charge_dict = {
+            "magnitude": 1.0,
+            "phase": 0.0,
+            "real": 1.0,
+            "imaginary": 0.0
+        }
+    
+    return ConceptualChargeResponse(
+        charge_id=charge_id,
+        text=getattr(charge, 'text', 'Unknown text'),
+        complete_charge=complete_charge_dict,
+        field_position=getattr(charge, 'field_position', [0.0, 0.0, 0.0]),
+        semantic_field=getattr(charge, 'semantic_field', [])[:10],
+        emotional_trajectory=getattr(charge, 'emotional_trajectory', [])[:10],
+        phase_total=getattr(charge, 'phase_total', 0.0),
+        observational_state=getattr(charge, 'observational_state', 1.0),
+        gamma=getattr(charge, 'gamma', 1.0),
+        metadata=getattr(charge, 'metadata', {})
+    )
 
 @blueprint.route("/generate", methods=["POST"])
 @require_api_key
