@@ -101,8 +101,8 @@ class ChargeFactory:
             charge_id = f"charge_{self.charge_count:06d}"
             self.charge_count += 1
         
-        # TODO: Extract τ (semantic vector) from embedding
-        tau = None  # Use embedding as τ semantic vector
+        # Extract token from metadata
+        token = metadata.get('token', f'token_{charge_id}') if metadata else f'token_{charge_id}'
         
         # TODO: Compute T(τ, C, s) - transformative potential tensor
         # Use manifold_properties: 'gradient', 'hessian_eigenvalues', 'principal_components'
@@ -129,10 +129,11 @@ class ChargeFactory:
         charge_magnitude = None
         charge_phase = None
         
-        # TODO: Create and return ConceptualCharge object
+        # Create ConceptualCharge with correct parameters
         charge = ConceptualCharge(
-            tau=tau,
-            context=charge_params.context,
+            token=token,
+            semantic_vector=embedding,
+            context={'context': charge_params.context},
             observational_state=charge_params.observational_state,
             gamma=charge_params.gamma
         )
@@ -271,6 +272,67 @@ class ChargeFactory:
             return False
         
         return True
+    
+    def semantic_dimension(self, 
+                          embedding: np.ndarray,
+                          manifold_properties: Dict[str, Any],
+                          charge_params: ChargeParameters,
+                          metadata: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        """
+        SEMANTIC DIMENSION PROCESSING: Core semantic field generation Φ^semantic(τ, s).
+        
+        This function implements the semantic dimension component of the complete 
+        Q(τ, C, s) formula, focusing specifically on breathing constellation patterns
+        and dynamic semantic field generation.
+        
+        MATHEMATICAL FOUNDATION:
+        Φ^semantic(τ, s) = w_i * T_i * x[i] * breathing_modulation * e^(iθ)
+        
+        Args:
+            embedding: Base semantic vector (1024d for BGE, 768d for MPNet)
+            manifold_properties: Mathematical properties from manifold analysis
+            charge_params: Field parameters for semantic processing
+            metadata: Optional context and processing metadata
+            
+        Returns:
+            Dict containing semantic dimension processing results:
+            - 'semantic_field': Processed semantic field vector
+            - 'breathing_patterns': Dynamic constellation breathing data
+            - 'phase_modulation': Complex phase information
+            - 'field_magnitude': Semantic field strength
+            - 'constellation_topology': Geometric structure data
+        """
+        try:
+            from Sysnpire.model.semantic_dimension import process_semantic_field
+            
+            # Delegate to specialized semantic dimension module
+            semantic_results = process_semantic_field(
+                embedding=embedding,
+                manifold_properties=manifold_properties,
+                observational_state=charge_params.observational_state,
+                gamma=charge_params.gamma,
+                context=charge_params.context,
+                field_temperature=charge_params.field_temperature,
+                metadata=metadata
+            )
+            
+            logger.debug(f"Semantic dimension processed - field magnitude: {semantic_results.get('field_magnitude', 'N/A')}")
+            return semantic_results
+            
+        except ImportError:
+            logger.warning("Semantic dimension module not available - using placeholder")
+            # Placeholder implementation until semantic_dimension module is built
+            return {
+                'semantic_field': embedding,  # Pass-through for now
+                'breathing_patterns': {'status': 'placeholder'},
+                'phase_modulation': {'real': 1.0, 'imag': 0.0},
+                'field_magnitude': float(np.linalg.norm(embedding)),
+                'constellation_topology': {'status': 'placeholder'},
+                'processing_status': 'placeholder_mode'
+            }
+        except Exception as e:
+            logger.error(f"Semantic dimension processing failed: {e}")
+            raise
     
     def get_factory_statistics(self) -> Dict[str, Any]:
         """

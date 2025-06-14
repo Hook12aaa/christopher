@@ -198,6 +198,26 @@ class FoundationManifoldBuilder:
         
         logger.info(f"Beginning manifold transformation of {len(embeddings)} embeddings...")
         
+        # Initialize model-specific components for manifold property extraction
+        model = self.models[model_type]
+        logger.info("Initializing PCA and KNN models for manifold analysis...")
+        
+        # Initialize PCA for dimensionality analysis (use subset for efficiency)
+        from sklearn.decomposition import PCA
+        from sklearn.neighbors import NearestNeighbors
+        
+        sample_size = min(1000, len(embeddings))  # Use subset for PCA fitting
+        sample_embeddings = embeddings[:sample_size]
+        
+        pca = PCA(n_components=min(50, embeddings.shape[1]))  # 50 principal components
+        pca.fit(sample_embeddings)
+        
+        # Initialize KNN for neighbor analysis
+        knn_model = NearestNeighbors(n_neighbors=min(20, len(embeddings)), metric='cosine')
+        knn_model.fit(embeddings)
+        
+        logger.info("PCA and KNN models initialized successfully")
+        
         # Process embeddings in batches for efficiency
         batch_size = self.config.batch_size
         total_batches = (len(embeddings) + batch_size - 1) // batch_size
@@ -211,7 +231,6 @@ class FoundationManifoldBuilder:
                        f"(embeddings {start_idx}-{end_idx})")
             
             # Compute manifold properties for batch using new ingestion interface
-            model = self.models[model_type]
             properties_batch = []
             metadata_batch = []
             
@@ -219,11 +238,13 @@ class FoundationManifoldBuilder:
                 global_idx = start_idx + i
                 token = id_to_token.get(global_idx, f"<UNK_{global_idx}>")
                 
-                # Extract complete manifold properties using new ingestion interface
+                # Extract complete manifold properties with required parameters
                 manifold_properties = model.extract_manifold_properties(
                     embedding=embedding,
                     index=global_idx,
-                    all_embeddings=embeddings  # Pass full embedding matrix for context
+                    all_embeddings=embeddings,
+                    pca=pca,
+                    knn_model=knn_model
                 )
                 
                 metadata = {
@@ -356,24 +377,125 @@ class FoundationManifoldBuilder:
         logger.info("🏗️ Platform foundation manifold ready for social construct field theory operations 🏗️")
 
 
-# Main execution for foundation manifold building
-if __name__ == "__main__":
-    # Configure foundation manifold building
+def test_embedding_iteration():
+    """Test function to verify embedding iteration and storage process."""
+    logger.info("🧪 TESTING EMBEDDING ITERATION 🧪")
+    
+    # Configure for small test run
     config = FoundationConfig(
-        models_to_process=["BGE"],  # Start with BGE only for testing
-        batch_size=50,
-        save_checkpoints=True,
-        checkpoint_interval=1000,
-        output_directory=Path("./foundation_manifold"),
+        models_to_process=["BGE"],  # Start with BGE only
+        batch_size=10,  # Small batch for testing
+        save_checkpoints=False,  # No checkpoints for test
+        output_directory=Path("./test_manifold"),
         random_seed=42
     )
     
-    # Initialize and execute foundation building
     builder = FoundationManifoldBuilder(config)
     
-    logger.info("Foundation manifold building configured and ready")
-    logger.info("Uncomment the following line to execute foundation building:")
-    logger.info("# builder.execute_foundation_building()")
+    try:
+        # Initialize BGE model
+        builder.initialize_models()
+        
+        if "BGE" not in builder.models:
+            logger.error("BGE model failed to load")
+            return False
+            
+        # Extract a small portion of the manifold for testing
+        logger.info("Extracting test manifold...")
+        manifold_data = builder.extract_complete_manifold("BGE")
+        
+        # Limit to first 50 embeddings for testing
+        test_embeddings = manifold_data['embeddings'][:50] if len(manifold_data['embeddings']) > 50 else manifold_data['embeddings']
+        test_manifold = {
+            'embeddings': test_embeddings,
+            'id_to_token': {i: manifold_data['id_to_token'].get(i, f"<UNK_{i}>") for i in range(len(test_embeddings))},
+            'vocab_size': len(test_embeddings),
+            'embedding_dim': manifold_data['embedding_dim']
+        }
+        
+        logger.info(f"Testing with {len(test_embeddings)} embeddings")
+        
+        # Test iteration and storage
+        processed_embeddings = []
+        charge_count = 0
+        
+        for charge in builder.create_universe_from_manifold(test_manifold, "BGE"):
+            # Extract real token name and charge data
+            try:
+                charge_magnitude = charge.get_charge_magnitude() if hasattr(charge, 'get_charge_magnitude') else abs(charge.compute_complete_charge())
+                token_name = charge.token if hasattr(charge, 'token') else f'token_{charge_count}'
+            except Exception as e:
+                charge_magnitude = 'Error'
+                token_name = f'token_{charge_count}'
+                logger.debug(f"Error extracting charge data: {e}")
+            
+            processed_embeddings.append({
+                'charge_magnitude': charge_magnitude,
+                'token': token_name,
+                'index': charge_count
+            })
+            charge_count += 1
+            
+            # Log progress
+            if charge_count % 10 == 0:
+                logger.info(f"Processed {charge_count} embeddings...")
+        
+        # Print results
+        logger.info("=" * 50)
+        logger.info("EMBEDDING ITERATION TEST RESULTS")
+        logger.info("=" * 50)
+        logger.info(f"Total embeddings processed: {charge_count}")
+        logger.info(f"Expected embeddings: {len(test_embeddings)}")
+        logger.info(f"Success: {charge_count == len(test_embeddings)}")
+        
+        # Show sample of processed embeddings
+        logger.info("\nFirst 5 processed embeddings:")
+        for i, embedding_data in enumerate(processed_embeddings[:5]):
+            logger.info(f"  {i+1}. Token: {embedding_data['token']}, "
+                       f"Index: {embedding_data['index']}, "
+                       f"Charge: {embedding_data['charge_magnitude']}")
+        
+        logger.info("🧪 EMBEDDING ITERATION TEST COMPLETE 🧪")
+        return charge_count == len(test_embeddings)
+        
+    except Exception as e:
+        logger.error(f"Test failed with error: {e}")
+        import traceback
+        traceback.print_exc()
+        return False
+
+
+# Main execution for foundation manifold building
+if __name__ == "__main__":
+    import argparse
     
-    # TODO: Uncomment when ready for full foundation manifold building
-    # builder.execute_foundation_building()
+    parser = argparse.ArgumentParser(description="Foundation Manifold Builder")
+    parser.add_argument("--test", action="store_true", help="Run embedding iteration test")
+    parser.add_argument("--full", action="store_true", help="Run full foundation building")
+    args = parser.parse_args()
+    
+    if args.test:
+        # Run test
+        success = test_embedding_iteration()
+        if success:
+            logger.info("✅ Test passed - embedding iteration working correctly")
+        else:
+            logger.error("❌ Test failed - check logs for details")
+    elif args.full:
+        # Configure foundation manifold building
+        config = FoundationConfig(
+            models_to_process=["BGE"],  # Start with BGE only for testing
+            batch_size=50,
+            save_checkpoints=True,
+            checkpoint_interval=1000,
+            output_directory=Path("./foundation_manifold"),
+            random_seed=42
+        )
+        
+        # Initialize and execute foundation building
+        builder = FoundationManifoldBuilder(config)
+        builder.execute_foundation_building()
+    else:
+        logger.info("Foundation manifold building configured and ready")
+        logger.info("Use --test to run embedding iteration test")
+        logger.info("Use --full to run complete foundation building")
