@@ -59,6 +59,17 @@ from scipy.spatial.distance import pdist, squareform
 from scipy.linalg import eigh
 import scipy.fft
 
+# Import enterprise-grade shared optimization modules
+import sys
+import os
+sys.path.append(os.path.dirname(__file__))
+
+from field_theory_optimizations.similarity_calculations import SimilarityCalculator
+from manifold_calculations.geometry_calculator import ManifoldGeometryProcessor
+from manifold_calculations.correlation_analysis import CorrelationAnalyzer
+from spectral_analysis.frequency_analysis import FrequencyAnalyzer
+from spectral_analysis.heat_kernel_processor import HeatKernelEvolutionEngine
+
 from Sysnpire.utils.logger import get_logger
 logger = get_logger(__name__)
 HAS_RICH_LOGGER = True
@@ -75,6 +86,9 @@ class BGEIngestion():
     
     INNOVATION: Bridges the gap between discrete NLP embeddings and continuous
     field mathematics required for Q(τ, C, s) conceptual charge calculations.
+    
+    ENTERPRISE OPTIMIZATION: Leverages shared numba-optimized calculation engines
+    for consistent performance and mathematical accuracy across embedding models.
     """
     
     def  __init__(self,model_name: str = "BAAI/bge-large-en-v1.5", random_seed: Optional[int] = None) -> None:
@@ -88,6 +102,9 @@ class BGEIngestion():
         AUTO-DETECTS: Hardware (CUDA GPU, MPS Apple Silicon, or CPU) for optimal
         mathematical computation performance during field theory operations.
 
+        ENTERPRISE FEATURES: Integrates with shared optimization modules for
+        consistent performance across BGE and MPNet implementations.
+
         Args:
             model_name (str): BGE model for field sampling (default: bge-large-en-v1.5)
             random_seed (Optional[int]): Reproducibility seed for field computations
@@ -98,6 +115,13 @@ class BGEIngestion():
         self.model_name = model_name
         self.random_seed = random_seed
         self.model = self._load_model()
+        
+        # Initialize enterprise optimization engines
+        self.similarity_calculator = SimilarityCalculator()
+        self.geometry_processor = ManifoldGeometryProcessor()
+        self.correlation_analyzer = CorrelationAnalyzer()
+        self.frequency_analyzer = FrequencyAnalyzer()
+        self.heat_kernel_engine = HeatKernelEvolutionEngine()
         
         if random_seed is not None:
             torch.manual_seed(random_seed)
@@ -271,6 +295,9 @@ class BGEIngestion():
         this method identifies field regions relevant to the query and extracts the
         comprehensive mathematical properties needed for Q(τ, C, s) charge calculations.
         
+        ENTERPRISE OPTIMIZATION: Uses shared numba-optimized similarity calculations
+        for consistent performance across BGE and MPNet implementations.
+        
         MATHEMATICAL PROCESS:
         1. Query encoding → Field probe vector
         2. Cosine similarity → Field correlation analysis  
@@ -314,9 +341,9 @@ class BGEIngestion():
         all_embeddings = self._embedding_data['embeddings']
         id_to_token = self._embedding_data['id_to_token']
         
-        # Calculate similarities
-        similarities = np.dot(all_embeddings, query_embedding) / (
-            np.linalg.norm(all_embeddings, axis=1) * np.linalg.norm(query_embedding)
+        # Calculate similarities using enterprise-grade optimized function
+        similarities = self.similarity_calculator.compute_cosine_similarities(
+            all_embeddings, query_embedding
         )
         
         # Get top-k most similar embeddings
@@ -366,6 +393,9 @@ class BGEIngestion():
         """
         FIELD THEORY CORE: Extract complete mathematical properties for Q(τ, C, s) charges.
         
+        ENTERPRISE OPTIMIZATION: Uses shared calculation engines for consistent
+        mathematical accuracy and performance across BGE and MPNet implementations.
+        
         UNCONVENTIONAL MATHEMATICS: This method computes comprehensive field-theoretic
         properties from discrete embedding samples. These properties directly feed
         into the complete conceptual charge formula Q(τ, C, s), requiring sophisticated
@@ -402,81 +432,51 @@ class BGEIngestion():
         Traditional embedding analysis focuses on similarity. Our approach extracts
         differential geometry and field theory properties for charge generation.
         """
-        # Basic properties
-        magnitude = np.linalg.norm(embedding)
-        
         # Find k-nearest neighbors for local analysis
         distances, neighbor_indices = knn_model.kneighbors([embedding])
         neighbors = all_embeddings[neighbor_indices[0]]
         
-        # Geometric properties
-        local_density = 1.0 / (np.mean(distances[0]) + 1e-8)
+        # Use enterprise-grade manifold geometry processor
+        geometry_props = self.geometry_processor.analyze_manifold_properties(
+            embedding, neighbors, pca.components_ if pca.n_components_ > 0 else None
+        )
         
-        # Local curvature estimation via neighbor variance
-        neighbor_center = np.mean(neighbors, axis=0)
-        neighbor_deviations = neighbors - neighbor_center
-        local_curvature = np.trace(np.cov(neighbor_deviations.T))
+        # Use enterprise-grade correlation analyzer for coupling properties
+        coupling_props = self.correlation_analyzer.analyze_coupling_properties(
+            embedding, neighbors
+        )
         
-        # Metric tensor eigenvalues (local metric properties)
-        if len(neighbors) > 1:
-            cov_matrix = np.cov(neighbor_deviations.T)
-            metric_eigenvalues = np.real(eigh(cov_matrix)[0])
-        else:
-            metric_eigenvalues = np.ones(embedding.shape[0])
+        # Use enterprise-grade frequency analyzer for spectral properties
+        spectral_props = self.frequency_analyzer.analyze_spectral_properties(embedding)
         
-        # Principal component projection
-        if pca.n_components_ > 0:
-            e_i_projected = pca.transform([embedding])[0]
-        else:
-            e_i_projected = np.zeros(min(50, embedding.shape[0]))
+        # Topological analysis (still computed locally for specific geometric features)
+        topological_props = self._compute_topological_properties(embedding, neighbors)
         
-        # Phase angles in complex representation
-        complex_embedding = embedding[:len(embedding)//2] + 1j * embedding[len(embedding)//2:]
-        phase_angles = np.angle(complex_embedding)
+        # Combine all enterprise-grade analysis results
+        complete_properties = {
+            **geometry_props,
+            **coupling_props,
+            **spectral_props,
+            **topological_props
+        }
         
-        # Field properties - gradient estimation
-        if len(neighbors) > 2:
-            # Approximate gradient using finite differences with neighbors
-            gradient = np.mean(neighbors - embedding, axis=0)
-            gradient_magnitude = np.linalg.norm(gradient)
+        return complete_properties
+    
+    def _compute_topological_properties(self, embedding: np.ndarray, 
+                                       neighbors: np.ndarray) -> Dict[str, Any]:
+        """
+        Compute topological properties for field coherence analysis.
+        
+        FIELD THEORY APPLICATION: Provides topological features for boundary
+        detection and loop structures essential for field coherence validation.
+        
+        Args:
+            embedding: Central embedding vector
+            neighbors: Local neighborhood embeddings
             
-            # Hessian eigenvalues (second-order field properties)
-            try:
-                hessian_approx = np.outer(gradient, gradient) / (gradient_magnitude + 1e-8)
-                eigenvalues = np.real(eigh(hessian_approx)[0])
-            except:
-                eigenvalues = np.zeros(20)
-        else:
-            gradient = np.zeros_like(embedding)
-            gradient_magnitude = 0.0
-            eigenvalues = np.zeros(20)
-        
-        # Persistence properties
-        persistence_radius = np.max(distances[0])
-        persistence_score = local_density * persistence_radius
-        
-        # Coupling properties (correlation with neighbors)
-        if len(neighbors) > 1:
-            correlations = [np.corrcoef(embedding, neighbor)[0,1] for neighbor in neighbors]
-            correlations = [c for c in correlations if not np.isnan(c)]
-            coupling_mean = np.mean(correlations) if correlations else 0.0
-            coupling_variance = np.var(correlations) if correlations else 0.0
-        else:
-            coupling_mean = 0.0
-            coupling_variance = 0.0
-        
-        # Spectral properties via FFT
-        fft_result = scipy.fft.fft(embedding)
-        power_spectrum = np.abs(fft_result)**2
-        dominant_freq_indices = np.argsort(power_spectrum)[-10:]  # Top 10 frequencies
-        dominant_frequencies = dominant_freq_indices.astype(float) / len(embedding)
-        frequency_magnitudes = power_spectrum[dominant_freq_indices]
-        
-        # Topological properties
-        # Boundary score: how much the point differs from local average
-        local_mean = np.mean(neighbors, axis=0)
-        boundary_score = np.linalg.norm(embedding - local_mean)
-        
+        Returns:
+            Dictionary of topological properties
+        """
         # Loop detection via homology approximation
         if len(neighbors) >= 3:
             # Simple approximation: check if neighbors form loops in projection
@@ -496,43 +496,10 @@ class BGEIngestion():
         else:
             local_loops = False
         
-        features = {
-            # Basic properties
-            'magnitude': float(magnitude),
-            'vector': embedding.tolist(),
-            
-            # Geometric
-            'local_density': float(local_density),
-            'local_curvature': float(local_curvature),
-            'metric_eigenvalues': metric_eigenvalues[:20].tolist(),  # Top 20
-            
-            # Directional
-            'principal_components': e_i_projected[:50].tolist(),  # Top 50 PCs
-            'phase_angles': phase_angles.tolist(),
-            
-            # Field properties
-            'gradient': gradient.tolist(),
-            'gradient_magnitude': float(gradient_magnitude),
-            'hessian_eigenvalues': eigenvalues[:20].tolist(),  # Top 20
-            
-            # Persistence
-            'persistence_radius': float(persistence_radius),
-            'persistence_score': float(persistence_score),
-            
-            # Coupling
-            'coupling_mean': float(coupling_mean),
-            'coupling_variance': float(coupling_variance),
-            
-            # Spectral
-            'dominant_frequencies': dominant_frequencies.tolist(),
-            'frequency_magnitudes': frequency_magnitudes.tolist(),
-            
-            # Topological
-            'boundary_score': float(boundary_score),
-            'has_loops': bool(local_loops)
+        return {
+            'has_loops': bool(local_loops),
+            'topological_complexity': float(violations / max(len(neighbors), 1)) if len(neighbors) >= 3 else 0.0
         }
-        
-        return features
 
     def extract_tangent_spaces(self, embeddings: np.ndarray, k: int = 10) -> List[Dict[str, Any]]:
         """
@@ -572,7 +539,7 @@ class BGEIngestion():
             
             # Intrinsic dimensionality estimation
             variance_ratios = pca.explained_variance_ratio_
-            intrinsic_dim = np.sum(variance_ratios > 0.01)  # Threshold for meaningful dimensions
+            intrinsic_dim = self.geometry_processor.compute_intrinsic_dimension(variance_ratios)
             
             tangent_spaces.append({
                 'tangent_basis': pca.components_,
@@ -630,6 +597,9 @@ class BGEIngestion():
         """
         Transform static BGE embeddings into dynamic field generators.
         
+        ENTERPRISE OPTIMIZATION: Uses shared heat kernel evolution engine for
+        consistent field dynamics across BGE and MPNet implementations.
+        
         Core method for field theory - uses spectral analysis of discrete Laplacian
         to generate time-evolved field dynamics via heat kernel. Addresses the
         fundamental challenge of creating smooth fields from discrete embeddings.
@@ -648,39 +618,12 @@ class BGEIngestion():
         laplacian = self.compute_discrete_laplacian(normalized)
         eigenvals, eigenvecs = np.linalg.eigh(laplacian)
         
-        # Heat kernel evolution for temporal dynamics
-        time_param = field_params.get('time', 1.0)
-        temperature = field_params.get('temperature', 0.1)
+        # Use enterprise-grade heat kernel evolution engine
+        evolution_result = self.heat_kernel_engine.process_field_evolution(
+            normalized, eigenvals, eigenvecs, field_params
+        )
         
-        # Spectral filtering for smoothness
-        cutoff_freq = field_params.get('frequency_cutoff', 0.1)
-        active_modes = eigenvals <= cutoff_freq
-        
-        # Generate field evolution via heat equation
-        heat_kernel = eigenvecs[:, active_modes] @ np.diag(
-            np.exp(-eigenvals[active_modes] * time_param / temperature)
-        ) @ eigenvecs[:, active_modes].T
-        
-        field_evolution = heat_kernel @ normalized
-        
-        # Extract field properties
-        field_strength = np.linalg.norm(field_evolution - normalized, axis=1)
-        coherence_measure = np.mean([
-            np.corrcoef(normalized[i], field_evolution[i])[0,1] 
-            for i in range(len(normalized))
-            if not np.isnan(np.corrcoef(normalized[i], field_evolution[i])[0,1])
-        ])
-        
-        return {
-            'static_embedding': normalized,
-            'field_evolution': field_evolution,
-            'spectral_basis': eigenvecs[:, :20] if len(eigenvecs[0]) >= 20 else eigenvecs,  # Top modes
-            'eigenfrequencies': eigenvals[:20] if len(eigenvals) >= 20 else eigenvals,
-            'field_strength': field_strength,
-            'temporal_coherence': float(coherence_measure) if not np.isnan(coherence_measure) else 0.0,
-            'active_modes': int(np.sum(active_modes)),
-            'evolution_parameters': field_params
-        }
+        return evolution_result
     
     def continuous_field_approximation(self, embeddings: np.ndarray, 
                                      query_points: np.ndarray) -> Dict[str, Any]:
@@ -743,6 +686,58 @@ class BGEIngestion():
             'query_points': query_points
         }
 
+    def benchmark_performance(self, embeddings_data: Dict[str, Any] = None) -> Dict[str, Any]:
+        """
+        Comprehensive performance benchmarking using enterprise optimization engines.
+        
+        ENTERPRISE DIAGNOSTICS: Validates optimization effectiveness across all
+        calculation engines for production performance monitoring.
+        
+        Args:
+            embeddings_data: Optional embedding data for testing
+            
+        Returns:
+            Comprehensive performance metrics
+        """
+        if embeddings_data is None:
+            embeddings_data = self.load_total_embeddings()
+        
+        embeddings = embeddings_data['embeddings']
+        sample_embeddings = embeddings[:100]  # Use sample for benchmarking
+        
+        # Benchmark similarity calculations
+        similarity_metrics = self.similarity_calculator.benchmark_performance(
+            embeddings, embeddings[0]
+        )
+        
+        # Benchmark correlation analysis
+        correlation_metrics = self.correlation_analyzer.benchmark_correlation_performance(
+            sample_embeddings
+        )
+        
+        # Benchmark heat kernel evolution
+        evolution_params = {'time': 0.5, 'temperature': 0.1, 'frequency_cutoff': 0.2}
+        evolution_metrics = self.heat_kernel_engine.benchmark_evolution_performance(
+            sample_embeddings, evolution_params
+        )
+        
+        # Benchmark spectral analysis
+        spectral_result = self.frequency_analyzer.analyze_spectral_properties(embeddings[0])
+        
+        return {
+            'model_info': {
+                'model_name': self.model_name,
+                'embedding_dimension': embeddings_data['embedding_dim'],
+                'vocab_size': embeddings_data['vocab_size'],
+                'device': embeddings_data['device']
+            },
+            'similarity_performance': similarity_metrics,
+            'correlation_performance': correlation_metrics,
+            'evolution_performance': evolution_metrics,
+            'spectral_features_available': len(spectral_result) > 0,
+            'enterprise_optimization_status': 'active'
+        }
+
 
 
 
@@ -794,5 +789,11 @@ if __name__ == "__main__":
     field_result = bge_ingestion.field_generator_transform(sample_embeddings, field_params)
     logger.info(f"Field transformation - Active modes: {field_result['active_modes']}")
     logger.info(f"Temporal coherence: {field_result['temporal_coherence']:.4f}")
+    
+    # Run comprehensive performance benchmark
+    logger.info("Running enterprise performance benchmark...")
+    benchmark_results = bge_ingestion.benchmark_performance()
+    logger.info(f"Similarity speedup: {benchmark_results['similarity_performance']['speedup_factor']:.1f}x")
+    logger.info(f"Enterprise optimization: {benchmark_results['enterprise_optimization_status']}")
     
     logger.info("BGE field theory ingestion and analysis completed successfully.")
