@@ -1,20 +1,39 @@
 
 """
-    BGEIngestion class for loading and managing BGE embeddings.
+BGE Ingestion Helper - Unconventional Field Theory Approach to Semantic Embeddings
 
-    For my Conceptual Charge I need to create an initial universe of charges from embeddings.
-    This class handles loading the BGE model, managing device compatibility, and an access point for our embeddings.
+NOVEL THEORETICAL APPROACH: This class implements an unconventional method of treating
+static BGE embeddings as the foundation for dynamic field theory applications in social
+construct modeling. This approach bridges discrete semantic representations with 
+continuous field mathematics - a departure from traditional NLP embedding usage.
 
-    Unlike other ingestion classes, we aren't focused on converting text to embeddings here.
-    Instead, we need to disect the BGE model and provide a way to access the embeddings
-    directly for further processing.
+CORE INNOVATION: Instead of treating BGE-Large-v1.5 embeddings as static retrieval vectors,
+we extract their intrinsic geometric structure to bootstrap a continuous field theory.
+The 1024-dimensional unit hypersphere S^1023 becomes a product manifold supporting
+differential operations for the complete Q(τ, C, s) conceptual charge formula.
 
-    It provides the initial rendering for our Product Manifold, as we need to convert these embeddings into conceptual charges.
-    
-    It supports automatic detection of available on-device
-    hardware (CPU, CUDA GPU, or MPS for Apple Silicon) and handles model loading accordingly.
+MATHEMATICAL FOUNDATION:
+- BGE embeddings as discrete samples of an underlying continuous semantic field
+- Unit hypersphere geometry (S^1023) provides natural Riemannian structure
+- Concentrated similarities [0.6, 1.0] from contrastive training create stable neighborhoods
+- 24-layer transformer hierarchy encodes multi-scale semantic relationships
+- Local manifold approximations enable differential field operations
 
-    
+FIELD THEORY BRIDGE:
+1. Extract token embeddings → Initial field samples
+2. Compute tangent spaces → Local differential structure  
+3. Build discrete Laplacian → Field evolution operators
+4. Generate continuous approximations → Smooth field dynamics
+5. Apply Q(τ, C, s) transformations → Dynamic conceptual charges
+
+This unconventional approach enables treating semantic space as a physical field
+supporting the mathematical formulations required for social construct field theory,
+moving beyond traditional embedding similarity computations to true field dynamics.
+
+WARNING: This is experimental mathematics combining NLP embeddings with field theory.
+Traditional embedding applications focus on similarity/retrieval. Our approach
+treats embeddings as discrete samples of continuous semantic fields requiring
+sophisticated mathematical machinery for proper field-theoretic operations.
 """
 
 
@@ -47,17 +66,34 @@ HAS_RICH_LOGGER = True
 
 
 class BGEIngestion():
+    """
+    Unconventional Field Theory Helper for BGE Embeddings
+    
+    EXPERIMENTAL APPROACH: This class treats BGE embeddings as discrete samples
+    of an underlying continuous semantic field, enabling field-theoretic operations
+    for social construct modeling. This is NOT traditional embedding usage.
+    
+    INNOVATION: Bridges the gap between discrete NLP embeddings and continuous
+    field mathematics required for Q(τ, C, s) conceptual charge calculations.
+    """
+    
     def  __init__(self,model_name: str = "BAAI/bge-large-en-v1.5", random_seed: Optional[int] = None) -> None:
         """
-        Initialize the BGEIngestion class with a specific model.
+        Initialize unconventional field theory extraction from BGE model.
 
-        Will automatically detect available hardware and load the BGE model
-        on the most appropriate device (CUDA GPU, MPS for Apple Silicon, or CPU).
-    
+        APPROACH: Loads BGE model not for traditional text similarity, but to extract
+        token-level embeddings as discrete field samples. These become the foundation
+        for continuous field approximations supporting differential field operations.
+
+        AUTO-DETECTS: Hardware (CUDA GPU, MPS Apple Silicon, or CPU) for optimal
+        mathematical computation performance during field theory operations.
 
         Args:
-            model_name (str): Name of the BGE model to use.
-            random_seed (Optional[int]): Seed for reproducibility.
+            model_name (str): BGE model for field sampling (default: bge-large-en-v1.5)
+            random_seed (Optional[int]): Reproducibility seed for field computations
+            
+        Note: This is experimental mathematics - we're using NLP embeddings in ways
+        not originally intended, requiring careful mathematical treatment.
         """
         self.model_name = model_name
         self.random_seed = random_seed
@@ -125,16 +161,35 @@ class BGEIngestion():
     
     def load_total_embeddings(self) -> Dict[str, Any]:
         """
-        Extract all token embeddings and metadata from the BGE model.
+        UNCONVENTIONAL: Extract complete token embedding matrix as discrete field samples.
+        
+        FIELD THEORY PERSPECTIVE: Each token embedding represents a discrete sample
+        of the underlying continuous semantic field. The full embedding matrix
+        (~30K tokens × 1024 dims) provides the initial discrete field data for
+        continuous field reconstruction and Q(τ, C, s) charge calculations.
+        
+        MATHEMATICAL STRUCTURE:
+        - Token embeddings → Discrete field samples on S^1023
+        - Vocabulary mappings → Field coordinate system
+        - Embedding dimensions → Field component basis
+        - Device info → Computational context for field operations
+        
+        This departs from traditional NLP usage where embeddings serve retrieval.
+        Here, they bootstrap continuous field theory for social construct modeling.
         
         Returns:
-            Dict containing:
-            - 'embeddings': Token embedding matrix [vocab_size, embedding_dim]
-            - 'vocab_size': Size of vocabulary
-            - 'embedding_dim': Dimension of embeddings
-            - 'tokenizer': Tokenizer for token-to-id mapping
-            - 'token_to_id': Dictionary mapping tokens to IDs
-            - 'id_to_token': Dictionary mapping IDs to tokens
+            Dict containing discrete field sampling data:
+            - 'embeddings': Complete token matrix [vocab_size, 1024] as field samples
+            - 'vocab_size': Number of discrete field sample points
+            - 'embedding_dim': Field dimensionality (1024 for BGE-Large)
+            - 'tokenizer': Field coordinate mapping system
+            - 'token_to_id': Semantic → field coordinate mapping
+            - 'id_to_token': Field coordinate → semantic mapping
+            - 'device': Computational backend for field mathematics
+            
+        WARNING: This extracts ~30K vectors totaling ~120MB of field data.
+        Traditional embedding usage accesses individual vectors. Our approach
+        requires the complete manifold structure for field theory operations.
         """
         if self.model is None:
             raise RuntimeError("BGE model is not loaded. Call _load_model() first.")
@@ -208,19 +263,37 @@ class BGEIngestion():
             raise RuntimeError(f"Failed to extract embeddings: {e}")
         
 
-    def search_embeddings(self, query: str, top_k: int = 100) -> Dict[str, Any]:
+    def search_embeddings(self, query: Union[str, np.ndarray], top_k: int = 100) -> Dict[str, Any]:
         """
-        Search embeddings and extract manifold properties for conceptual charge calculation.
+        FIELD THEORY SEARCH: Locate relevant field regions and extract manifold properties.
         
-        For each embedding, extracts mathematical context including geometric, field-theoretic,
-        and topological properties needed for Q(τ, C, s) computation.
+        UNCONVENTIONAL APPROACH: Instead of traditional semantic similarity search,
+        this method identifies field regions relevant to the query and extracts the
+        comprehensive mathematical properties needed for Q(τ, C, s) charge calculations.
+        
+        MATHEMATICAL PROCESS:
+        1. Query encoding → Field probe vector
+        2. Cosine similarity → Field correlation analysis  
+        3. Top-k selection → Relevant field region identification
+        4. Manifold analysis → Local geometric structure extraction
+        5. Property computation → Field-theoretic parameters for charges
+        
+        Each "search result" becomes a discrete field sample with full mathematical
+        context for continuous field reconstruction and charge generation.
 
         Args:
-            query (str): The query string to search for in the embeddings.
-            top_k (int): Number of top similar embeddings to analyze.
+            query (Union[str, np.ndarray]): Text probe OR embedding vector for field region identification
+            top_k (int): Number of field samples to analyze (default: 100)
 
         Returns:
-            Dict containing search results with manifold properties for each embedding.
+            Dict containing field analysis results:
+            - Discrete field samples with complete manifold properties
+            - Geometric features for differential operations  
+            - Topological characteristics for field structure
+            - Mathematical context for Q(τ, C, s) calculations
+            
+        Note: This is NOT traditional similarity search. We're extracting mathematical
+        field properties from semantic embedding space for field theory applications.
         """
         if self.model is None:
             raise RuntimeError("BGE model is not loaded. Call _load_model() first.")
@@ -229,8 +302,15 @@ class BGEIngestion():
         if not hasattr(self, '_embedding_data'):
             self._embedding_data = self.load_total_embeddings()
         
-        # Encode the query
-        query_embedding = self.model.encode(query, convert_to_tensor=True).cpu().numpy()
+        # Handle both text and embedding queries
+        if isinstance(query, str):
+            # Text query - encode it
+            query_embedding = self.model.encode(query, convert_to_tensor=True).cpu().numpy()
+        elif isinstance(query, np.ndarray):
+            # Already an embedding vector - use directly
+            query_embedding = query
+        else:
+            raise ValueError(f"Query must be str or np.ndarray, got {type(query)}")
         all_embeddings = self._embedding_data['embeddings']
         id_to_token = self._embedding_data['id_to_token']
         
@@ -243,7 +323,8 @@ class BGEIngestion():
         top_indices = np.argsort(similarities)[-top_k:][::-1]
         
         # Prepare manifold analysis tools
-        pca = PCA(n_components=min(50, all_embeddings.shape[1]))
+        pca_components = min(50, all_embeddings.shape[1], len(top_indices) - 1)
+        pca = PCA(n_components=pca_components)
         pca.fit(all_embeddings[top_indices])
         
         knn_model = NearestNeighbors(n_neighbors=min(20, len(top_indices)), metric='cosine')
@@ -283,17 +364,43 @@ class BGEIngestion():
                                    all_embeddings: np.ndarray, pca: PCA, 
                                    knn_model: NearestNeighbors) -> Dict[str, Any]:
         """
-        Extract comprehensive manifold properties from an embedding for field theory calculations.
+        FIELD THEORY CORE: Extract complete mathematical properties for Q(τ, C, s) charges.
+        
+        UNCONVENTIONAL MATHEMATICS: This method computes comprehensive field-theoretic
+        properties from discrete embedding samples. These properties directly feed
+        into the complete conceptual charge formula Q(τ, C, s), requiring sophisticated
+        mathematical analysis of the local manifold structure.
+        
+        MATHEMATICAL EXTRACTION:
+        - Basic Properties: Magnitude, vector data for charge foundation
+        - Geometric: Local density, curvature, metric eigenvalues for field geometry
+        - Directional: Principal components, phase angles for trajectory operators T(τ,C,s)
+        - Field Properties: Gradients, Hessians for field dynamics Φ^semantic(τ,s)
+        - Persistence: Radius, scores for observational persistence Ψ_persistence(s-s₀)
+        - Coupling: Correlations for emotional trajectory E^trajectory(τ,s)
+        - Spectral: Frequencies for phase integration e^(iθ_total(τ,C,s))
+        - Topological: Boundary detection, loop structures for field coherence
+        
+        Each property serves specific components of the Q(τ, C, s) formula, enabling
+        transformation from static BGE embeddings to dynamic conceptual charges.
         
         Args:
-            embedding: The embedding vector to analyze
-            index: Index in the top-k set  
-            all_embeddings: All embeddings in the analysis set
-            pca: Fitted PCA model for dimensionality analysis
-            knn_model: Fitted KNN model for local neighborhood analysis
+            embedding: Discrete field sample to analyze
+            index: Sample position in field region
+            all_embeddings: Local field context for manifold analysis
+            pca: Dimensional reduction for tangent space approximation
+            knn_model: Neighborhood analysis for local field structure
             
         Returns:
-            Dict containing all manifold properties needed for conceptual charge calculation
+            Dict containing complete field-theoretic properties:
+            - All mathematical components needed for Q(τ, C, s) calculation
+            - Geometric properties for differential field operations
+            - Spectral data for phase relationships and field evolution
+            - Topological features for field coherence and boundary detection
+            
+        WARNING: This is experimental field theory mathematics applied to NLP embeddings.
+        Traditional embedding analysis focuses on similarity. Our approach extracts
+        differential geometry and field theory properties for charge generation.
         """
         # Basic properties
         magnitude = np.linalg.norm(embedding)
@@ -318,7 +425,10 @@ class BGEIngestion():
             metric_eigenvalues = np.ones(embedding.shape[0])
         
         # Principal component projection
-        e_i_projected = pca.transform([embedding])[0]
+        if pca.n_components_ > 0:
+            e_i_projected = pca.transform([embedding])[0]
+        else:
+            e_i_projected = np.zeros(min(50, embedding.shape[0]))
         
         # Phase angles in complex representation
         complex_embedding = embedding[:len(embedding)//2] + 1j * embedding[len(embedding)//2:]
@@ -424,6 +534,215 @@ class BGEIngestion():
         
         return features
 
+    def extract_tangent_spaces(self, embeddings: np.ndarray, k: int = 10) -> List[Dict[str, Any]]:
+        """
+        Extract local tangent spaces using local PCA for differential geometry operations.
+        
+        Critical for field theory as BGE embeddings are discrete points requiring
+        smooth approximations for differential operations. Uses local neighborhoods
+        to approximate tangent spaces at each point.
+        
+        Args:
+            embeddings: Array of embedding vectors to analyze
+            k: Number of neighbors for local analysis
+            
+        Returns:
+            List of tangent space properties for each embedding
+        """
+        from sklearn.neighbors import NearestNeighbors
+        
+        nbrs = NearestNeighbors(n_neighbors=k, metric='cosine').fit(embeddings)
+        _, indices = nbrs.kneighbors(embeddings)
+        
+        tangent_spaces = []
+        for i in range(len(embeddings)):
+            # Local neighborhood analysis  
+            local_points = embeddings[indices[i]]
+            centered = local_points - local_points.mean(axis=0)
+            
+            # Local PCA for tangent space approximation
+            max_components = min(k-1, 20, centered.shape[0], centered.shape[1])
+            if max_components > 0:
+                pca = PCA(n_components=max_components)
+                pca.fit(centered)
+            else:
+                # Fallback for insufficient data
+                pca = PCA(n_components=1)
+                pca.fit(np.ones((2, centered.shape[1])))  # Dummy data
+            
+            # Intrinsic dimensionality estimation
+            variance_ratios = pca.explained_variance_ratio_
+            intrinsic_dim = np.sum(variance_ratios > 0.01)  # Threshold for meaningful dimensions
+            
+            tangent_spaces.append({
+                'tangent_basis': pca.components_,
+                'variance_explained': variance_ratios,
+                'intrinsic_dimension': int(intrinsic_dim),
+                'local_curvature_estimate': float(1.0 - variance_ratios[0]) if len(variance_ratios) > 0 else 0.0,
+                'neighborhood_coherence': float(np.sum(variance_ratios[:3])) if len(variance_ratios) >= 3 else 0.0
+            })
+        
+        logger.info(f"Extracted tangent spaces for {len(embeddings)} embeddings")
+        return tangent_spaces
+    
+    def compute_discrete_laplacian(self, embeddings: np.ndarray, k: int = 10) -> np.ndarray:
+        """
+        Compute discrete Laplace-Beltrami operator for field evolution equations.
+        
+        Essential for field theory applications - converts discrete embeddings into
+        operators supporting heat kernel evolution and spectral analysis. Uses
+        graph-based approximation with Gaussian kernel weights.
+        
+        Args:
+            embeddings: Array of embedding vectors
+            k: Number of neighbors for graph construction
+            
+        Returns:
+            Normalized discrete Laplacian matrix
+        """
+        from sklearn.neighbors import kneighbors_graph
+        
+        # Build k-NN graph with cosine metric (natural for unit sphere)
+        W = kneighbors_graph(embeddings, k, mode='distance', metric='cosine')
+        W = 0.5 * (W + W.T)  # Symmetrize
+        
+        # Convert distances to similarities with Gaussian kernel
+        # Use median distance for adaptive bandwidth
+        nonzero_distances = W.data[W.data > 0]
+        if len(nonzero_distances) > 0:
+            sigma = np.median(nonzero_distances)
+            W.data = np.exp(-W.data**2 / (2 * sigma**2))
+        
+        # Degree matrix and Laplacian
+        W_dense = W.toarray()
+        D = np.diag(np.sum(W_dense, axis=1))
+        L = D - W_dense
+        
+        # Normalized Laplacian for stability
+        D_inv_sqrt = np.diag(1.0 / np.sqrt(np.diag(D) + 1e-10))
+        L_norm = D_inv_sqrt @ L @ D_inv_sqrt
+        
+        logger.info(f"Computed discrete Laplacian for {len(embeddings)} embeddings")
+        return L_norm
+    
+    def field_generator_transform(self, embeddings: np.ndarray, 
+                                field_params: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Transform static BGE embeddings into dynamic field generators.
+        
+        Core method for field theory - uses spectral analysis of discrete Laplacian
+        to generate time-evolved field dynamics via heat kernel. Addresses the
+        fundamental challenge of creating smooth fields from discrete embeddings.
+        
+        Args:
+            embeddings: Static embedding vectors to transform
+            field_params: Parameters for field evolution (time, temperature, etc.)
+            
+        Returns:
+            Dict containing field generator components and evolution data
+        """
+        # Normalize to unit hypersphere (BGE's natural geometry)
+        normalized = embeddings / np.linalg.norm(embeddings, axis=1, keepdims=True)
+        
+        # Compute spectral decomposition for field evolution
+        laplacian = self.compute_discrete_laplacian(normalized)
+        eigenvals, eigenvecs = np.linalg.eigh(laplacian)
+        
+        # Heat kernel evolution for temporal dynamics
+        time_param = field_params.get('time', 1.0)
+        temperature = field_params.get('temperature', 0.1)
+        
+        # Spectral filtering for smoothness
+        cutoff_freq = field_params.get('frequency_cutoff', 0.1)
+        active_modes = eigenvals <= cutoff_freq
+        
+        # Generate field evolution via heat equation
+        heat_kernel = eigenvecs[:, active_modes] @ np.diag(
+            np.exp(-eigenvals[active_modes] * time_param / temperature)
+        ) @ eigenvecs[:, active_modes].T
+        
+        field_evolution = heat_kernel @ normalized
+        
+        # Extract field properties
+        field_strength = np.linalg.norm(field_evolution - normalized, axis=1)
+        coherence_measure = np.mean([
+            np.corrcoef(normalized[i], field_evolution[i])[0,1] 
+            for i in range(len(normalized))
+            if not np.isnan(np.corrcoef(normalized[i], field_evolution[i])[0,1])
+        ])
+        
+        return {
+            'static_embedding': normalized,
+            'field_evolution': field_evolution,
+            'spectral_basis': eigenvecs[:, :20] if len(eigenvecs[0]) >= 20 else eigenvecs,  # Top modes
+            'eigenfrequencies': eigenvals[:20] if len(eigenvals) >= 20 else eigenvals,
+            'field_strength': field_strength,
+            'temporal_coherence': float(coherence_measure) if not np.isnan(coherence_measure) else 0.0,
+            'active_modes': int(np.sum(active_modes)),
+            'evolution_parameters': field_params
+        }
+    
+    def continuous_field_approximation(self, embeddings: np.ndarray, 
+                                     query_points: np.ndarray) -> Dict[str, Any]:
+        """
+        Generate continuous field approximation using Gaussian process interpolation.
+        
+        Addresses discrete→continuous challenge by creating smooth field interpolation
+        between discrete embedding points. Essential for supporting differential
+        operations required by field theory equations.
+        
+        Args:
+            embeddings: Known embedding points
+            query_points: Points where field values are needed
+            
+        Returns:
+            Dict containing interpolated field values and uncertainty estimates
+        """
+        from sklearn.gaussian_process import GaussianProcessRegressor
+        from sklearn.gaussian_process.kernels import RBF, WhiteKernel
+        
+        # Use RBF kernel appropriate for smooth field interpolation
+        kernel = RBF(length_scale=1.0, length_scale_bounds=(0.1, 10.0)) + \
+                WhiteKernel(noise_level=0.01, noise_level_bounds=(1e-10, 1e1))
+        
+        # Fit Gaussian process for each dimension
+        field_interpolations = []
+        uncertainties = []
+        
+        # Process in batches to handle 1024 dimensions efficiently
+        batch_size = 50
+        for i in range(0, embeddings.shape[1], batch_size):
+            end_idx = min(i + batch_size, embeddings.shape[1])
+            batch_dims = embeddings[:, i:end_idx]
+            
+            gp = GaussianProcessRegressor(kernel=kernel, random_state=42)
+            gp.fit(embeddings, batch_dims)
+            
+            # Predict at query points
+            batch_predictions, batch_uncertainties = gp.predict(query_points, return_std=True)
+            
+            field_interpolations.append(batch_predictions)
+            uncertainties.append(batch_uncertainties)
+        
+        # Combine batch results
+        field_values = np.concatenate(field_interpolations, axis=1)
+        field_uncertainties = np.concatenate(uncertainties, axis=1)
+        
+        # Compute field quality metrics
+        mean_uncertainty = np.mean(field_uncertainties)
+        max_uncertainty = np.max(field_uncertainties)
+        
+        logger.info(f"Generated continuous field approximation for {len(query_points)} query points")
+        
+        return {
+            'field_values': field_values,
+            'uncertainties': field_uncertainties,
+            'mean_uncertainty': float(mean_uncertainty),
+            'max_uncertainty': float(max_uncertainty),
+            'interpolation_quality': float(1.0 / (1.0 + mean_uncertainty)),  # Higher is better
+            'query_points': query_points
+        }
+
 
 
 
@@ -448,11 +767,32 @@ if __name__ == "__main__":
     
     logger.info(f"Total token embeddings extracted: {len(embeddings)}")
 
-    # Example search for embeddings similar to  from our embeddings list
-    query = embeddings[40]
-    search_results = bge_ingestion.search_embeddings(query=query, top_k=5)
-    logger.info(f"Search results for query embedding: {query[:10]}... (truncated)")
+    # Example field theory search using embedding vector (for iterating through total embeddings)
+    query_embedding = embeddings[40]
+    token_name = id_to_token.get(40, f"<UNK_40>")
+    search_results = bge_ingestion.search_embeddings(query=query_embedding, top_k=5)
+    logger.info(f"Field theory search results for token '{token_name}' embedding:")
     for result in search_results['embeddings']:
         logger.info(f"Token: {result['token']} | Similarity: {result['similarity']:.4f} | "
-                    f"Manifold properties: {result['manifold_properties']}")
-    logger.info("BGE ingestion and search completed successfully.")
+                    f"Manifold properties keys: {list(result['manifold_properties'].keys())}")
+    
+    # Also demonstrate text query capability
+    text_query = "social"
+    text_results = bge_ingestion.search_embeddings(query=text_query, top_k=3)
+    logger.info(f"Text query results for '{text_query}':")
+    for result in text_results['embeddings']:
+        logger.info(f"Token: {result['token']} | Similarity: {result['similarity']:.4f}")
+        
+    # Demonstrate tangent space extraction
+    sample_embeddings = embeddings[:20]  # Use first 20 embeddings
+    tangent_spaces = bge_ingestion.extract_tangent_spaces(sample_embeddings, k=5)
+    logger.info(f"Extracted tangent spaces for {len(tangent_spaces)} embeddings")
+    logger.info(f"Sample tangent space intrinsic dimension: {tangent_spaces[0]['intrinsic_dimension']}")
+    
+    # Demonstrate field generator transformation
+    field_params = {'time': 0.5, 'temperature': 0.1, 'frequency_cutoff': 0.2}
+    field_result = bge_ingestion.field_generator_transform(sample_embeddings, field_params)
+    logger.info(f"Field transformation - Active modes: {field_result['active_modes']}")
+    logger.info(f"Temporal coherence: {field_result['temporal_coherence']:.4f}")
+    
+    logger.info("BGE field theory ingestion and analysis completed successfully.")

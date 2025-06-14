@@ -1,477 +1,796 @@
 """
-MPNet Ingestion - all-mpnet-base-v2 embedding generation for social universe construction
+MPNet Ingestion Helper - Unconventional Field Theory Approach to Semantic Embeddings
 
-This module provides a specialized interface for converting text into
-semantic embeddings using the all-mpnet-base-v2 model architecture.
-Optimized for social construct analysis and conceptual charge generation
-in multi-dimensional social universes.
+NOVEL THEORETICAL APPROACH: This class implements an unconventional method of treating
+static MPNet embeddings as the foundation for dynamic field theory applications in social
+construct modeling. This approach bridges discrete semantic representations with 
+continuous field mathematics - a departure from traditional NLP embedding usage.
+
+CORE INNOVATION: Instead of treating all-mpnet-base-v2 embeddings as static retrieval vectors,
+we extract their intrinsic geometric structure to bootstrap a continuous field theory.
+The 768-dimensional unit hypersphere S^767 becomes a product manifold supporting
+differential operations for the complete Q(τ, C, s) conceptual charge formula.
+
+MATHEMATICAL FOUNDATION:
+- MPNet embeddings as discrete samples of an underlying continuous semantic field
+- Unit hypersphere geometry (S^767) provides natural Riemannian structure
+- Concentrated similarities [0.6, 1.0] from contrastive training create stable neighborhoods
+- 12-layer transformer hierarchy encodes multi-scale semantic relationships
+- Local manifold approximations enable differential field operations
+
+FIELD THEORY BRIDGE:
+1. Extract token embeddings → Initial field samples
+2. Compute tangent spaces → Local differential structure  
+3. Build discrete Laplacian → Field evolution operators
+4. Generate continuous approximations → Smooth field dynamics
+5. Apply Q(τ, C, s) transformations → Dynamic conceptual charges
+
+This unconventional approach enables treating semantic space as a physical field
+supporting the mathematical formulations required for social construct field theory,
+moving beyond traditional embedding similarity computations to true field dynamics.
+
+WARNING: This is experimental mathematics combining NLP embeddings with field theory.
+Traditional embedding applications focus on similarity/retrieval. Our approach
+treats embeddings as discrete samples of continuous semantic fields requiring
+sophisticated mathematical machinery for proper field-theoretic operations.
 """
 
+
+
+import sys
+from pathlib import Path
+
+
+# Ensure the project root is in the path for imports
+project_root = Path(__file__).resolve().parent.parent.parent.parent
+sys.path.insert(0, str(project_root))
+
+# Import necessary modules from the project
 import numpy as np
+import numba as nb
 import hashlib
 from typing import List, Optional, Dict, Any, Union
-from .semantic_embedding import SemanticEmbedding
-import logging
+import torch
+from sentence_transformers import SentenceTransformer
+from sklearn.decomposition import PCA
+from sklearn.neighbors import NearestNeighbors
+from scipy.spatial.distance import pdist, squareform
+from scipy.linalg import eigh
+import scipy.fft
 
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+from Sysnpire.utils.logger import get_logger
+logger = get_logger(__name__)
+HAS_RICH_LOGGER = True
 
 
-class MPNetIngestion:
+
+class MPNetIngestion():
     """
-    MPNet Ingestion Engine for Social Universe Construction
+    Unconventional Field Theory Helper for MPNet Embeddings
     
-    This class provides a specialized interface for converting raw text into
-    semantic embeddings using the all-mpnet-base-v2 model simulation.
-    Specifically designed for social universe construction with enhanced
-    social construct detection and multi-dimensional semantic analysis.
+    EXPERIMENTAL APPROACH: This class treats MPNet embeddings as discrete samples
+    of an underlying continuous semantic field, enabling field-theoretic operations
+    for social construct modeling. This is NOT traditional embedding usage.
     
-    The ingestion process creates 768-dimensional embeddings optimized for:
-    - Social construct identification and analysis
-    - Power dynamics and relationship modeling
-    - Collective behavior pattern recognition
-    - Identity formation and cultural context extraction
-    - Enhanced semantic space characteristics for field theory
-    
-    Attributes:
-        embedding_dim (int): Fixed at 768 dimensions for MPNet compatibility
-        model_name (str): Full name of the all-mpnet-base-v2 model
-        cache_embeddings (bool): Whether to cache embeddings for repeated texts
-        social_categories (Dict): Extended social construct categories
-        _embedding_cache (Dict): Internal cache for processed embeddings
+    INNOVATION: Bridges the gap between discrete NLP embeddings and continuous
+    field mathematics required for Q(τ, C, s) conceptual charge calculations.
     """
     
-    def __init__(self, 
-                 cache_embeddings: bool = True,
-                 random_seed: Optional[int] = None,
-                 social_focus: bool = True):
+    def  __init__(self,model_name: str = "sentence-transformers/all-mpnet-base-v2", random_seed: Optional[int] = None) -> None:
         """
-        Initialize the MPNet Ingestion Engine for social universe construction.
-        
+        Initialize unconventional field theory extraction from MPNet model.
+
+        APPROACH: Loads MPNet model not for traditional text similarity, but to extract
+        token-level embeddings as discrete field samples. These become the foundation
+        for continuous field approximations supporting differential field operations.
+
+        AUTO-DETECTS: Hardware (CUDA GPU, MPS Apple Silicon, or CPU) for optimal
+        mathematical computation performance during field theory operations.
+
         Args:
-            cache_embeddings (bool): Enable caching for performance optimization
-            random_seed (int, optional): Seed for reproducible deterministic results
-            social_focus (bool): Enable enhanced social construct analysis features
+            model_name (str): MPNet model for field sampling (default: all-mpnet-base-v2)
+            random_seed (Optional[int]): Reproducibility seed for field computations
+            
+        Note: This is experimental mathematics - we're using NLP embeddings in ways
+        not originally intended, requiring careful mathematical treatment.
         """
-        self.embedding_dim = 768
-        self.model_name = "sentence-transformers/all-mpnet-base-v2"
-        self.cache_embeddings = cache_embeddings
+        self.model_name = model_name
         self.random_seed = random_seed
-        self.social_focus = social_focus
+        self.model = self._load_model()
         
-        self._embedding_cache: Dict[str, SemanticEmbedding] = {}
+        if random_seed is not None:
+            torch.manual_seed(random_seed)
+            np.random.seed(random_seed)
         
-        self.social_categories = self._initialize_social_categories()
-        
-        logger.info(f"MPNet Ingestion initialized with {self.embedding_dim}D embeddings "
-                   f"(social_focus={'enabled' if social_focus else 'disabled'})")
-    
-    def _initialize_social_categories(self) -> Dict[str, List[str]]:
+        self.cache = {}
+
+    def _load_model(self) -> None:
         """
-        Initialize comprehensive social construct categories for MPNet analysis.
+        Load the MPNet model with automatic CPU/GPU detection.
         
-        These categories are specifically designed for social universe construction
-        and capture the multi-dimensional aspects of social constructs that are
-        essential for field theory applications.
+        This method intelligently detects available hardware and loads the
+        all-mpnet-base-v2 model on the most appropriate device:
+        - CUDA GPU if available and working
+        - MPS (Apple Silicon) if available 
+        - CPU as fallback
         
-        Returns:
-            Dict[str, List[str]]: Comprehensive social semantic categories
+        The model is cached after first load for efficiency.
         """
-        categories = {
-            'social_constructs': [
-                'culture', 'society', 'norm', 'value', 'belief', 'tradition',
-                'custom', 'ritual', 'practice', 'institution', 'convention'
-            ],
-            'power_dynamics': [
-                'authority', 'control', 'influence', 'hierarchy', 'leadership',
-                'dominance', 'submission', 'governance', 'command', 'rule'
-            ],
-            'collective_behavior': [
-                'movement', 'trend', 'consensus', 'collective', 'mass',
-                'crowd', 'mob', 'solidarity', 'unity', 'cooperation'
-            ],
-            'identity_formation': [
-                'identity', 'self', 'belonging', 'membership', 'role',
-                'persona', 'character', 'reputation', 'status', 'position'
-            ],
-            'social_relationships': [
-                'relationship', 'connection', 'bond', 'tie', 'link',
-                'association', 'partnership', 'alliance', 'network', 'community'
-            ],
-            'emotional_resonance': [
-                'empathy', 'compassion', 'sympathy', 'understanding', 'care',
-                'concern', 'support', 'comfort', 'encouragement', 'validation'
-            ],
-            'conflict_resolution': [
-                'conflict', 'resolution', 'negotiation', 'compromise', 'mediation',
-                'arbitration', 'peace', 'harmony', 'reconciliation', 'agreement'
-            ],
-            'cultural_transmission': [
-                'education', 'learning', 'teaching', 'knowledge', 'wisdom',
-                'tradition', 'heritage', 'legacy', 'inheritance', 'passing'
-            ],
-            'social_change': [
-                'change', 'transformation', 'evolution', 'revolution', 'reform',
-                'progress', 'innovation', 'adaptation', 'development', 'growth'
-            ],
-            'communication_patterns': [
-                'communication', 'language', 'speech', 'dialogue', 'conversation',
-                'discourse', 'narrative', 'story', 'message', 'expression'
-            ],
-            'structural_elements': [
-                'structure', 'system', 'organization', 'framework', 'pattern',
-                'order', 'arrangement', 'design', 'architecture', 'foundation'
-            ],
-            'temporal_dynamics': [
-                'time', 'duration', 'sequence', 'rhythm', 'cycle',
-                'phase', 'stage', 'period', 'era', 'moment'
-            ]
-        }
-        
-        if not self.social_focus:
-            return {k: v for k, v in list(categories.items())[:6]}
-        
-        return categories
-    
-    def ingest_text(self, 
-                   text: str, 
-                   text_id: Optional[str] = None,
-                   metadata: Optional[Dict[str, Any]] = None) -> SemanticEmbedding:
-        """
-        Convert text into MPNet semantic embedding optimized for social analysis.
-        
-        This method processes input text through multiple stages specifically
-        designed for social universe construction:
-        
-        1. Social construct feature extraction and analysis
-        2. Multi-dimensional semantic vector generation using MPNet simulation
-        3. Social relationship pattern identification
-        4. Cultural and temporal context integration
-        5. Field-theoretic embedding optimization
-        
-        Args:
-            text (str): Input text to convert to social semantic embedding
-            text_id (str, optional): Unique identifier for the text
-            metadata (Dict, optional): Additional metadata for social context
-            
-        Returns:
-            SemanticEmbedding: Social-optimized semantic embedding ready for
-                              conceptual charge generation and universe placement
-                              
-        Raises:
-            ValueError: If text is empty or invalid for social analysis
-            TypeError: If text is not a string
-        """
-        if not isinstance(text, str):
-            raise TypeError("Input text must be a string")
-        
-        if not text.strip():
-            raise ValueError("Input text cannot be empty for social analysis")
-        
-        text_hash = self._generate_text_hash(text)
-        if self.cache_embeddings and text_hash in self._embedding_cache:
-            logger.debug(f"Retrieved cached MPNet embedding for: {text[:50]}...")
-            return self._embedding_cache[text_hash]
-        
+                
         try:
-            social_features = self._extract_social_features(text)
-            linguistic_features = self._extract_linguistic_features(text)
-            contextual_features = self._extract_contextual_features(text)
+            # Detect best available device
+            if torch.cuda.is_available():
+                self.device = torch.device('cuda')
+                device_name = torch.cuda.get_device_name(0)
+                logger.info(f"Using CUDA device: {device_name}")
+            elif hasattr(torch.backends, 'mps') and torch.backends.mps.is_available():
+                self.device = torch.device('mps')
+                logger.info(f"Using MPS device: Apple Silicon")
+            else:
+                self.device = torch.device('cpu')
+                logger.info("Using CPU for MPNet model")
             
-            embedding_vector = self._generate_mpnet_embedding(
-                text, social_features, linguistic_features, contextual_features
-            )
+            # Load the model
+            logger.info(f"Loading MPNet model '{self.model_name}' on {self.device}")
+            self.model = SentenceTransformer(self.model_name, device=self.device)
+
             
-            enhanced_metadata = metadata or {}
-            enhanced_metadata.update({
-                'model_type': 'mpnet',
-                'social_score': float(np.mean(social_features)),
-                'linguistic_complexity': float(np.std(linguistic_features)),
-                'contextual_richness': float(np.sum(contextual_features))
-            })
+            # Verify model loaded correctly
+            if self.model is None:
+                raise RuntimeError("Failed to load MPNet model")
             
-            semantic_embedding = SemanticEmbedding(
-                vector=embedding_vector,
-                text=text,
-                text_id=text_id,
-                metadata=enhanced_metadata
-            )
-            
-            if self.cache_embeddings:
-                self._embedding_cache[text_hash] = semantic_embedding
-            
-            logger.debug(f"Generated MPNet embedding: magnitude={semantic_embedding.magnitude:.4f}, "
-                        f"social_score={enhanced_metadata['social_score']:.4f}")
-            
-            return semantic_embedding
+            logger.info(f"MPNet model loaded successfully on {self.device}")
             
         except Exception as e:
-            logger.error(f"MPNet embedding generation failed for: {text[:50]}... Error: {e}")
-            raise
+            logger.error(f"Failed to load MPNet model: {e}")
+            # Fallback to CPU if GPU loading fails
+            if self.device != torch.device('cpu'):
+                logger.warning("Attempting fallback to CPU...")
+                try:
+                    self.device = torch.device('cpu')
+                    self.model = SentenceTransformer(self.model_name, device=self.device)
+                    logger.info("Successfully loaded model on CPU fallback")
+                except Exception as cpu_error:
+                    logger.error(f"CPU fallback also failed: {cpu_error}")
+                    raise RuntimeError(f"Unable to load MPNet model on any device: {e}")
+            else:
+                raise RuntimeError(f"Unable to load MPNet model: {e}")
+        return self.model
     
-    def ingest_batch(self, 
-                    texts: List[str], 
-                    text_ids: Optional[List[str]] = None,
-                    metadata: Optional[List[Dict[str, Any]]] = None) -> List[SemanticEmbedding]:
+    
+    def load_total_embeddings(self) -> Dict[str, Any]:
         """
-        Convert multiple texts into MPNet embeddings with social optimization.
+        UNCONVENTIONAL: Extract complete token embedding matrix as discrete field samples.
         
-        Processes multiple texts efficiently while maintaining the quality of
-        social construct analysis and semantic space characteristics needed
-        for social universe construction.
+        FIELD THEORY PERSPECTIVE: Each token embedding represents a discrete sample
+        of the underlying continuous semantic field. The full embedding matrix
+        (~30K tokens × 768 dims) provides the initial discrete field data for
+        continuous field reconstruction and Q(τ, C, s) charge calculations.
         
-        Args:
-            texts (List[str]): List of input texts for social analysis
-            text_ids (List[str], optional): List of unique identifiers
-            metadata (List[Dict], optional): List of metadata dictionaries
-            
+        MATHEMATICAL STRUCTURE:
+        - Token embeddings → Discrete field samples on S^767
+        - Vocabulary mappings → Field coordinate system
+        - Embedding dimensions → Field component basis
+        - Device info → Computational context for field operations
+        
+        This departs from traditional NLP usage where embeddings serve retrieval.
+        Here, they bootstrap continuous field theory for social construct modeling.
+        
         Returns:
-            List[SemanticEmbedding]: List of social-optimized semantic embeddings
+            Dict containing discrete field sampling data:
+            - 'embeddings': Complete token matrix [vocab_size, 768] as field samples
+            - 'vocab_size': Number of discrete field sample points
+            - 'embedding_dim': Field dimensionality (768 for MPNet)
+            - 'tokenizer': Field coordinate mapping system
+            - 'token_to_id': Semantic → field coordinate mapping
+            - 'id_to_token': Field coordinate → semantic mapping
+            - 'device': Computational backend for field mathematics
             
-        Raises:
-            ValueError: If input lists have mismatched lengths
+        WARNING: This extracts ~30K vectors totaling ~90MB of field data.
+        Traditional embedding usage accesses individual vectors. Our approach
+        requires the complete manifold structure for field theory operations.
         """
-        if not texts:
-            return []
+        if self.model is None:
+            raise RuntimeError("MPNet model is not loaded. Call _load_model() first.")
         
-        if text_ids and len(text_ids) != len(texts):
-            raise ValueError("text_ids length must match texts length")
-        
-        if metadata and len(metadata) != len(texts):
-            raise ValueError("metadata length must match texts length")
-        
-        if text_ids is None:
-            text_ids = [None] * len(texts)
-        
-        if metadata is None:
-            metadata = [None] * len(texts)
-        
-        embeddings = []
-        for i, text in enumerate(texts):
+        try:
+            # Access the underlying transformer model
+            transformer_model = self.model[0].auto_model
+            tokenizer = self.model[0].tokenizer
+            
+            # Extract token embeddings from the embedding layer
+            embedding_layer = transformer_model.embeddings.word_embeddings
+            token_embeddings = embedding_layer.weight.detach().cpu().numpy()
+            
+            vocab_size, embedding_dim = token_embeddings.shape
+            
+            # Get vocabulary mappings
+            vocab = tokenizer.get_vocab()
+            token_to_id = dict(vocab)
+            id_to_token = {v: k for k, v in vocab.items()}
+            
+            logger.info(f"Extracted {vocab_size} token embeddings of dimension {embedding_dim}")
+            logger.info(f"Vocabulary size: {len(vocab)}")
+            
+            return {
+                'embeddings': token_embeddings,
+                'vocab_size': vocab_size,
+                'embedding_dim': embedding_dim,
+                'tokenizer': tokenizer,
+                'token_to_id': token_to_id,
+                'id_to_token': id_to_token,
+                'device': str(self.device)
+            }
+            
+        except AttributeError as e:
+            logger.error(f"Failed to access MPNet model internals: {e}")
+            logger.info("Attempting alternative extraction method...")
+            
+            # Alternative approach: access through model components
             try:
-                embedding = self.ingest_text(
-                    text=text,
-                    text_id=text_ids[i],
-                    metadata=metadata[i]
-                )
-                embeddings.append(embedding)
-            except Exception as e:
-                logger.warning(f"Failed to process text {i} in batch: {text[:50]}... Error: {e}")
-                fallback_embedding = SemanticEmbedding(
-                    vector=np.zeros(self.embedding_dim),
-                    text=text,
-                    text_id=text_ids[i],
-                    metadata={'error': str(e), 'failed_mpnet_ingestion': True}
-                )
-                embeddings.append(fallback_embedding)
+                # Get the first module (usually the transformer)
+                first_module = self.model._modules['0']
+                transformer = first_module.auto_model
+                tokenizer = first_module.tokenizer
+                
+                # Extract embeddings
+                embeddings = transformer.get_input_embeddings().weight.detach().cpu().numpy()
+                vocab = tokenizer.get_vocab()
+                
+                vocab_size, embedding_dim = embeddings.shape
+                token_to_id = dict(vocab)
+                id_to_token = {v: k for k, v in vocab.items()}
+                
+                logger.info(f"Successfully extracted {vocab_size} embeddings via alternative method")
+                
+                return {
+                    'embeddings': embeddings,
+                    'vocab_size': vocab_size,
+                    'embedding_dim': embedding_dim,
+                    'tokenizer': tokenizer,
+                    'token_to_id': token_to_id,
+                    'id_to_token': id_to_token,
+                    'device': str(self.device)
+                }
+                
+            except Exception as alt_error:
+                logger.error(f"Alternative extraction also failed: {alt_error}")
+                raise RuntimeError(f"Unable to extract token embeddings from MPNet model: {e}")
         
-        logger.info(f"MPNet batch processing: {len(texts)} texts -> {len(embeddings)} embeddings")
-        return embeddings
-    
-    def _generate_text_hash(self, text: str) -> str:
-        """Generate hash for MPNet-specific text caching."""
-        mpnet_prefix = "mpnet_"
-        return mpnet_prefix + hashlib.md5(text.encode('utf-8')).hexdigest()
-    
-    def _extract_social_features(self, text: str) -> np.ndarray:
+        except Exception as e:
+            logger.error(f"Unexpected error during embedding extraction: {e}")
+            raise RuntimeError(f"Failed to extract embeddings: {e}")
+        
+
+    def search_embeddings(self, query: Union[str, np.ndarray], top_k: int = 100) -> Dict[str, Any]:
         """
-        Extract social construct features optimized for MPNet analysis.
+        FIELD THEORY SEARCH: Locate relevant field regions and extract manifold properties.
         
-        Analyzes text for social constructs, power dynamics, collective behavior,
-        and other social universe characteristics that are essential for
-        field-theoretic social modeling.
+        UNCONVENTIONAL APPROACH: Instead of traditional semantic similarity search,
+        this method identifies field regions relevant to the query and extracts the
+        comprehensive mathematical properties needed for Q(τ, C, s) charge calculations.
         
+        MATHEMATICAL PROCESS:
+        1. Query encoding → Field probe vector
+        2. Cosine similarity → Field correlation analysis  
+        3. Top-k selection → Relevant field region identification
+        4. Manifold analysis → Local geometric structure extraction
+        5. Property computation → Field-theoretic parameters for charges
+        
+        Each "search result" becomes a discrete field sample with full mathematical
+        context for continuous field reconstruction and charge generation.
+
         Args:
-            text (str): Input text for social feature extraction
-            
+            query (Union[str, np.ndarray]): Text probe OR embedding vector for field region identification
+            top_k (int): Number of field samples to analyze (default: 100)
+
         Returns:
-            np.ndarray: Array of social construct feature scores
-        """
-        text_lower = text.lower()
-        social_features = []
-        
-        for category, keywords in self.social_categories.items():
-            category_score = 0.0
-            total_keywords = len(keywords)
+            Dict containing field analysis results:
+            - Discrete field samples with complete manifold properties
+            - Geometric features for differential operations  
+            - Topological characteristics for field structure
+            - Mathematical context for Q(τ, C, s) calculations
             
-            for keyword in keywords:
-                keyword_count = text_lower.count(keyword)
-                category_score += keyword_count
-            
-            normalized_score = category_score / (total_keywords * max(len(text.split()), 1))
-            social_features.append(normalized_score)
-        
-        return np.array(social_features)
-    
-    def _extract_linguistic_features(self, text: str) -> np.ndarray:
+        Note: This is NOT traditional similarity search. We're extracting mathematical
+        field properties from semantic embedding space for field theory applications.
         """
-        Extract linguistic complexity features for MPNet semantic analysis.
+        if self.model is None:
+            raise RuntimeError("MPNet model is not loaded. Call _load_model() first.")
         
-        Args:
-            text (str): Input text for linguistic analysis
-            
-        Returns:
-            np.ndarray: Array of linguistic complexity features
-        """
-        features = [
-            len(text) / 1000.0,
-            text.count(' ') / max(len(text), 1),
-            text.count('.') / max(text.count(' '), 1),
-            text.count(',') / max(text.count(' '), 1),
-            text.count(';') / max(text.count(' '), 1),
-            text.count(':') / max(text.count(' '), 1),
-            len(set(text.lower())) / max(len(text), 1),
-            text.count('?') / max(len(text), 1),
-            text.count('!') / max(len(text), 1),
-            len([w for w in text.split() if len(w) > 6]) / max(len(text.split()), 1)
-        ]
+        # Get embedding data if not cached
+        if not hasattr(self, '_embedding_data'):
+            self._embedding_data = self.load_total_embeddings()
         
-        return np.array(features)
-    
-    def _extract_contextual_features(self, text: str) -> np.ndarray:
-        """
-        Extract contextual features for social universe placement.
+        # Handle both text and embedding queries
+        if isinstance(query, str):
+            # Text query - encode it
+            query_embedding = self.model.encode(query, convert_to_tensor=True).cpu().numpy()
+        elif isinstance(query, np.ndarray):
+            # Already an embedding vector - use directly
+            query_embedding = query
+        else:
+            raise ValueError(f"Query must be str or np.ndarray, got {type(query)}")
+        all_embeddings = self._embedding_data['embeddings']
+        id_to_token = self._embedding_data['id_to_token']
         
-        Args:
-            text (str): Input text for contextual analysis
-            
-        Returns:
-            np.ndarray: Array of contextual features
-        """
-        text_lower = text.lower()
+        # Calculate similarities
+        similarities = np.dot(all_embeddings, query_embedding) / (
+            np.linalg.norm(all_embeddings, axis=1) * np.linalg.norm(query_embedding)
+        )
         
-        contextual_markers = {
-            'temporal_markers': ['when', 'time', 'during', 'before', 'after', 'now', 'then'],
-            'spatial_markers': ['where', 'here', 'there', 'place', 'location', 'space'],
-            'causal_markers': ['because', 'cause', 'reason', 'why', 'therefore', 'thus'],
-            'modal_markers': ['might', 'could', 'should', 'would', 'may', 'can', 'must'],
-            'emotional_markers': ['feel', 'emotion', 'mood', 'sentiment', 'feeling'],
-            'social_markers': ['we', 'us', 'they', 'group', 'together', 'community']
+        # Get top-k most similar embeddings
+        top_indices = np.argsort(similarities)[-top_k:][::-1]
+        
+        # Prepare manifold analysis tools
+        pca_components = min(50, all_embeddings.shape[1], len(top_indices) - 1)
+        pca = PCA(n_components=pca_components)
+        pca.fit(all_embeddings[top_indices])
+        
+        knn_model = NearestNeighbors(n_neighbors=min(20, len(top_indices)), metric='cosine')
+        knn_model.fit(all_embeddings[top_indices])
+        
+        # Extract manifold properties for each top embedding
+        results = {
+            'query': query,
+            'query_embedding': query_embedding,
+            'top_k': top_k,
+            'embeddings': []
         }
         
-        contextual_features = []
-        for category, markers in contextual_markers.items():
-            score = sum(text_lower.count(marker) for marker in markers)
-            normalized_score = score / max(len(text.split()), 1)
-            contextual_features.append(normalized_score)
+        for i, idx in enumerate(top_indices):
+            embedding = all_embeddings[idx]
+            token = id_to_token.get(idx, f"<UNK_{idx}>")
+            similarity = similarities[idx]
+            
+            # Extract manifold properties
+            manifold_props = self.extract_manifold_properties(
+                embedding, i, all_embeddings[top_indices], pca, knn_model
+            )
+            
+            embedding_result = {
+                'index': int(idx),
+                'token': token,
+                'similarity': float(similarity),
+                'manifold_properties': manifold_props
+            }
+            
+            results['embeddings'].append(embedding_result)
         
-        return np.array(contextual_features)
+        logger.info(f"Extracted manifold properties for {len(top_indices)} embeddings")
+        return results
     
-    def _generate_mpnet_embedding(self, 
-                                 text: str,
-                                 social_features: np.ndarray,
-                                 linguistic_features: np.ndarray,
-                                 contextual_features: np.ndarray) -> np.ndarray:
+    def extract_manifold_properties(self, embedding: np.ndarray, index: int, 
+                                   all_embeddings: np.ndarray, pca: PCA, 
+                                   knn_model: NearestNeighbors) -> Dict[str, Any]:
         """
-        Generate MPNet-style embedding vector with social optimization.
+        FIELD THEORY CORE: Extract complete mathematical properties for Q(τ, C, s) charges.
         
-        Creates a 768-dimensional embedding that simulates all-mpnet-base-v2
-        behavior while incorporating social construct analysis for enhanced
-        semantic space characteristics.
+        UNCONVENTIONAL MATHEMATICS: This method computes comprehensive field-theoretic
+        properties from discrete embedding samples. These properties directly feed
+        into the complete conceptual charge formula Q(τ, C, s), requiring sophisticated
+        mathematical analysis of the local manifold structure.
+        
+        MATHEMATICAL EXTRACTION:
+        - Basic Properties: Magnitude, vector data for charge foundation
+        - Geometric: Local density, curvature, metric eigenvalues for field geometry
+        - Directional: Principal components, phase angles for trajectory operators T(τ,C,s)
+        - Field Properties: Gradients, Hessians for field dynamics Φ^semantic(τ,s)
+        - Persistence: Radius, scores for observational persistence Ψ_persistence(s-s₀)
+        - Coupling: Correlations for emotional trajectory E^trajectory(τ,s)
+        - Spectral: Frequencies for phase integration e^(iθ_total(τ,C,s))
+        - Topological: Boundary detection, loop structures for field coherence
+        
+        Each property serves specific components of the Q(τ, C, s) formula, enabling
+        transformation from static MPNet embeddings to dynamic conceptual charges.
         
         Args:
-            text (str): Original input text
-            social_features (np.ndarray): Extracted social construct features
-            linguistic_features (np.ndarray): Extracted linguistic features
-            contextual_features (np.ndarray): Extracted contextual features
+            embedding: Discrete field sample to analyze
+            index: Sample position in field region
+            all_embeddings: Local field context for manifold analysis
+            pca: Dimensional reduction for tangent space approximation
+            knn_model: Neighborhood analysis for local field structure
             
         Returns:
-            np.ndarray: Normalized 768-dimensional MPNet embedding vector
-        """
-        text_hash = hashlib.md5(text.encode('utf-8')).hexdigest()
-        seed = int(text_hash[:8], 16)
-        
-        if self.random_seed is not None:
-            seed = seed ^ self.random_seed
-        
-        np.random.seed(seed)
-        
-        base_embedding = np.random.randn(self.embedding_dim)
-        
-        social_block_size = self.embedding_dim // len(social_features)
-        for i, social_weight in enumerate(social_features):
-            start_idx = i * social_block_size
-            end_idx = min(start_idx + social_block_size, self.embedding_dim)
+            Dict containing complete field-theoretic properties:
+            - All mathematical components needed for Q(τ, C, s) calculation
+            - Geometric properties for differential field operations
+            - Spectral data for phase relationships and field evolution
+            - Topological features for field coherence and boundary detection
             
-            if social_weight > 0:
-                enhancement_factor = 1 + (social_weight * 3.0)
-                base_embedding[start_idx:end_idx] *= enhancement_factor
+        WARNING: This is experimental field theory mathematics applied to NLP embeddings.
+        Traditional embedding analysis focuses on similarity. Our approach extracts
+        differential geometry and field theory properties for charge generation.
+        """
+        # Basic properties
+        magnitude = np.linalg.norm(embedding)
         
-        linguistic_positions = np.linspace(0, self.embedding_dim - 1, 
-                                         len(linguistic_features), dtype=int)
-        for i, feature in enumerate(linguistic_features):
-            if i < len(linguistic_positions):
-                pos = linguistic_positions[i]
-                base_embedding[pos] += feature * 0.8
+        # Find k-nearest neighbors for local analysis
+        distances, neighbor_indices = knn_model.kneighbors([embedding])
+        neighbors = all_embeddings[neighbor_indices[0]]
         
-        contextual_stride = self.embedding_dim // (len(contextual_features) * 4)
-        for i, context_score in enumerate(contextual_features):
-            for j in range(4):
-                pos = (i * 4 + j) * contextual_stride
-                if pos < self.embedding_dim:
-                    base_embedding[pos] *= (1 + context_score * 0.6)
+        # Geometric properties
+        local_density = 1.0 / (np.mean(distances[0]) + 1e-8)
         
-        char_influences = np.array([ord(c) for c in text[:min(len(text), 200)]])
-        char_positions = np.linspace(0, self.embedding_dim - 1, 
-                                   len(char_influences), dtype=int)
-        for i, char_val in enumerate(char_influences):
-            if i < len(char_positions):
-                pos = char_positions[i]
-                base_embedding[pos] += (char_val / 128.0) * 0.2
+        # Local curvature estimation via neighbor variance
+        neighbor_center = np.mean(neighbors, axis=0)
+        neighbor_deviations = neighbors - neighbor_center
+        local_curvature = np.trace(np.cov(neighbor_deviations.T))
         
-        final_embedding = base_embedding / np.linalg.norm(base_embedding)
+        # Metric tensor eigenvalues (local metric properties)
+        if len(neighbors) > 1:
+            cov_matrix = np.cov(neighbor_deviations.T)
+            metric_eigenvalues = np.real(eigh(cov_matrix)[0])
+        else:
+            metric_eigenvalues = np.ones(embedding.shape[0])
         
-        return final_embedding
+        # Principal component projection
+        if pca.n_components_ > 0:
+            e_i_projected = pca.transform([embedding])[0]
+        else:
+            e_i_projected = np.zeros(min(50, embedding.shape[0]))
+        
+        # Phase angles in complex representation
+        complex_embedding = embedding[:len(embedding)//2] + 1j * embedding[len(embedding)//2:]
+        phase_angles = np.angle(complex_embedding)
+        
+        # Field properties - gradient estimation
+        if len(neighbors) > 2:
+            # Approximate gradient using finite differences with neighbors
+            gradient = np.mean(neighbors - embedding, axis=0)
+            gradient_magnitude = np.linalg.norm(gradient)
+            
+            # Hessian eigenvalues (second-order field properties)
+            try:
+                hessian_approx = np.outer(gradient, gradient) / (gradient_magnitude + 1e-8)
+                eigenvalues = np.real(eigh(hessian_approx)[0])
+            except:
+                eigenvalues = np.zeros(20)
+        else:
+            gradient = np.zeros_like(embedding)
+            gradient_magnitude = 0.0
+            eigenvalues = np.zeros(20)
+        
+        # Persistence properties
+        persistence_radius = np.max(distances[0])
+        persistence_score = local_density * persistence_radius
+        
+        # Coupling properties (correlation with neighbors)
+        if len(neighbors) > 1:
+            correlations = [np.corrcoef(embedding, neighbor)[0,1] for neighbor in neighbors]
+            correlations = [c for c in correlations if not np.isnan(c)]
+            coupling_mean = np.mean(correlations) if correlations else 0.0
+            coupling_variance = np.var(correlations) if correlations else 0.0
+        else:
+            coupling_mean = 0.0
+            coupling_variance = 0.0
+        
+        # Spectral properties via FFT
+        fft_result = scipy.fft.fft(embedding)
+        power_spectrum = np.abs(fft_result)**2
+        dominant_freq_indices = np.argsort(power_spectrum)[-10:]  # Top 10 frequencies
+        dominant_frequencies = dominant_freq_indices.astype(float) / len(embedding)
+        frequency_magnitudes = power_spectrum[dominant_freq_indices]
+        
+        # Topological properties
+        # Boundary score: how much the point differs from local average
+        local_mean = np.mean(neighbors, axis=0)
+        boundary_score = np.linalg.norm(embedding - local_mean)
+        
+        # Loop detection via homology approximation
+        if len(neighbors) >= 3:
+            # Simple approximation: check if neighbors form loops in projection
+            neighbor_distances = pdist(neighbors[:,:3])  # Use first 3 dims for speed
+            distance_matrix = squareform(neighbor_distances)
+            # Check triangular inequality violations as loop indicator
+            violations = 0
+            n_neighbors = len(neighbors)
+            for i in range(min(n_neighbors, 5)):
+                for j in range(i+1, min(n_neighbors, 5)):
+                    for k in range(j+1, min(n_neighbors, 5)):
+                        if i < len(distance_matrix) and j < len(distance_matrix) and k < len(distance_matrix):
+                            d_ij, d_jk, d_ik = distance_matrix[i,j], distance_matrix[j,k], distance_matrix[i,k]
+                            if d_ij + d_jk < d_ik * 0.9:  # Significant violation
+                                violations += 1
+            local_loops = violations > 0
+        else:
+            local_loops = False
+        
+        features = {
+            # Basic properties
+            'magnitude': float(magnitude),
+            'vector': embedding.tolist(),
+            
+            # Geometric
+            'local_density': float(local_density),
+            'local_curvature': float(local_curvature),
+            'metric_eigenvalues': metric_eigenvalues[:20].tolist(),  # Top 20
+            
+            # Directional
+            'principal_components': e_i_projected[:50].tolist(),  # Top 50 PCs
+            'phase_angles': phase_angles.tolist(),
+            
+            # Field properties
+            'gradient': gradient.tolist(),
+            'gradient_magnitude': float(gradient_magnitude),
+            'hessian_eigenvalues': eigenvalues[:20].tolist(),  # Top 20
+            
+            # Persistence
+            'persistence_radius': float(persistence_radius),
+            'persistence_score': float(persistence_score),
+            
+            # Coupling
+            'coupling_mean': float(coupling_mean),
+            'coupling_variance': float(coupling_variance),
+            
+            # Spectral
+            'dominant_frequencies': dominant_frequencies.tolist(),
+            'frequency_magnitudes': frequency_magnitudes.tolist(),
+            
+            # Topological
+            'boundary_score': float(boundary_score),
+            'has_loops': bool(local_loops)
+        }
+        
+        return features
+
+    def extract_tangent_spaces(self, embeddings: np.ndarray, k: int = 10) -> List[Dict[str, Any]]:
+        """
+        Extract local tangent spaces using local PCA for differential geometry operations.
+        
+        Critical for field theory as MPNet embeddings are discrete points requiring
+        smooth approximations for differential operations. Uses local neighborhoods
+        to approximate tangent spaces at each point.
+        
+        Args:
+            embeddings: Array of embedding vectors to analyze
+            k: Number of neighbors for local analysis
+            
+        Returns:
+            List of tangent space properties for each embedding
+        """
+        from sklearn.neighbors import NearestNeighbors
+        
+        nbrs = NearestNeighbors(n_neighbors=k, metric='cosine').fit(embeddings)
+        _, indices = nbrs.kneighbors(embeddings)
+        
+        tangent_spaces = []
+        for i in range(len(embeddings)):
+            # Local neighborhood analysis  
+            local_points = embeddings[indices[i]]
+            centered = local_points - local_points.mean(axis=0)
+            
+            # Local PCA for tangent space approximation
+            max_components = min(k-1, 20, centered.shape[0], centered.shape[1])
+            if max_components > 0:
+                pca = PCA(n_components=max_components)
+                pca.fit(centered)
+            else:
+                # Fallback for insufficient data
+                pca = PCA(n_components=1)
+                pca.fit(np.ones((2, centered.shape[1])))  # Dummy data
+            
+            # Intrinsic dimensionality estimation
+            variance_ratios = pca.explained_variance_ratio_
+            intrinsic_dim = np.sum(variance_ratios > 0.01)  # Threshold for meaningful dimensions
+            
+            tangent_spaces.append({
+                'tangent_basis': pca.components_,
+                'variance_explained': variance_ratios,
+                'intrinsic_dimension': int(intrinsic_dim),
+                'local_curvature_estimate': float(1.0 - variance_ratios[0]) if len(variance_ratios) > 0 else 0.0,
+                'neighborhood_coherence': float(np.sum(variance_ratios[:3])) if len(variance_ratios) >= 3 else 0.0
+            })
+        
+        logger.info(f"Extracted tangent spaces for {len(embeddings)} embeddings")
+        return tangent_spaces
     
-    def get_social_analysis_stats(self) -> Dict[str, Any]:
+    def compute_discrete_laplacian(self, embeddings: np.ndarray, k: int = 10) -> np.ndarray:
         """
-        Get statistics about social construct analysis capabilities.
+        Compute discrete Laplace-Beltrami operator for field evolution equations.
         
+        Essential for field theory applications - converts discrete embeddings into
+        operators supporting heat kernel evolution and spectral analysis. Uses
+        graph-based approximation with Gaussian kernel weights.
+        
+        Args:
+            embeddings: Array of embedding vectors
+            k: Number of neighbors for graph construction
+            
         Returns:
-            Dict[str, Any]: Statistics about social analysis features
+            Normalized discrete Laplacian matrix
         """
+        from sklearn.neighbors import kneighbors_graph
+        
+        # Build k-NN graph with cosine metric (natural for unit sphere)
+        W = kneighbors_graph(embeddings, k, mode='distance', metric='cosine')
+        W = 0.5 * (W + W.T)  # Symmetrize
+        
+        # Convert distances to similarities with Gaussian kernel
+        # Use median distance for adaptive bandwidth
+        nonzero_distances = W.data[W.data > 0]
+        if len(nonzero_distances) > 0:
+            sigma = np.median(nonzero_distances)
+            W.data = np.exp(-W.data**2 / (2 * sigma**2))
+        
+        # Degree matrix and Laplacian
+        W_dense = W.toarray()
+        D = np.diag(np.sum(W_dense, axis=1))
+        L = D - W_dense
+        
+        # Normalized Laplacian for stability
+        D_inv_sqrt = np.diag(1.0 / np.sqrt(np.diag(D) + 1e-10))
+        L_norm = D_inv_sqrt @ L @ D_inv_sqrt
+        
+        logger.info(f"Computed discrete Laplacian for {len(embeddings)} embeddings")
+        return L_norm
+    
+    def field_generator_transform(self, embeddings: np.ndarray, 
+                                field_params: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Transform static MPNet embeddings into dynamic field generators.
+        
+        Core method for field theory - uses spectral analysis of discrete Laplacian
+        to generate time-evolved field dynamics via heat kernel. Addresses the
+        fundamental challenge of creating smooth fields from discrete embeddings.
+        
+        Args:
+            embeddings: Static embedding vectors to transform
+            field_params: Parameters for field evolution (time, temperature, etc.)
+            
+        Returns:
+            Dict containing field generator components and evolution data
+        """
+        # Normalize to unit hypersphere (MPNet's natural geometry)
+        normalized = embeddings / np.linalg.norm(embeddings, axis=1, keepdims=True)
+        
+        # Compute spectral decomposition for field evolution
+        laplacian = self.compute_discrete_laplacian(normalized)
+        eigenvals, eigenvecs = np.linalg.eigh(laplacian)
+        
+        # Heat kernel evolution for temporal dynamics
+        time_param = field_params.get('time', 1.0)
+        temperature = field_params.get('temperature', 0.1)
+        
+        # Spectral filtering for smoothness
+        cutoff_freq = field_params.get('frequency_cutoff', 0.1)
+        active_modes = eigenvals <= cutoff_freq
+        
+        # Generate field evolution via heat equation
+        heat_kernel = eigenvecs[:, active_modes] @ np.diag(
+            np.exp(-eigenvals[active_modes] * time_param / temperature)
+        ) @ eigenvecs[:, active_modes].T
+        
+        field_evolution = heat_kernel @ normalized
+        
+        # Extract field properties
+        field_strength = np.linalg.norm(field_evolution - normalized, axis=1)
+        coherence_measure = np.mean([
+            np.corrcoef(normalized[i], field_evolution[i])[0,1] 
+            for i in range(len(normalized))
+            if not np.isnan(np.corrcoef(normalized[i], field_evolution[i])[0,1])
+        ])
+        
         return {
-            'social_categories': len(self.social_categories),
-            'total_social_keywords': sum(len(keywords) for keywords in self.social_categories.values()),
-            'social_focus_enabled': self.social_focus,
-            'embedding_dimension': self.embedding_dim,
-            'cache_size': len(self._embedding_cache),
-            'model_name': self.model_name
+            'static_embedding': normalized,
+            'field_evolution': field_evolution,
+            'spectral_basis': eigenvecs[:, :20] if len(eigenvecs[0]) >= 20 else eigenvecs,  # Top modes
+            'eigenfrequencies': eigenvals[:20] if len(eigenvals) >= 20 else eigenvals,
+            'field_strength': field_strength,
+            'temporal_coherence': float(coherence_measure) if not np.isnan(coherence_measure) else 0.0,
+            'active_modes': int(np.sum(active_modes)),
+            'evolution_parameters': field_params
         }
     
-    def compare_social_content(self, 
-                              embedding1: SemanticEmbedding, 
-                              embedding2: SemanticEmbedding) -> Dict[str, float]:
+    def continuous_field_approximation(self, embeddings: np.ndarray, 
+                                     query_points: np.ndarray) -> Dict[str, Any]:
         """
-        Compare social content between two MPNet embeddings.
+        Generate continuous field approximation using Gaussian process interpolation.
+        
+        Addresses discrete→continuous challenge by creating smooth field interpolation
+        between discrete embedding points. Essential for supporting differential
+        operations required by field theory equations.
         
         Args:
-            embedding1 (SemanticEmbedding): First embedding for comparison
-            embedding2 (SemanticEmbedding): Second embedding for comparison
+            embeddings: Known embedding points
+            query_points: Points where field values are needed
             
         Returns:
-            Dict[str, float]: Social comparison metrics
+            Dict containing interpolated field values and uncertainty estimates
         """
-        social_similarity = embedding1.similarity(embedding2)
+        from sklearn.gaussian_process import GaussianProcessRegressor
+        from sklearn.gaussian_process.kernels import RBF, WhiteKernel
         
-        meta1 = embedding1.metadata or {}
-        meta2 = embedding2.metadata or {}
+        # Use RBF kernel appropriate for smooth field interpolation
+        kernel = RBF(length_scale=1.0, length_scale_bounds=(0.1, 10.0)) + \
+                WhiteKernel(noise_level=0.01, noise_level_bounds=(1e-10, 1e1))
         
-        social_score_diff = abs(meta1.get('social_score', 0) - meta2.get('social_score', 0))
+        # Fit Gaussian process for each dimension
+        field_interpolations = []
+        uncertainties = []
+        
+        # Process in batches to handle 768 dimensions efficiently
+        batch_size = 50
+        for i in range(0, embeddings.shape[1], batch_size):
+            end_idx = min(i + batch_size, embeddings.shape[1])
+            batch_dims = embeddings[:, i:end_idx]
+            
+            gp = GaussianProcessRegressor(kernel=kernel, random_state=42)
+            gp.fit(embeddings, batch_dims)
+            
+            # Predict at query points
+            batch_predictions, batch_uncertainties = gp.predict(query_points, return_std=True)
+            
+            field_interpolations.append(batch_predictions)
+            uncertainties.append(batch_uncertainties)
+        
+        # Combine batch results
+        field_values = np.concatenate(field_interpolations, axis=1)
+        field_uncertainties = np.concatenate(uncertainties, axis=1)
+        
+        # Compute field quality metrics
+        mean_uncertainty = np.mean(field_uncertainties)
+        max_uncertainty = np.max(field_uncertainties)
+        
+        logger.info(f"Generated continuous field approximation for {len(query_points)} query points")
         
         return {
-            'semantic_similarity': social_similarity,
-            'social_score_difference': social_score_diff,
-            'combined_social_metric': social_similarity - (social_score_diff * 0.5)
+            'field_values': field_values,
+            'uncertainties': field_uncertainties,
+            'mean_uncertainty': float(mean_uncertainty),
+            'max_uncertainty': float(max_uncertainty),
+            'interpolation_quality': float(1.0 / (1.0 + mean_uncertainty)),  # Higher is better
+            'query_points': query_points
         }
+
+
+
+
+if __name__ == "__main__":
+    mpnet_ingestion = MPNetIngestion(model_name="sentence-transformers/all-mpnet-base-v2", random_seed=42)
+    embedding_data = mpnet_ingestion.load_total_embeddings()
     
-    def clear_cache(self) -> None:
-        """Clear the MPNet embedding cache to free memory."""
-        self._embedding_cache.clear()
-        logger.info("MPNet embedding cache cleared")
+    logger.info(f"Vocabulary size: {embedding_data['vocab_size']}")
+    logger.info(f"Embedding dimension: {embedding_data['embedding_dim']}")
+    logger.info(f"Device used: {embedding_data['device']}")
     
-    def __repr__(self) -> str:
-        """String representation of the MPNet Ingestion engine."""
-        return (f"MPNetIngestion(embedding_dim={self.embedding_dim}, "
-                f"social_focus={self.social_focus}, "
-                f"cached_embeddings={len(self._embedding_cache)})")
+    # Show sample tokens and their embeddings
+    embeddings = embedding_data['embeddings']
+    id_to_token = embedding_data['id_to_token']
+    
+    logger.info("Sample tokens and embedding info:")
+    for i in range(min(10, len(embeddings))):
+        token = id_to_token.get(i, f"<UNK_{i}>")
+        embedding_norm = np.linalg.norm(embeddings[i])
+        logger.info(f"Token {i}: '{token}' | Embedding norm: {embedding_norm:.4f}")
+    
+    logger.info(f"Total token embeddings extracted: {len(embeddings)}")
+
+    # Example field theory search using embedding vector (for iterating through total embeddings)
+    query_embedding = embeddings[40]
+    token_name = id_to_token.get(40, f"<UNK_40>")
+    search_results = mpnet_ingestion.search_embeddings(query=query_embedding, top_k=5)
+    logger.info(f"Field theory search results for token '{token_name}' embedding:")
+    for result in search_results['embeddings']:
+        logger.info(f"Token: {result['token']} | Similarity: {result['similarity']:.4f} | "
+                    f"Manifold properties keys: {list(result['manifold_properties'].keys())}")
+    
+    # Also demonstrate text query capability
+    text_query = "social"
+    text_results = mpnet_ingestion.search_embeddings(query=text_query, top_k=3)
+    logger.info(f"Text query results for '{text_query}':")
+    for result in text_results['embeddings']:
+        logger.info(f"Token: {result['token']} | Similarity: {result['similarity']:.4f}")
+        
+    # Demonstrate tangent space extraction
+    sample_embeddings = embeddings[:20]  # Use first 20 embeddings
+    tangent_spaces = mpnet_ingestion.extract_tangent_spaces(sample_embeddings, k=5)
+    logger.info(f"Extracted tangent spaces for {len(tangent_spaces)} embeddings")
+    logger.info(f"Sample tangent space intrinsic dimension: {tangent_spaces[0]['intrinsic_dimension']}")
+    
+    # Demonstrate field generator transformation
+    field_params = {'time': 0.5, 'temperature': 0.1, 'frequency_cutoff': 0.2}
+    field_result = mpnet_ingestion.field_generator_transform(sample_embeddings, field_params)
+    logger.info(f"Field transformation - Active modes: {field_result['active_modes']}")
+    logger.info(f"Temporal coherence: {field_result['temporal_coherence']:.4f}")
+    
+    logger.info("MPNet field theory ingestion and analysis completed successfully.")

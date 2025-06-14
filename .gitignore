@@ -3,3 +3,4 @@ __pycache__/
 *.pyc
 *.pyo
 logs/
+old_code.py
