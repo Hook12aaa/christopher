@@ -1,1 +1,5 @@
 Sysnpire/logs/
+__pycache__/
+*.pyc
+*.pyo
+logs/
