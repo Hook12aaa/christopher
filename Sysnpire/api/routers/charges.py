@@ -23,7 +23,8 @@ from ..models import (
     ErrorResponse
 )
 
-from ...model.intial import BGEIngestion, MPNetIngestion
+from ...model.intial.bge_ingestion import BGEIngestion
+from ...model.intial.mpnet_ingestion import MPNetIngestion
 from ...model.charge_factory import ChargeFactory
 from ...database.field_universe import FieldUniverse
 

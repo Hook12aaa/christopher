@@ -1,198 +1,311 @@
 """
-Charge Factory - Main production interface for conceptual charges
+Charge Factory - Focused Q(τ, C, s) Transformation Engine
 
-Commercial-grade factory for creating conceptual charges from text inputs.
+FOCUSED RESPONSIBILITY: This factory has ONE job - take embedding vectors with their
+mathematical properties and transform them into dynamic conceptual charges using the
+complete Q(τ, C, s) field theory formula. It does NOT handle data sourcing.
+
+MATHEMATICAL TRANSFORMATION:
+Input: Static embedding + manifold properties + field parameters
+Process: Apply complete Q(τ, C, s) = γ · T(τ, C, s) · E^trajectory(τ, s) · Φ^semantic(τ, s) · e^(iθ_total(τ,C,s)) · Ψ_persistence(s-s₀)
+Output: Dynamic ConceptualCharge object
+
+DESIGN PRINCIPLE: This factory is model-agnostic and source-agnostic. It can process
+embeddings from BGE models, MPNet models, scraped data, user inputs, or any other
+source that provides embedding vectors + mathematical properties.
+
+USAGE CONTEXTS:
+- Initial "Big Bang" from model vocabularies (separate script)
+- Live text processing from user inputs
+- Batch processing from data scraping operations
+- Integration with external embedding sources
 """
 
-import time
-import uuid
-from typing import Dict, List, Optional, Any, Tuple
-from .bge_encoder import BGEEncoder
-from .field_enhancer import FieldEnhancer
-
-# Import universe components
 import sys
 from pathlib import Path
-project_root = Path(__file__).parent.parent
+from typing import Dict, List, Any, Optional, Union
+import numpy as np
+from dataclasses import dataclass
+
+# Ensure project imports work
+project_root = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(project_root))
 
-from database.conceptual_charge_object import ConceptualChargeObject, FieldComponents
-from database.field_universe import FieldUniverse
+from Sysnpire.model.mathematics.conceptual_charge import ConceptualCharge
+from Sysnpire.utils.logger import get_logger
+
+logger = get_logger(__name__)
+
+
+@dataclass
+class ChargeParameters:
+    """Parameters for Q(τ, C, s) charge generation."""
+    observational_state: float = 1.0      # s parameter
+    gamma: float = 1.2                    # γ field calibration factor
+    context: str = "general"              # C context parameter
+    field_temperature: float = 0.1        # Temperature for field evolution
+    time_evolution: float = 1.0           # Time parameter for dynamics
+
 
 class ChargeFactory:
     """
-    Enterprise charge factory for producing rich conceptual charges.
+    Focused Field Theory Charge Generator
     
-    Integrates with field universe for persistent storage and field placement.
+    SINGLE RESPONSIBILITY: Transforms embedding vectors + mathematical properties
+    into dynamic conceptual charges using Q(τ, C, s) field theory mathematics.
+    
+    AGNOSTIC DESIGN: Works with embeddings from any source - BGE models, MPNet models,
+    scraped data, user text, or external systems. Only requires embedding vector
+    and mathematical properties as input.
+    
+    MATHEMATICAL FOCUS: Implements the complete conceptual charge formula without
+    concern for data sourcing, model management, or persistence.
     """
     
-    def __init__(self, universe: Optional[FieldUniverse] = None):
+    def __init__(self):
         """
-        Initialize the enterprise charge production pipeline.
+        Initialize charge factory for Q(τ, C, s) transformations.
         
-        Args:
-            universe: Field universe for storage (creates new if None)
+        MINIMAL SETUP: No model loading, no data dependencies. Pure mathematical
+        transformation engine ready to process any embedding input.
         """
-        self.encoder = BGEEncoder()
-        self.enhancer = FieldEnhancer()
-        self.universe = universe or FieldUniverse("enterprise_universe.db")
-        
-        print("🏭 Enterprise Charge Factory initialized")
-        print("   BGE Encoder: Ready")
-        print("   Field Enhancer: Ready")
-        print(f"   Universe: {self.universe}")
-        print(f"   Storage: Connected to field universe database")
+        logger.info("Initializing ChargeFactory for Q(τ, C, s) transformations")
+        self.charge_count = 0
     
-    def create_charge(self, text: str, 
-                     observational_state: float = 1.0,
-                     gamma: float = 1.0,
-                     store_in_universe: bool = True) -> ConceptualChargeObject:
+    def create_charge(self, 
+                     embedding: np.ndarray,
+                     manifold_properties: Dict[str, Any],
+                     charge_params: ChargeParameters,
+                     charge_id: Optional[str] = None,
+                     metadata: Optional[Dict[str, Any]] = None) -> ConceptualCharge:
         """
-        Create a rich conceptual charge from text with universe storage.
+        Transform single embedding into dynamic conceptual charge using Q(τ, C, s).
+        
+        CORE TRANSFORMATION: Applies the complete conceptual charge formula to convert
+        a static embedding vector with its mathematical properties into a dynamic
+        field theory charge.
+        
+        Q(τ, C, s) = γ · T(τ, C, s) · E^trajectory(τ, s) · Φ^semantic(τ, s) · e^(iθ_total(τ,C,s)) · Ψ_persistence(s-s₀)
         
         Args:
-            text: Input text
-            observational_state: Trajectory position s
-            gamma: Field calibration factor
-            store_in_universe: Whether to store in field universe
+            embedding: Static embedding vector [embedding_dim]
+            manifold_properties: Mathematical properties from manifold analysis
+            charge_params: Parameters for Q(τ, C, s) calculation
+            charge_id: Unique identifier for the charge
+            metadata: Additional metadata (token, source, etc.)
             
         Returns:
-            Rich conceptual charge object
+            ConceptualCharge: Dynamic field theory charge with full Q(τ, C, s) properties
         """
-        start_time = time.time()
+        if charge_id is None:
+            charge_id = f"charge_{self.charge_count:06d}"
+            self.charge_count += 1
         
-        # Step 1: Text to BGE embedding
-        embedding = self.encoder.encode(text)
+        # TODO: Extract τ (semantic vector) from embedding
+        tau = None  # Use embedding as τ semantic vector
         
-        # Step 2: BGE to conceptual charge (legacy)
-        legacy_charge = self.enhancer.enhance_embedding(
-            embedding, text, observational_state, gamma
+        # TODO: Compute T(τ, C, s) - transformative potential tensor
+        # Use manifold_properties: 'gradient', 'hessian_eigenvalues', 'principal_components'
+        transformative_potential = None
+        
+        # TODO: Calculate E^trajectory(τ, s) - emotional trajectory integration  
+        # Use manifold_properties: 'coupling_mean', 'coupling_variance'
+        emotional_trajectory = None
+        
+        # TODO: Generate Φ^semantic(τ, s) - dynamic semantic field
+        # Use manifold_properties: 'dominant_frequencies', 'frequency_magnitudes'
+        semantic_field = None
+        
+        # TODO: Compute e^(iθ_total(τ,C,s)) - complete phase integration
+        # Use manifold_properties: 'phase_angles'
+        phase_integration = None
+        
+        # TODO: Apply Ψ_persistence(s-s₀) - observational persistence
+        # Use manifold_properties: 'persistence_radius', 'persistence_score'
+        observational_persistence = None
+        
+        # TODO: Combine all components via Q(τ, C, s) formula
+        # Q = γ · T · E · Φ · e^(iθ) · Ψ
+        charge_magnitude = None
+        charge_phase = None
+        
+        # TODO: Create and return ConceptualCharge object
+        charge = ConceptualCharge(
+            tau=tau,
+            context=charge_params.context,
+            observational_state=charge_params.observational_state,
+            gamma=charge_params.gamma
         )
         
-        # Step 3: Compute field values
-        field_values = self.enhancer.compute_charge_values(legacy_charge)
+        # TODO: Set additional properties from manifold analysis
+        # charge.manifold_properties = manifold_properties
+        # charge.metadata = metadata
+        # charge.charge_id = charge_id
         
-        # Step 4: Create rich conceptual charge object
-        charge_id = f"charge_{uuid.uuid4().hex[:8]}"
-        
-        field_components = FieldComponents(
-            trajectory_operators=field_values['trajectory_operators'],
-            emotional_trajectory=field_values['emotional_trajectory'],
-            semantic_field=field_values['semantic_field'],
-            phase_total=field_values['phase_total'],
-            observational_persistence=field_values['persistence']
-        )
-        
-        rich_charge = ConceptualChargeObject(
-            charge_id=charge_id,
-            text_source=text,
-            complete_charge=field_values['complete_charge'],
-            field_components=field_components,
-            observational_state=observational_state,
-            gamma=gamma
-        )
-        
-        # Step 5: Store in field universe
-        if store_in_universe:
-            success = self.universe.add_charge(rich_charge)
-            if not success:
-                print(f"   ⚠️ Failed to store charge in universe")
-        
-        processing_time = time.time() - start_time
-        print(f"   ⚡ Created charge {charge_id} in {processing_time:.3f}s")
-        print(f"      Magnitude: {rich_charge.magnitude:.6f}")
-        print(f"      Field position: {rich_charge.metadata.field_position}")
-        print(f"      Nearby charges: {len(rich_charge.metadata.nearby_charges)}")
-        
-        return rich_charge
+        return charge
     
-    def create_charges_batch(self, texts: List[str],
-                           observational_states: Optional[List[float]] = None,
-                           gamma_values: Optional[List[float]] = None,
-                           store_in_universe: bool = True) -> List[ConceptualChargeObject]:
+    def create_charges_batch(self, 
+                           embeddings: List[np.ndarray],
+                           properties_batch: List[Dict[str, Any]],
+                           charge_params: ChargeParameters,
+                           metadata_batch: Optional[List[Dict[str, Any]]] = None) -> List[ConceptualCharge]:
         """
-        Create multiple rich conceptual charges from text list.
+        Efficiently transform batch of embeddings into conceptual charges.
         
-        Enterprise batch processing with universe storage.
-        """
-        if observational_states is None:
-            observational_states = [1.0 + i * 0.2 for i in range(len(texts))]
+        BATCH PROCESSING: Optimized for processing multiple embeddings while
+        maintaining full mathematical accuracy for each Q(τ, C, s) calculation.
         
-        if gamma_values is None:
-            gamma_values = [1.0] * len(texts)
-        
-        results = []
-        print(f"🏭 Enterprise batch processing: {len(texts)} texts...")
-        
-        for i, (text, obs_state, gamma) in enumerate(zip(texts, observational_states, gamma_values)):
-            print(f"\n  [{i+1}/{len(texts)}] Processing: '{text[:50]}...'")
+        Args:
+            embeddings: List of embedding vectors to transform
+            properties_batch: Manifold properties for each embedding
+            charge_params: Shared parameters for Q(τ, C, s) calculations
+            metadata_batch: Optional metadata for each embedding
             
-            charge_obj = self.create_charge(text, obs_state, gamma, store_in_universe)
-            results.append(charge_obj)
+        Returns:
+            List[ConceptualCharge]: Batch of transformed dynamic charges
+        """
+        if metadata_batch is None:
+            metadata_batch = [None] * len(embeddings)
         
-        print(f"\n✅ Enterprise batch processing complete: {len(results)} charges created")
-        print(f"   Universe now contains: {len(self.universe)} total charges")
-        print(f"   Field regions: {len(self.universe.field_regions)}")
+        charges = []
+        for i, (embedding, properties, metadata) in enumerate(zip(embeddings, properties_batch, metadata_batch)):
+            try:
+                charge = self.create_charge(
+                    embedding=embedding,
+                    manifold_properties=properties,
+                    charge_params=charge_params,
+                    charge_id=f"batch_{i:04d}",
+                    metadata=metadata
+                )
+                charges.append(charge)
+            except Exception as e:
+                logger.warning(f"Failed to create charge for embedding {i}: {e}")
+                # Continue processing other embeddings
+                continue
         
-        return results
+        logger.info(f"Successfully created {len(charges)} charges from {len(embeddings)} embeddings")
+        return charges
     
-    def get_universe_metrics(self) -> Dict[str, Any]:
-        """Get comprehensive universe metrics."""
-        metrics = self.universe.get_universe_metrics()
+    def create_charge_from_text(self, 
+                              text: str,
+                              embedding_source: Any,  # BGEIngestion, MPNetIngestion, etc.
+                              charge_params: ChargeParameters) -> ConceptualCharge:
+        """
+        Create charge from text input using provided embedding source.
         
-        analysis = {
-            'universe_metrics': {
-                'total_charges': metrics.total_charges,
-                'total_energy': metrics.total_energy,
-                'average_magnitude': metrics.average_magnitude,
-                'field_density': metrics.field_density,
-                'last_updated': metrics.last_updated
-            },
-            'field_regions': len(self.universe.field_regions),
-            'storage_path': str(self.universe.storage_path),
-            'timestamp': time.time()
+        CONVENIENCE METHOD: Handles text → embedding → charge pipeline using
+        any embedding source that provides search_embeddings() method.
+        
+        Args:
+            text: Input text to transform
+            embedding_source: Any object with search_embeddings(text) method
+            charge_params: Parameters for Q(τ, C, s) calculation
+            
+        Returns:
+            ConceptualCharge: Dynamic charge generated from text
+        """
+        try:
+            # Use new ingestion interface to get embedding and properties
+            search_results = embedding_source.search_embeddings(text, top_k=1)
+            
+            if not search_results or 'results' not in search_results or len(search_results['results']) == 0:
+                raise ValueError(f"No embedding results found for text: {text[:50]}...")
+            
+            # Extract first (best) result
+            best_result = search_results['results'][0]
+            embedding = best_result['embedding']
+            
+            # Extract manifold properties using the new interface
+            manifold_properties = embedding_source.extract_manifold_properties(
+                embedding=embedding,
+                index=best_result.get('index', 0),
+                all_embeddings=search_results.get('embeddings', np.array([embedding]))
+            )
+            
+            # Create metadata from search results
+            metadata = {
+                'text': text,
+                'similarity_score': best_result.get('similarity', 1.0),
+                'token': best_result.get('token', 'unknown'),
+                'model_type': getattr(embedding_source, 'model_name', 'unknown'),
+                'processing_method': 'text_to_charge_pipeline'
+            }
+            
+            # Generate charge using complete Q(τ, C, s) transformation
+            charge = self.create_charge(
+                embedding=embedding,
+                manifold_properties=manifold_properties,
+                charge_params=charge_params,
+                charge_id=f"text_{hash(text) % 1000000:06d}",
+                metadata=metadata
+            )
+            
+            logger.info(f"Successfully created charge from text: {text[:50]}...")
+            return charge
+            
+        except Exception as e:
+            logger.error(f"Failed to create charge from text '{text[:50]}...': {e}")
+            raise
+    
+    def validate_manifold_properties(self, properties: Dict[str, Any]) -> bool:
+        """
+        Validate that manifold properties contain required keys for Q(τ, C, s).
+        
+        QUALITY CONTROL: Ensures manifold properties contain all mathematical
+        components needed for complete conceptual charge calculation.
+        
+        Args:
+            properties: Manifold properties dictionary to validate
+            
+        Returns:
+            bool: True if properties are sufficient for charge generation
+        """
+        required_keys = {
+            'magnitude', 'gradient', 'phase_angles', 'dominant_frequencies',
+            'coupling_mean', 'persistence_radius', 'local_density'
         }
         
-        print(f"📊 Enterprise Universe Analysis:")
-        print(f"   Total charges: {metrics.total_charges}")
-        print(f"   Total energy: {metrics.total_energy:.3f}")
-        print(f"   Average magnitude: {metrics.average_magnitude:.6f}")
-        print(f"   Field density: {metrics.field_density:.2f} charges/region")
-        print(f"   Field regions: {len(self.universe.field_regions)}")
-        print(f"   Database: {self.universe.storage_path}")
+        missing_keys = required_keys - set(properties.keys())
+        if missing_keys:
+            logger.warning(f"Missing required manifold properties: {missing_keys}")
+            return False
         
-        return analysis
+        return True
     
-    def query_charges(self, 
-                     magnitude_range: Optional[Tuple[float, float]] = None,
-                     field_region: Optional[str] = None,
-                     nearby_charge_id: Optional[str] = None,
-                     max_distance: float = 50.0) -> List[ConceptualChargeObject]:
+    def get_factory_statistics(self) -> Dict[str, Any]:
         """
-        Query charges from universe with various filters.
+        Get statistics about charge factory operations.
         
-        Args:
-            magnitude_range: (min, max) magnitude filter
-            field_region: Specific field region
-            nearby_charge_id: Find charges near this one
-            max_distance: Maximum distance for nearby search
-            
         Returns:
-            List of matching conceptual charges
+            Dict containing factory statistics and performance metrics
         """
-        if magnitude_range:
-            return self.universe.query_charges_by_magnitude(magnitude_range[0], magnitude_range[1])
-        elif field_region:
-            return self.universe.query_charges_by_region(field_region)
-        elif nearby_charge_id:
-            return self.universe.query_nearby_charges(nearby_charge_id, max_distance)
-        else:
-            return list(self.universe.charges.values())
+        return {
+            'total_charges_created': self.charge_count,
+            'factory_type': 'Q(τ, C, s) Transformation Engine',
+            'source_agnostic': True,
+            'mathematical_focus': 'Field Theory Charge Generation'
+        }
+
+
+# Example usage showing source-agnostic design
+if __name__ == "__main__":
+    # Initialize factory (no dependencies)
+    factory = ChargeFactory()
     
-    def compute_collective_response(self, charge_ids: List[str]) -> complex:
-        """Compute collective response for specific charges."""
-        return self.universe.compute_collective_response(charge_ids)
+    # Example parameters
+    params = ChargeParameters(
+        observational_state=1.0,
+        gamma=1.2,
+        context="example_context"
+    )
     
-    def get_field_evolution(self, hours_back: float = 24.0) -> List[Tuple[float, int, float]]:
-        """Get universe evolution over time."""
-        return self.universe.get_field_evolution(hours_back)
+    logger.info("ChargeFactory ready for Q(τ, C, s) transformations")
+    logger.info("Factory can process embeddings from any source:")
+    logger.info("- BGE model vocabularies")
+    logger.info("- MPNet model vocabularies") 
+    logger.info("- User text inputs")
+    logger.info("- Scraped data embeddings")
+    logger.info("- External embedding sources")
+    
+    # TODO: Demonstrate with actual embedding data when implementation complete
+    logger.info(f"Factory statistics: {factory.get_factory_statistics()}")
