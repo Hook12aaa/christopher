@@ -1,357 +1,225 @@
-"""
-BGE Ingestion - Clean interface for text-to-embedding conversion
 
-This module provides a streamlined interface for converting text into
-semantic embeddings using BGE (BGE-Large-v1.5 model simulation).
-The embeddings serve as the foundation for conceptual charge generation.
+"""
+    BGEIngestion class for loading and managing BGE embeddings.
+
+    For my Conceptual Charge I need to create an initial universe of charges from embeddings.
+    This class handles loading the BGE model, managing device compatibility, and an access point for our embeddings.
+
+    Unlike other ingestion classes, we aren't focused on converting text to embeddings here.
+    Instead, we need to disect the BGE model and provide a way to access the embeddings
+    directly for further processing.
+
+    It provides the initial rendering for our Product Manifold, as we need to convert these embeddings into conceptual charges.
+    
+    It supports automatic detection of available on-device
+    hardware (CPU, CUDA GPU, or MPS for Apple Silicon) and handles model loading accordingly.
+
+    
 """
 
+
+
+import sys
+from pathlib import Path
+
+
+# Ensure the project root is in the path for imports
+project_root = Path(__file__).resolve().parent.parent.parent.parent
+sys.path.insert(0, str(project_root))
+
+# Import necessary modules from the project
 import numpy as np
+import numba as nb
 import hashlib
 from typing import List, Optional, Dict, Any, Union
-from .semantic_embedding import SemanticEmbedding
-import logging
+import torch
+from sentence_transformers import SentenceTransformer
 
-# Configure logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+from Sysnpire.utils.logger import get_logger
+logger = get_logger(__name__)
+HAS_RICH_LOGGER = True
 
 
-class BGEIngestion:
-    """
-    BGE Ingestion Engine for Text-to-Embedding Conversion
-    
-    This class provides a clean, well-documented interface for converting
-    raw text into semantic embeddings that can be used for conceptual
-    charge generation. It simulates the BGE-Large-v1.5 model behavior
-    with deterministic, reproducible results.
-    
-    The ingestion process extracts semantic information from text and
-    creates 1024-dimensional embeddings that capture:
-    - Semantic meaning and relationships
-    - Textual structure and patterns  
-    - Category-specific features
-    - Normalized vector representations
-    
-    Attributes:
-        embedding_dim (int): Dimensionality of output embeddings (default: 1024)
-        model_name (str): Name of the simulated BGE model
-        cache_embeddings (bool): Whether to cache embeddings for repeated texts
-        _embedding_cache (Dict): Internal cache for processed embeddings
-    """
-    
-    def __init__(self, 
-                 embedding_dim: int = 1024,
-                 cache_embeddings: bool = True,
-                 random_seed: Optional[int] = None):
+
+class BGEIngestion():
+    def  __init__(self,model_name: str = "BAAI/bge-large-en-v1.5", random_seed: Optional[int] = None) -> None:
         """
-        Initialize the BGE Ingestion Engine.
-        
+        Initialize the BGEIngestion class with a specific model.
+
+        Will automatically detect available hardware and load the BGE model
+        on the most appropriate device (CUDA GPU, MPS for Apple Silicon, or CPU).
+    
+
         Args:
-            embedding_dim (int): Dimensionality of output embeddings
-            cache_embeddings (bool): Enable caching for performance
-            random_seed (int, optional): Seed for reproducible results
+            model_name (str): Name of the BGE model to use.
+            random_seed (Optional[int]): Seed for reproducibility.
         """
-        self.embedding_dim = embedding_dim
-        self.model_name = "BAAI/bge-large-en-v1.5"
-        self.cache_embeddings = cache_embeddings
+        self.model_name = model_name
         self.random_seed = random_seed
+        self.model = self._load_model()
         
-        # Internal cache for embeddings
-        self._embedding_cache: Dict[str, SemanticEmbedding] = {}
+        if random_seed is not None:
+            torch.manual_seed(random_seed)
+            np.random.seed(random_seed)
         
-        # Semantic category definitions for feature extraction
-        self._semantic_categories = {
-            'abstract_concepts': ['theory', 'concept', 'idea', 'principle', 'philosophy'],
-            'emotional_content': ['feel', 'emotion', 'joy', 'sad', 'angry', 'happy', 'love'],
-            'social_dynamics': ['social', 'community', 'relationship', 'interaction', 'group'],
-            'technical_domain': ['system', 'process', 'method', 'algorithm', 'technical'],
-            'creative_expression': ['art', 'creative', 'music', 'design', 'artistic', 'beauty'],
-            'temporal_aspects': ['time', 'future', 'past', 'evolution', 'change', 'development'],
-            'spatial_concepts': ['space', 'location', 'place', 'environment', 'landscape'],
-            'quantitative_info': ['number', 'measure', 'data', 'statistics', 'analysis']
-        }
-        
-        logger.info(f"BGE Ingestion initialized with {embedding_dim}D embeddings")
-    
-    def ingest_text(self, 
-                   text: str, 
-                   text_id: Optional[str] = None,
-                   metadata: Optional[Dict[str, Any]] = None) -> SemanticEmbedding:
+        self.cache = {}
+
+    def _load_model(self) -> None:
         """
-        Convert a single text string into a semantic embedding.
+        Load the BGE model with automatic CPU/GPU detection.
         
-        This is the primary method for text ingestion. It processes the input
-        text through multiple stages to create a rich semantic representation:
+        This method intelligently detects available hardware and loads the
+        BGE-Large-v1.5 model on the most appropriate device:
+        - CUDA GPU if available and working
+        - MPS (Apple Silicon) if available 
+        - CPU as fallback
         
-        1. Text preprocessing and feature extraction
-        2. Semantic vector generation using deterministic BGE simulation
-        3. Feature integration and normalization
-        4. Embedding validation and packaging
-        
-        Args:
-            text (str): Input text to convert to embedding
-            text_id (str, optional): Unique identifier for the text
-            metadata (Dict, optional): Additional metadata to store with embedding
-            
-        Returns:
-            SemanticEmbedding: A complete semantic embedding object ready for
-                              conceptual charge generation
-                              
-        Raises:
-            ValueError: If text is empty or invalid
-            TypeError: If text is not a string
+        The model is cached after first load for efficiency.
         """
-        # Input validation
-        if not isinstance(text, str):
-            raise TypeError("Input text must be a string")
-        
-        if not text.strip():
-            raise ValueError("Input text cannot be empty")
-        
-        # Check cache first
-        text_hash = self._generate_text_hash(text)
-        if self.cache_embeddings and text_hash in self._embedding_cache:
-            logger.debug(f"Retrieved cached embedding for text: {text[:50]}...")
-            return self._embedding_cache[text_hash]
-        
-        # Generate semantic embedding
+                
         try:
-            # Step 1: Extract textual features
-            text_features = self._extract_textual_features(text)
+            # Detect best available device
+            if torch.cuda.is_available():
+                self.device = torch.device('cuda')
+                device_name = torch.cuda.get_device_name(0)
+                logger.info(f"Using CUDA device: {device_name}")
+            elif hasattr(torch.backends, 'mps') and torch.backends.mps.is_available():
+                self.device = torch.device('mps')
+                logger.info(f"Using MPS device: Apple Silicon")
+            else:
+                self.device = torch.device('cpu')
+                logger.info("Using CPU for BGE model")
             
-            # Step 2: Extract semantic category features
-            semantic_features = self._extract_semantic_features(text)
+            # Load the model
+            logger.info(f"Loading BGE model '{self.model_name}' on {self.device}")
+            self.model = SentenceTransformer(self.model_name, device=self.device)
+
             
-            # Step 3: Generate base embedding vector
-            embedding_vector = self._generate_embedding_vector(text, text_features, semantic_features)
+            # Verify model loaded correctly
+            if self.model is None:
+                raise RuntimeError("Failed to load BGE model")
             
-            # Step 4: Create semantic embedding object
-            semantic_embedding = SemanticEmbedding(
-                vector=embedding_vector,
-                text=text,
-                text_id=text_id,
-                metadata=metadata or {}
-            )
-            
-            # Step 5: Cache the result
-            if self.cache_embeddings:
-                self._embedding_cache[text_hash] = semantic_embedding
-            
-            logger.debug(f"Generated embedding for text: {text[:50]}... "
-                        f"(magnitude: {semantic_embedding.magnitude:.4f})")
-            
-            return semantic_embedding
+            logger.info(f"BGE model loaded successfully on {self.device}")
             
         except Exception as e:
-            logger.error(f"Failed to generate embedding for text: {text[:50]}... Error: {e}")
-            raise
+            logger.error(f"Failed to load BGE model: {e}")
+            # Fallback to CPU if GPU loading fails
+            if self.device != torch.device('cpu'):
+                logger.warning("Attempting fallback to CPU...")
+                try:
+                    self.device = torch.device('cpu')
+                    self.model = SentenceTransformer(self.model_name, device=self.device)
+                    logger.info("Successfully loaded model on CPU fallback")
+                except Exception as cpu_error:
+                    logger.error(f"CPU fallback also failed: {cpu_error}")
+                    raise RuntimeError(f"Unable to load BGE model on any device: {e}")
+            else:
+                raise RuntimeError(f"Unable to load BGE model: {e}")
+        return self.model
     
-    def ingest_batch(self, 
-                    texts: List[str], 
-                    text_ids: Optional[List[str]] = None,
-                    metadata: Optional[List[Dict[str, Any]]] = None) -> List[SemanticEmbedding]:
+    
+    def load_total_embeddings(self) -> Dict[str, Any]:
         """
-        Convert multiple texts into semantic embeddings efficiently.
+        Extract all token embeddings and metadata from the BGE model.
         
-        This method processes multiple texts in batch for improved performance.
-        It maintains the same quality as single-text ingestion while providing
-        better throughput for large-scale processing.
-        
-        Args:
-            texts (List[str]): List of input texts to convert
-            text_ids (List[str], optional): List of unique identifiers for texts
-            metadata (List[Dict], optional): List of metadata dictionaries
-            
         Returns:
-            List[SemanticEmbedding]: List of semantic embeddings in same order as input
-            
-        Raises:
-            ValueError: If input lists have mismatched lengths
+            Dict containing:
+            - 'embeddings': Token embedding matrix [vocab_size, embedding_dim]
+            - 'vocab_size': Size of vocabulary
+            - 'embedding_dim': Dimension of embeddings
+            - 'tokenizer': Tokenizer for token-to-id mapping
+            - 'token_to_id': Dictionary mapping tokens to IDs
+            - 'id_to_token': Dictionary mapping IDs to tokens
         """
-        # Input validation
-        if not texts:
-            return []
+        if self.model is None:
+            raise RuntimeError("BGE model is not loaded. Call _load_model() first.")
         
-        if text_ids and len(text_ids) != len(texts):
-            raise ValueError("text_ids length must match texts length")
-        
-        if metadata and len(metadata) != len(texts):
-            raise ValueError("metadata length must match texts length")
-        
-        # Prepare arguments
-        if text_ids is None:
-            text_ids = [None] * len(texts)
-        
-        if metadata is None:
-            metadata = [None] * len(texts)
-        
-        # Process batch
-        embeddings = []
-        for i, text in enumerate(texts):
+        try:
+            # Access the underlying transformer model
+            transformer_model = self.model[0].auto_model
+            tokenizer = self.model[0].tokenizer
+            
+            # Extract token embeddings from the embedding layer
+            embedding_layer = transformer_model.embeddings.word_embeddings
+            token_embeddings = embedding_layer.weight.detach().cpu().numpy()
+            
+            vocab_size, embedding_dim = token_embeddings.shape
+            
+            # Get vocabulary mappings
+            vocab = tokenizer.get_vocab()
+            token_to_id = dict(vocab)
+            id_to_token = {v: k for k, v in vocab.items()}
+            
+            logger.info(f"Extracted {vocab_size} token embeddings of dimension {embedding_dim}")
+            logger.info(f"Vocabulary size: {len(vocab)}")
+            
+            return {
+                'embeddings': token_embeddings,
+                'vocab_size': vocab_size,
+                'embedding_dim': embedding_dim,
+                'tokenizer': tokenizer,
+                'token_to_id': token_to_id,
+                'id_to_token': id_to_token,
+                'device': str(self.device)
+            }
+            
+        except AttributeError as e:
+            logger.error(f"Failed to access BGE model internals: {e}")
+            logger.info("Attempting alternative extraction method...")
+            
+            # Alternative approach: access through model components
             try:
-                embedding = self.ingest_text(
-                    text=text,
-                    text_id=text_ids[i],
-                    metadata=metadata[i]
-                )
-                embeddings.append(embedding)
-            except Exception as e:
-                logger.warning(f"Failed to process text {i}: {text[:50]}... Error: {e}")
-                # Create a zero embedding as fallback
-                zero_embedding = SemanticEmbedding(
-                    vector=np.zeros(self.embedding_dim),
-                    text=text,
-                    text_id=text_ids[i],
-                    metadata={'error': str(e), 'failed_ingestion': True}
-                )
-                embeddings.append(zero_embedding)
+                # Get the first module (usually the transformer)
+                first_module = self.model._modules['0']
+                transformer = first_module.auto_model
+                tokenizer = first_module.tokenizer
+                
+                # Extract embeddings
+                embeddings = transformer.get_input_embeddings().weight.detach().cpu().numpy()
+                vocab = tokenizer.get_vocab()
+                
+                vocab_size, embedding_dim = embeddings.shape
+                token_to_id = dict(vocab)
+                id_to_token = {v: k for k, v in vocab.items()}
+                
+                logger.info(f"Successfully extracted {vocab_size} embeddings via alternative method")
+                
+                return {
+                    'embeddings': embeddings,
+                    'vocab_size': vocab_size,
+                    'embedding_dim': embedding_dim,
+                    'tokenizer': tokenizer,
+                    'token_to_id': token_to_id,
+                    'id_to_token': id_to_token,
+                    'device': str(self.device)
+                }
+                
+            except Exception as alt_error:
+                logger.error(f"Alternative extraction also failed: {alt_error}")
+                raise RuntimeError(f"Unable to extract token embeddings from BGE model: {e}")
         
-        logger.info(f"Processed batch of {len(texts)} texts -> {len(embeddings)} embeddings")
-        return embeddings
+        except Exception as e:
+            logger.error(f"Unexpected error during embedding extraction: {e}")
+            raise RuntimeError(f"Failed to extract embeddings: {e}")
+
+
+
+if __name__ == "__main__":
+    bge_ingestion = BGEIngestion(model_name="BAAI/bge-large-en-v1.5", random_seed=42)
+    embedding_data = bge_ingestion.load_total_embeddings()
     
-    def _generate_text_hash(self, text: str) -> str:
-        """Generate a hash for text caching."""
-        return hashlib.md5(text.encode('utf-8')).hexdigest()
+    logger.info(f"Vocabulary size: {embedding_data['vocab_size']}")
+    logger.info(f"Embedding dimension: {embedding_data['embedding_dim']}")
+    logger.info(f"Device used: {embedding_data['device']}")
     
-    def _extract_textual_features(self, text: str) -> np.ndarray:
-        """
-        Extract basic textual structure features from the input text.
-        
-        These features capture the structural properties of the text that
-        contribute to its semantic embedding:
-        - Text length and complexity
-        - Punctuation patterns
-        - Vocabulary diversity
-        - Sentence structure
-        
-        Args:
-            text (str): Input text to analyze
-            
-        Returns:
-            np.ndarray: Array of normalized textual features
-        """
-        features = [
-            len(text) / 500.0,  # Text length (normalized)
-            text.count(' ') / max(len(text), 1),  # Word density
-            text.count('.') / max(text.count(' '), 1),  # Sentence density
-            text.count(',') / max(text.count(' '), 1),  # Clause complexity
-            len(set(text.lower())) / max(len(text), 1),  # Character diversity
-            text.count('?') / max(len(text), 1),  # Question frequency
-            text.count('!') / max(len(text), 1),  # Exclamation frequency
-            len(text.split()) / max(len(text), 1),  # Word-to-character ratio
-        ]
-        
-        return np.array(features)
+    # Show sample tokens and their embeddings
+    embeddings = embedding_data['embeddings']
+    id_to_token = embedding_data['id_to_token']
     
-    def _extract_semantic_features(self, text: str) -> np.ndarray:
-        """
-        Extract semantic category features from the input text.
-        
-        This method analyzes the text for semantic content across predefined
-        categories that are relevant for conceptual charge generation.
-        
-        Args:
-            text (str): Input text to analyze
-            
-        Returns:
-            np.ndarray: Array of semantic category scores
-        """
-        text_lower = text.lower()
-        features = []
-        
-        for category, keywords in self._semantic_categories.items():
-            # Calculate category score based on keyword presence
-            score = 0.0
-            for keyword in keywords:
-                score += text_lower.count(keyword)
-            
-            # Normalize by text length and keyword count
-            normalized_score = score / (len(keywords) * max(len(text.split()), 1))
-            features.append(normalized_score)
-        
-        return np.array(features)
+    logger.info("Sample tokens and embedding info:")
+    for i in range(min(10, len(embeddings))):
+        token = id_to_token.get(i, f"<UNK_{i}>")
+        embedding_norm = np.linalg.norm(embeddings[i])
+        logger.info(f"Token {i}: '{token}' | Embedding norm: {embedding_norm:.4f}")
     
-    def _generate_embedding_vector(self, 
-                                 text: str, 
-                                 text_features: np.ndarray, 
-                                 semantic_features: np.ndarray) -> np.ndarray:
-        """
-        Generate the actual embedding vector from extracted features.
-        
-        This method combines textual and semantic features to create a
-        deterministic, high-dimensional embedding that simulates BGE behavior.
-        
-        Args:
-            text (str): Original input text
-            text_features (np.ndarray): Extracted textual features
-            semantic_features (np.ndarray): Extracted semantic features
-            
-        Returns:
-            np.ndarray: Normalized embedding vector of specified dimensionality
-        """
-        # Create deterministic seed from text
-        text_hash = hashlib.md5(text.encode('utf-8')).hexdigest()
-        seed = int(text_hash[:8], 16)
-        
-        # Use provided random seed if available
-        if self.random_seed is not None:
-            seed = seed ^ self.random_seed
-        
-        np.random.seed(seed)
-        
-        # Generate base embedding
-        embedding = np.random.randn(self.embedding_dim)
-        
-        # Integrate textual features
-        feature_positions = np.linspace(0, self.embedding_dim - 1, len(text_features), dtype=int)
-        for i, feature in enumerate(text_features):
-            if i < len(feature_positions):
-                pos = feature_positions[i]
-                embedding[pos] = embedding[pos] * (1 + feature * 0.5)
-        
-        # Integrate semantic features
-        semantic_block_size = self.embedding_dim // len(semantic_features)
-        for i, semantic_weight in enumerate(semantic_features):
-            start_idx = i * semantic_block_size
-            end_idx = min(start_idx + semantic_block_size, self.embedding_dim)
-            
-            # Apply semantic weighting to embedding blocks
-            if semantic_weight > 0:
-                embedding[start_idx:end_idx] *= (1 + semantic_weight * 2.0)
-        
-        # Add text-specific perturbations for uniqueness
-        for i, char in enumerate(text[:min(len(text), 100)]):  # Use first 100 chars
-            char_influence = ord(char) / 128.0  # Normalize ASCII values
-            influence_pos = (i * 7) % self.embedding_dim  # Spread influence
-            embedding[influence_pos] += char_influence * 0.1
-        
-        # Normalize the final embedding
-        embedding = embedding / np.linalg.norm(embedding)
-        
-        return embedding
-    
-    def get_cache_stats(self) -> Dict[str, Any]:
-        """
-        Get statistics about the embedding cache.
-        
-        Returns:
-            Dict[str, Any]: Cache statistics including size and hit rate
-        """
-        return {
-            'cache_size': len(self._embedding_cache),
-            'cache_enabled': self.cache_embeddings,
-            'embedding_dimension': self.embedding_dim,
-            'model_name': self.model_name
-        }
-    
-    def clear_cache(self) -> None:
-        """Clear the embedding cache to free memory."""
-        self._embedding_cache.clear()
-        logger.info("Embedding cache cleared")
-    
-    def __repr__(self) -> str:
-        """String representation of the BGE Ingestion engine."""
-        return (f"BGEIngestion(embedding_dim={self.embedding_dim}, "
-                f"cache_enabled={self.cache_embeddings}, "
-                f"cached_embeddings={len(self._embedding_cache)})")
+    logger.info(f"Total token embeddings extracted: {len(embeddings)}")

@@ -158,6 +158,8 @@ E_trajectory[i] = α_i * exp(-|v_i - v_E|²/2σ²) * trajectory_accumulation
 - **NO Euclidean assumptions**: Account for field-induced metric warping
 - **Complex mathematics required**: Use `complex` type for field calculations
 - **Trajectory integration essential**: All components depend on accumulated observational experience
+- **NO simulated or default values**: Never use placeholder, mock, or default values for mathematical parameters. All field theory calculations must use actual computed values from the mathematical formulations. When parameters are needed, they must be explicitly provided or calculated from the theoretical framework.
+- **NO simulated model outputs**: Never use np.random, fake embeddings, or simulated model responses. Always use actual model inference from loaded models (BGE, transformers, etc.). If a model is not available, request it be provided rather than creating fake outputs.
 
 ### Module Structure and Context
 
