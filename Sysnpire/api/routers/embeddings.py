@@ -23,7 +23,7 @@ from ..models import (
     ErrorResponse
 )
 
-from model.ingestion import BGEIngestion, MPNetIngestion, SemanticEmbedding
+from ...model.intial import BGEIngestion, MPNetIngestion, SemanticEmbedding
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)

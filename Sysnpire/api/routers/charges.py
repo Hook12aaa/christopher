@@ -23,9 +23,9 @@ from ..models import (
     ErrorResponse
 )
 
-from model.ingestion import BGEIngestion, MPNetIngestion
-from model.charge_factory import ChargeFactory
-from database.field_universe import FieldUniverse
+from ...model.intial import BGEIngestion, MPNetIngestion
+from ...model.charge_factory import ChargeFactory
+from ...database.field_universe import FieldUniverse
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
