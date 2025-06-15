@@ -64,6 +64,66 @@ class IntakeProcessor:
         
         logger.info(f"IntakeProcessor initialized - strict validation: {validation_strict}")
     
+    def extract_trajectory_features(self, charge: ConceptualChargeObject) -> Dict[str, Any]:
+        """
+        Extract trajectory operator features for database indexing and querying.
+        
+        Following CLAUDE.md principles: reuse existing trajectory data rather than recomputing.
+        
+        Args:
+            charge: ConceptualChargeObject with trajectory data
+            
+        Returns:
+            Dictionary with trajectory features for database storage/indexing
+        """
+        trajectory_features = {}
+        
+        try:
+            # Extract core trajectory operators (T_i(τ,s))
+            if hasattr(charge.field_components, 'trajectory_operators'):
+                trajectory_ops = charge.field_components.trajectory_operators
+                
+                # Compute transformative characteristics
+                magnitudes = [abs(op) for op in trajectory_ops]
+                phases = [np.angle(op) for op in trajectory_ops]
+                
+                trajectory_features.update({
+                    'trajectory_operator_count': len(trajectory_ops),
+                    'total_transformative_potential': np.mean(magnitudes) if magnitudes else 0.0,
+                    'max_transformative_magnitude': max(magnitudes) if magnitudes else 0.0,
+                    'min_transformative_magnitude': min(magnitudes) if magnitudes else 0.0,
+                    'transformative_coherence': 1.0 / (1.0 + np.std(magnitudes)) if len(magnitudes) > 1 else 1.0,
+                    'phase_distribution_entropy': -np.sum([p * np.log(abs(p) + 1e-10) for p in phases]) if phases else 0.0,
+                    'trajectory_complexity': np.std(magnitudes) + np.std(phases) if len(magnitudes) > 1 else 0.0
+                })
+                
+                logger.debug(f"Extracted trajectory features for {charge.charge_id}: T_potential={trajectory_features['total_transformative_potential']:.4f}")
+            
+            # Extract trajectory metadata if available (from enhanced charges)
+            if hasattr(charge, '_trajectory_metadata'):
+                metadata = charge._trajectory_metadata
+                trajectory_features.update({
+                    'movement_available': metadata.get('movement_available', False),
+                    'dtf_enhanced': metadata.get('dtf_enhanced', False),
+                    'frequency_evolution_available': len(metadata.get('frequency_evolution', [])) > 0,
+                    'semantic_modulation_strength': np.mean(metadata.get('semantic_modulation', [0.0])),
+                    'enhanced_transformative_potential': metadata.get('total_transformative_potential', 0.0)
+                })
+                
+                logger.debug(f"Enhanced trajectory metadata for {charge.charge_id}: movement={metadata.get('movement_available', False)}")
+            
+        except Exception as e:
+            logger.warning(f"Failed to extract trajectory features for {charge.charge_id}: {e}")
+            # Provide minimal fallback features
+            trajectory_features = {
+                'trajectory_operator_count': 0,
+                'total_transformative_potential': 0.0,
+                'movement_available': False,
+                'trajectory_complexity': 0.0
+            }
+        
+        return trajectory_features
+    
     def process_charge(self, charge: ConceptualChargeObject) -> Optional[Dict[str, Any]]:
         """
         Process a single ConceptualChargeObject for storage.
@@ -91,12 +151,16 @@ class IntakeProcessor:
                 processed_data = self._normalize_field_components(processed_data)
                 self.metrics.normalization_applied += 1
             
-            # Step 4: Extract tensor representations
+            # Step 4: Extract trajectory features for movement analysis
+            trajectory_features = self.extract_trajectory_features(charge)
+            processed_data['trajectory_features'] = trajectory_features
+            
+            # Step 5: Extract tensor representations
             if self.extract_tensor_representations:
                 processed_data.update(self._extract_tensor_data(charge))
                 self.metrics.field_extractions += 1
             
-            # Step 5: Add processing metadata
+            # Step 6: Add processing metadata
             processed_data['intake_metadata'] = {
                 'processed_timestamp': time.time(),
                 'validation_passed': True,
@@ -311,7 +375,7 @@ class IntakeProcessor:
             fc = charge.field_components
             
             # Trajectory operators tensor
-            if hasattr(fc, 'trajectory_operators') and fc.trajectory_operators:
+            if hasattr(fc, 'trajectory_operators') and fc.trajectory_operators is not None:
                 traj_ops = fc.trajectory_operators
                 if isinstance(traj_ops, (list, np.ndarray)):
                     # Convert complex numbers to real tensor
@@ -325,13 +389,13 @@ class IntakeProcessor:
                         tensor_data['trajectory_operators_imag'] = [0.0] * len(traj_ops)
             
             # Emotional trajectory tensor
-            if hasattr(fc, 'emotional_trajectory') and fc.emotional_trajectory:
+            if hasattr(fc, 'emotional_trajectory') and fc.emotional_trajectory is not None:
                 emotional_traj = fc.emotional_trajectory
                 if isinstance(emotional_traj, (list, np.ndarray)):
                     tensor_data['emotional_trajectory'] = [float(x) for x in emotional_traj]
             
             # Semantic field tensor
-            if hasattr(fc, 'semantic_field') and fc.semantic_field:
+            if hasattr(fc, 'semantic_field') and fc.semantic_field is not None:
                 semantic_field = fc.semantic_field
                 if isinstance(semantic_field, (list, np.ndarray)):
                     # Handle complex semantic field

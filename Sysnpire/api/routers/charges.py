@@ -38,6 +38,110 @@ mpnet_ingestion = MPNetIngestion()
 charge_factory = ChargeFactory()
 field_universe = FieldUniverse()
 
+@router.post("/analyze_movement")
+async def analyze_movement(request: TextInput):
+    """
+    Analyze transformative movement through meaning space.
+    
+    Returns detailed trajectory operator analysis showing how concepts
+    transform through observational states according to T(τ,C,s).
+    
+    Following CLAUDE.md: uses actual trajectory computation, no simulation.
+    """
+    try:
+        # Generate charge with enhanced trajectory operators
+        search_results = bge_ingestion.search_embeddings(request.text, top_k=1)
+        
+        if not search_results or 'results' not in search_results:
+            raise HTTPException(status_code=404, detail="No embedding found for text")
+        
+        # Extract embedding and manifold properties
+        best_result = search_results['results'][0]
+        embedding = best_result['embedding']
+        manifold_properties = bge_ingestion.extract_manifold_properties(
+            embedding=embedding,
+            index=best_result.get('index', 0),
+            all_embeddings=search_results.get('embeddings', np.array([embedding]))
+        )
+        
+        # Create enhanced charge with trajectory data
+        from ...model.charge_factory import ChargeParameters
+        charge_params = ChargeParameters(
+            observational_state=request.observational_state or 1.0,
+            gamma=request.gamma or 1.2,
+            context=request.context or "movement_analysis"
+        )
+        
+        metadata = {
+            'text': request.text,
+            'token': best_result.get('token', 'unknown'),
+            'analysis_type': 'movement_analysis'
+        }
+        
+        charge = charge_factory.create_charge(
+            embedding=embedding,
+            manifold_properties=manifold_properties,
+            charge_params=charge_params,
+            metadata=metadata
+        )
+        
+        # Extract detailed movement analysis
+        movement_data = charge.get_transformative_movement()
+        
+        # Convert numpy arrays for JSON response
+        for key, value in movement_data.items():
+            if isinstance(value, np.ndarray):
+                movement_data[key] = value.tolist()
+        
+        return {
+            "charge_id": f"movement_{uuid.uuid4().hex[:8]}",
+            "text": request.text,
+            "movement_analysis": movement_data,
+            "trajectory_details": {
+                "observational_state": charge.observational_state,
+                "trajectory_enhanced": hasattr(charge, 'trajectory_data'),
+                "transformative_formula": "T(τ,C,s) = ∫₀ˢ ω_i(τ,s')·e^(iφ_i(τ,s')) ds'",
+                "dtf_enhanced": getattr(charge, 'dtf_enhanced', False)
+            }
+        }
+        
+    except Exception as e:
+        logger.error(f"Movement analysis failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Movement analysis failed: {str(e)}")
+
+
+@router.get("/movement_stats")
+async def get_movement_statistics():
+    """
+    Get statistics about trajectory operator performance across the system.
+    
+    Provides insights into transformative movement patterns in the field universe.
+    """
+    try:
+        factory_stats = charge_factory.get_factory_statistics()
+        
+        # Get trajectory engine statistics
+        trajectory_stats = {
+            "trajectory_engine_initialized": hasattr(charge_factory, 'trajectory_engine'),
+            "embedding_dimension": getattr(charge_factory.trajectory_engine, 'embedding_dimension', 0),
+            "base_frequencies_count": len(getattr(charge_factory.trajectory_engine, 'base_frequencies', [])),
+            "integration_method": getattr(charge_factory.trajectory_engine, 'integration_method', 'unknown')
+        }
+        
+        return {
+            "factory_statistics": factory_stats,
+            "trajectory_statistics": trajectory_stats,
+            "theoretical_foundation": {
+                "trajectory_formula": "T_i(τ,s) = ∫₀ˢ ω_i(τ,s')·e^(iφ_i(τ,s')) ds'",
+                "movement_principle": "Meaning evolves through trajectory, not position",
+                "claude_md_compliant": True
+            }
+        }
+        
+    except Exception as e:
+        logger.error(f"Failed to get movement statistics: {e}")
+        raise HTTPException(status_code=500, detail=f"Statistics retrieval failed: {str(e)}")
+
 
 def charge_to_response(charge, charge_id: str = None) -> ConceptualChargeResponse:
     """Convert conceptual charge object to API response model."""
@@ -68,6 +172,27 @@ def charge_to_response(charge, charge_id: str = None) -> ConceptualChargeRespons
             "imaginary": 0.0
         }
     
+    # Extract trajectory movement data if available
+    movement_data = {}
+    if hasattr(charge, 'get_transformative_movement'):
+        try:
+            movement_data = charge.get_transformative_movement()
+            # Convert numpy arrays to lists for JSON serialization
+            for key, value in movement_data.items():
+                if isinstance(value, np.ndarray):
+                    movement_data[key] = value.tolist()
+        except Exception as e:
+            logger.warning(f"Failed to extract movement data: {e}")
+            movement_data = {'movement_available': False}
+    
+    # Prepare metadata including trajectory data
+    metadata = getattr(charge, 'metadata', {}).copy()
+    metadata['movement'] = movement_data
+    
+    # Add trajectory features if available (from database objects)
+    if hasattr(charge, '_trajectory_metadata'):
+        metadata['trajectory_metadata'] = charge._trajectory_metadata
+    
     return ConceptualChargeResponse(
         charge_id=charge_id,
         text=getattr(charge, 'text', 'Unknown text'),
@@ -78,7 +203,7 @@ def charge_to_response(charge, charge_id: str = None) -> ConceptualChargeRespons
         phase_total=getattr(charge, 'phase_total', 0.0),
         observational_state=getattr(charge, 'observational_state', 1.0),
         gamma=getattr(charge, 'gamma', 1.0),
-        metadata=getattr(charge, 'metadata', {})
+        metadata=metadata
     )
 
 @blueprint.route("/generate", methods=["POST"])

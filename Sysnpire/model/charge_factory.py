@@ -545,6 +545,82 @@ class ChargeFactory:
             logger.error(f"Semantic dimension processing failed: {e}")
             raise
     
+    def convert_to_database_object(self, 
+                                  charge: ConceptualCharge,
+                                  charge_id: str,
+                                  text_source: str) -> 'ConceptualChargeObject':
+        """
+        Convert enhanced ConceptualCharge to database ConceptualChargeObject.
+        
+        Ensures trajectory operator data flows through to database storage
+        following CLAUDE.md principles of no duplication.
+        
+        Args:
+            charge: Enhanced ConceptualCharge from factory
+            charge_id: Unique identifier for database
+            text_source: Original text input
+            
+        Returns:
+            ConceptualChargeObject ready for database storage with trajectory data
+        """
+        from Sysnpire.database.conceptual_charge_object import ConceptualChargeObject, FieldComponents
+        
+        # Extract trajectory operators from enhanced charge
+        if hasattr(charge, 'trajectory_data') and charge.trajectory_data is not None:
+            # Use enhanced trajectory data
+            trajectory_ops = charge.trajectory_data['trajectory_operators']
+            transformative_magnitude = charge.trajectory_data['transformative_magnitude']
+            frequency_evolution = charge.trajectory_data['frequency_evolution']
+            phase_accumulation = charge.trajectory_data['phase_accumulation']
+            semantic_modulation = charge.trajectory_data['semantic_modulation']
+            
+            logger.debug(f"Converting {charge.token} with enhanced trajectory data: {len(trajectory_ops)} operators")
+        else:
+            # Fallback to basic trajectory computation
+            s = charge.observational_state
+            trajectory_ops = [charge.trajectory_operator(s, i) for i in range(min(3, len(charge.omega_base)))]
+            transformative_magnitude = np.array([abs(op) for op in trajectory_ops])
+            frequency_evolution = charge.omega_base[:len(trajectory_ops)]
+            phase_accumulation = charge.phi_base[:len(trajectory_ops)]
+            semantic_modulation = np.zeros(len(trajectory_ops))
+            
+            logger.debug(f"Converting {charge.token} with basic trajectory data: {len(trajectory_ops)} operators")
+        
+        # Compute complete charge for database
+        complete_charge_value = charge.compute_complete_charge()
+        
+        # Create FieldComponents with trajectory data
+        field_components = FieldComponents(
+            trajectory_operators=trajectory_ops,  # List[complex] - core T(τ,C,s) data
+            emotional_trajectory=charge.emotional_trajectory_integration(charge.observational_state),
+            semantic_field=np.real(charge.semantic_field_generation(charge.observational_state)),  # Convert complex to real for storage
+            phase_total=charge.total_phase_integration(charge.observational_state),
+            observational_persistence=charge.observational_persistence(charge.observational_state)
+        )
+        
+        # Create database object with trajectory data preserved
+        db_charge = ConceptualChargeObject(
+            charge_id=charge_id,
+            text_source=text_source,
+            complete_charge=complete_charge_value,
+            field_components=field_components,
+            observational_state=charge.observational_state,
+            gamma=charge.gamma
+        )
+        
+        # Store additional trajectory metadata for enhanced retrieval
+        db_charge._trajectory_metadata = {
+            'transformative_magnitude': transformative_magnitude.tolist() if isinstance(transformative_magnitude, np.ndarray) else transformative_magnitude,
+            'frequency_evolution': frequency_evolution.tolist() if isinstance(frequency_evolution, np.ndarray) else frequency_evolution,
+            'phase_accumulation': phase_accumulation.tolist() if isinstance(phase_accumulation, np.ndarray) else phase_accumulation,
+            'semantic_modulation': semantic_modulation.tolist() if isinstance(semantic_modulation, np.ndarray) else semantic_modulation,
+            'movement_available': hasattr(charge, 'trajectory_data'),
+            'dtf_enhanced': getattr(charge, 'dtf_enhanced', False),
+            'total_transformative_potential': float(np.mean(transformative_magnitude)) if len(transformative_magnitude) > 0 else 0.0
+        }
+        
+        return db_charge
+    
     def get_factory_statistics(self) -> Dict[str, Any]:
         """
         Get statistics about charge factory operations.
