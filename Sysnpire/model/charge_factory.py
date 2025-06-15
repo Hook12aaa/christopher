@@ -759,11 +759,17 @@ class ChargeFactory:
             }
             
             # Step 2: Prepare emotional data for phase extraction
+            # CLAUDE.MD COMPLIANCE: Use actual computed complex values from emotional dimension
             emotional_data = {
                 'emotional_trajectory_complex': emotional_trajectory,
                 'emotional_phase': np.angle(emotional_trajectory) if emotional_trajectory != 0 else 0.0,
-                'gaussian_alignment': abs(emotional_trajectory),
-                'field_modulation': {'emotional_phase': np.angle(emotional_trajectory)}
+                'emotional_magnitude': abs(emotional_trajectory),
+                'complex_field_data': {
+                    'magnitude': abs(emotional_trajectory),
+                    'phase': np.angle(emotional_trajectory),
+                    'real': emotional_trajectory.real,
+                    'imag': emotional_trajectory.imag
+                }
             }
             
             # Step 3: Prepare trajectory data for phase extraction
