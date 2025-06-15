@@ -27,6 +27,18 @@ from .performance_optimizers import (
     PerformanceProfiler
 )
 
+from .field_theory_optimizers import (
+    field_theory_cupy_optimize,
+    field_theory_jax_optimize,
+    field_theory_numba_optimize,
+    field_theory_trajectory_optimize,
+    field_theory_auto_optimize,
+    get_field_theory_optimization_status,
+    get_field_theory_performance_summary,
+    log_field_theory_optimization_status,
+    FieldTheoryPerformanceProfiler
+)
+
 __all__ = [
     # Logging utilities
     'get_logger',
@@ -46,5 +58,16 @@ __all__ = [
     'get_optimization_status',
     'get_performance_summary',
     'log_optimization_status',
-    'PerformanceProfiler'
+    'PerformanceProfiler',
+    
+    # Field theory optimization decorators (CLAUDE.md compliant)
+    'field_theory_cupy_optimize',
+    'field_theory_jax_optimize',
+    'field_theory_numba_optimize', 
+    'field_theory_trajectory_optimize',
+    'field_theory_auto_optimize',
+    'get_field_theory_optimization_status',
+    'get_field_theory_performance_summary',
+    'log_field_theory_optimization_status',
+    'FieldTheoryPerformanceProfiler'
 ]
