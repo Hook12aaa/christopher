@@ -30,8 +30,73 @@ sys.path.insert(0, str(project_root))
 from Sysnpire.model.semantic_dimension.vector_transformation import VectorToFieldTransformer
 from Sysnpire.model.semantic_dimension.semantic_basis_functions import DTFSemanticBasisExtractor, create_dtf_semantic_basis_from_bge
 from Sysnpire.utils.logger import get_logger
+from Sysnpire.utils.field_theory_optimizers import (
+    field_theory_jax_optimize, field_theory_numba_optimize, 
+    field_theory_auto_optimize
+)
 
 logger = get_logger(__name__)
+
+
+@field_theory_auto_optimize(prefer_accuracy=True, profile=True)
+def _optimized_dtf_field_computation(embedding_components: np.ndarray, 
+                                   basis_values: np.ndarray, 
+                                   phase_factors: np.ndarray) -> complex:
+    """
+    Optimized DTF semantic field computation for S_τ(x) = Σᵢ e_τ,ᵢ · φᵢ(x) · e^(iθ_τ,ᵢ).
+    
+    CLAUDE.md Compliance: Field theory optimized for DTF semantic field transformation.
+    Preserves complex-valued mathematics and phase relationships.
+    """
+    # Vectorized DTF field component computation
+    field_components = embedding_components * basis_values * phase_factors
+    
+    # Sum all components for complete semantic field
+    semantic_field = np.sum(field_components)
+    
+    return semantic_field
+
+
+@field_theory_numba_optimize(preserve_complex=False, profile=True)
+def _optimized_field_magnitude_statistics(field_magnitudes: np.ndarray, 
+                                         current_avg: float, 
+                                         total_count: int) -> float:
+    """
+    Optimized running average computation for field magnitude statistics.
+    
+    CLAUDE.md Compliance: Field theory optimized statistical computation.
+    Preserves mathematical accuracy for performance tracking.
+    """
+    if total_count <= 0:
+        return 0.0
+    
+    # Compute new running average efficiently
+    total_magnitude = 0.0
+    for i in range(len(field_magnitudes)):
+        total_magnitude += field_magnitudes[i]
+    
+    # Update running average
+    if total_count == 1:
+        return total_magnitude / len(field_magnitudes)
+    else:
+        new_avg = ((current_avg * (total_count - 1)) + total_magnitude) / total_count
+        return new_avg
+
+
+@field_theory_jax_optimize(preserve_complex=True, profile=True) 
+def _optimized_batch_phase_computation(embedding_components: np.ndarray) -> np.ndarray:
+    """
+    Optimized batch phase factor computation for multiple embeddings.
+    
+    CLAUDE.md Compliance: Field theory optimized for complex phase relationships.
+    Preserves phase information for field theory calculations.
+    """
+    # Compute phase factors for embedding components
+    # Add small epsilon to avoid division by zero
+    complex_components = embedding_components + 1e-12j
+    phase_factors = np.exp(1j * np.angle(complex_components))
+    
+    return phase_factors
 
 
 @dataclass
@@ -240,11 +305,17 @@ class SemanticFieldPool:
             self.processed_count += 1
             self.stats['total_processed'] += 1
             
-            # Update statistics
+            # Update statistics using optimized computation
             field_magnitude = abs(entry.semantic_field)
             current_avg = self.stats['average_field_magnitude']
             n = self.stats['total_processed']
-            self.stats['average_field_magnitude'] = ((current_avg * (n-1)) + field_magnitude) / n
+            
+            # Use optimized statistics computation for performance
+            self.stats['average_field_magnitude'] = _optimized_field_magnitude_statistics(
+                field_magnitudes=np.array([field_magnitude]),
+                current_avg=current_avg,
+                total_count=n
+            )
             
             processing_method = "DTF" if self.use_dtf_basis else "standard"
             logger.debug(f"Processed '{entry.token}' ({processing_method}) → field magnitude: {field_magnitude:.4f}")
@@ -270,32 +341,39 @@ class SemanticFieldPool:
         """
         try:
             basis_functions = self.semantic_basis_set['basis_functions']
-            semantic_field = 0j
             
-            # Apply S_τ(x) = Σᵢ e_τ,ᵢ · φᵢ(x) · e^(iθ_τ,ᵢ) using DTF basis
-            for basis_idx, basis_data in basis_functions.items():
+            # Prepare vectorized computation for efficiency
+            num_basis = min(len(basis_functions), len(entry.embedding))
+            embedding_components = np.zeros(num_basis)
+            basis_values = np.zeros(num_basis)
+            
+            # Collect data for vectorized computation
+            basis_indices = list(basis_functions.keys())[:num_basis]
+            for i, basis_idx in enumerate(basis_indices):
                 if basis_idx >= len(entry.embedding):
                     break
                     
                 # e_τ,ᵢ: embedding component
-                embedding_component = entry.embedding[basis_idx]
+                embedding_components[i] = entry.embedding[basis_idx]
                 
                 # φᵢ(x): DTF semantic basis function value
-                basis_function = basis_data['function']
-                basis_value = basis_function(entry.position)
-                
-                # e^(iθ_τ,ᵢ): phase factor (simplified for this implementation)
-                phase_factor = np.exp(1j * np.angle(embedding_component + 1e-12j))
-                
-                # Add component to field
-                field_component = embedding_component * basis_value * phase_factor
-                semantic_field += field_component
+                basis_function = basis_functions[basis_idx]['function']
+                basis_values[i] = basis_function(entry.position)
+            
+            # Use optimized batch phase computation
+            phase_factors = _optimized_batch_phase_computation(embedding_components)
+            
+            # Use optimized DTF field computation
+            semantic_field = _optimized_dtf_field_computation(
+                embedding_components=embedding_components,
+                basis_values=basis_values,
+                phase_factors=phase_factors
+            )
             
             # Apply semantic field normalization
             if abs(semantic_field) > 0:
                 # Normalize by number of basis functions used
-                num_used = min(len(basis_functions), len(entry.embedding))
-                semantic_field = semantic_field / np.sqrt(num_used)
+                semantic_field = semantic_field / np.sqrt(num_basis)
             
             return semantic_field
             
