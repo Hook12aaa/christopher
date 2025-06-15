@@ -86,6 +86,9 @@ class FieldTheoryPerformanceProfiler:
     def __init__(self):
         self.profiles = {}
         self.mathematical_accuracy_checks = True
+        self._optimization_counts = {}
+        self._optimization_times = {}
+        self._optimization_speedups = {}
     
     def profile_field_operation(self, func_name: str, original_time: float, optimized_time: float,
                                original_result: Any, optimized_result: Any, 
@@ -120,19 +123,24 @@ class FieldTheoryPerformanceProfiler:
         
         # Enhanced logging with mathematical compliance
         if accuracy_verified:
+            # Track optimization metrics
+            self._optimization_counts[func_name] = self._optimization_counts.get(func_name, 0) + 1
+            if func_name not in self._optimization_times:
+                self._optimization_times[func_name] = []
+                self._optimization_speedups[func_name] = []
+            self._optimization_times[func_name].append(optimized_time)
+            self._optimization_speedups[func_name].append(speedup)
+            
             # Check if we should use compact optimization logging
             if hasattr(logger, '_compact_optimization_mode') and logger._compact_optimization_mode:
-                # Just track the optimization without logging each one
-                if not hasattr(self, '_optimization_counts'):
-                    self._optimization_counts = {}
-                self._optimization_counts[func_name] = self._optimization_counts.get(func_name, 0) + 1
-                
                 # Only log every 100th optimization or exceptional speedups  
                 if self._optimization_counts[func_name] % 100 == 0 or speedup > 15.0:
                     short_name = func_name.replace('_optimized_', '').replace('_computation', '').replace('_', ' ')
-                    logger.log_info(f"⚡ {short_name}: {self._optimization_counts[func_name]} optimizations (avg {speedup:.1f}x faster)")
+                    avg_speedup = np.mean(self._optimization_speedups[func_name][-100:])  # Average of last 100
+                    avg_time = np.mean(self._optimization_times[func_name][-100:])  # Average of last 100
+                    logger.log_info(f"⚡ {short_name}: {self._optimization_counts[func_name]} optimizations (avg time: {avg_time:.3f}s, avg speedup: {avg_speedup:.1f}x)")
             else:
-                logger.log_success(f"🎯 {optimizer} optimization for {func_name}: {speedup:.2f}x speedup (mathematically verified)")
+                logger.log_success(f"🎯 {optimizer} optimization for {func_name}: {speedup:.2f}x speedup, took {optimized_time:.3f}s (mathematically verified)")
         else:
             logger.log_error(f"❌ {optimizer} optimization for {func_name} FAILED mathematical accuracy check")
             return False
@@ -198,6 +206,53 @@ class FieldTheoryPerformanceProfiler:
         except Exception as e:
             logger.log_error(f"❌ Mathematical accuracy verification failed: {e}")
             return False
+    
+    def get_optimization_summary(self) -> str:
+        """
+        Get a formatted summary of all optimization statistics.
+        
+        Returns timing information and performance metrics for all optimized functions.
+        """
+        if not self._optimization_counts:
+            return "No optimizations recorded yet."
+        
+        summary_lines = ["📊 Field Theory Optimization Summary:"]
+        total_optimizations = sum(self._optimization_counts.values())
+        
+        for func_name in sorted(self._optimization_counts.keys()):
+            count = self._optimization_counts[func_name]
+            times = self._optimization_times[func_name]
+            speedups = self._optimization_speedups[func_name]
+            
+            avg_time = np.mean(times)
+            avg_speedup = np.mean(speedups)
+            total_time = sum(times)
+            
+            short_name = func_name.replace('_optimized_', '').replace('_computation', '').replace('_', ' ')
+            summary_lines.append(
+                f"  ⚡ {short_name}: {count} calls, avg {avg_time:.3f}s, "
+                f"total {total_time:.2f}s, avg {avg_speedup:.1f}x faster"
+            )
+        
+        summary_lines.append(f"  📈 Total optimizations: {total_optimizations}")
+        return "\n".join(summary_lines)
+    
+    def enable_compact_mode(self):
+        """Enable compact optimization logging mode."""
+        logger._compact_optimization_mode = True
+        logger.log_info("🔧 Compact optimization logging enabled - will report every 100th optimization")
+    
+    def disable_compact_mode(self):
+        """Disable compact optimization logging mode."""
+        logger._compact_optimization_mode = False
+        logger.log_info("🔧 Detailed optimization logging enabled")
+    
+    def reset_optimization_stats(self):
+        """Reset all optimization statistics."""
+        self._optimization_counts.clear()
+        self._optimization_times.clear()
+        self._optimization_speedups.clear()
+        logger.log_info("🔄 Optimization statistics reset")
 
 
 # Global field theory profiler instance
@@ -607,6 +662,33 @@ def log_field_theory_optimization_status():
             logger.log_info(f"  {status_icon} {lib.upper()}: {compliance_text} (Complex: {complex_support})")
 
 
+# Convenience functions for optimization management
+def enable_compact_optimization_logging():
+    """Enable compact mode to reduce optimization log noise."""
+    field_profiler.enable_compact_mode()
+
+
+def disable_compact_optimization_logging():
+    """Disable compact mode for detailed optimization logs."""
+    field_profiler.disable_compact_mode()
+
+
+def get_optimization_summary():
+    """Get a summary of all optimization statistics with timing information."""
+    return field_profiler.get_optimization_summary()
+
+
+def log_optimization_summary():
+    """Log the optimization summary to console."""
+    summary = get_optimization_summary()
+    logger.log_info(summary)
+
+
+def reset_optimization_statistics():
+    """Reset all optimization tracking statistics."""
+    field_profiler.reset_optimization_stats()
+
+
 # Export field theory optimized decorators
 __all__ = [
     'field_theory_cupy_optimize',
@@ -617,5 +699,10 @@ __all__ = [
     'get_field_theory_optimization_status',
     'get_field_theory_performance_summary',
     'log_field_theory_optimization_status',
+    'enable_compact_optimization_logging',
+    'disable_compact_optimization_logging',
+    'get_optimization_summary',
+    'log_optimization_summary',
+    'reset_optimization_statistics',
     'FieldTheoryPerformanceProfiler'
 ]

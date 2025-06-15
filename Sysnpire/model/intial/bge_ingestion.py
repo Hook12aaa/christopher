@@ -349,13 +349,26 @@ class BGEIngestion():
         # Get top-k most similar embeddings
         top_indices = np.argsort(similarities)[-top_k:][::-1]
         
-        # Prepare manifold analysis tools
-        pca_components = min(50, all_embeddings.shape[1], len(top_indices) - 1)
-        pca = PCA(n_components=pca_components)
-        pca.fit(all_embeddings[top_indices])
+        # Prepare manifold analysis tools with minimum sample requirements
+        # Ensure we have enough samples for meaningful analysis
+        analysis_indices = top_indices
+        if len(top_indices) < 10:
+            # Expand to include more embeddings for proper manifold analysis
+            additional_needed = min(50, all_embeddings.shape[0]) - len(top_indices)
+            if additional_needed > 0:
+                remaining_indices = np.setdiff1d(np.arange(all_embeddings.shape[0]), top_indices)
+                additional_indices = remaining_indices[:additional_needed]
+                analysis_indices = np.concatenate([top_indices, additional_indices])
         
-        knn_model = NearestNeighbors(n_neighbors=min(20, len(top_indices)), metric='cosine')
-        knn_model.fit(all_embeddings[top_indices])
+        pca_components = min(50, all_embeddings.shape[1], len(analysis_indices) - 1)
+        pca_components = max(1, pca_components)  # Ensure at least 1 component
+        pca = PCA(n_components=pca_components)
+        pca.fit(all_embeddings[analysis_indices])
+        
+        knn_neighbors = min(20, len(analysis_indices))
+        knn_neighbors = max(2, knn_neighbors)  # Ensure at least 2 neighbors
+        knn_model = NearestNeighbors(n_neighbors=knn_neighbors, metric='cosine')
+        knn_model.fit(all_embeddings[analysis_indices])
         
         # Extract manifold properties for each top embedding
         results = {
@@ -370,9 +383,9 @@ class BGEIngestion():
             token = id_to_token.get(idx, f"<UNK_{idx}>")
             similarity = similarities[idx]
             
-            # Extract manifold properties
+            # Extract manifold properties using expanded analysis set
             manifold_props = self.extract_manifold_properties(
-                embedding, i, all_embeddings[top_indices], pca, knn_model
+                embedding, i, all_embeddings[analysis_indices], pca, knn_model
             )
             
             embedding_result = {
