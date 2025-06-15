@@ -120,12 +120,25 @@ class FieldTheoryPerformanceProfiler:
         
         # Enhanced logging with mathematical compliance
         if accuracy_verified:
-            logger.log_success(f"🎯 {optimizer} optimization for {func_name}: {speedup:.2f}x speedup (mathematically verified)")
+            # Check if we should use compact optimization logging
+            if hasattr(logger, '_compact_optimization_mode') and logger._compact_optimization_mode:
+                # Just track the optimization without logging each one
+                if not hasattr(self, '_optimization_counts'):
+                    self._optimization_counts = {}
+                self._optimization_counts[func_name] = self._optimization_counts.get(func_name, 0) + 1
+                
+                # Only log every 100th optimization or exceptional speedups  
+                if self._optimization_counts[func_name] % 100 == 0 or speedup > 15.0:
+                    short_name = func_name.replace('_optimized_', '').replace('_computation', '').replace('_', ' ')
+                    logger.log_info(f"⚡ {short_name}: {self._optimization_counts[func_name]} optimizations (avg {speedup:.1f}x faster)")
+            else:
+                logger.log_success(f"🎯 {optimizer} optimization for {func_name}: {speedup:.2f}x speedup (mathematically verified)")
         else:
             logger.log_error(f"❌ {optimizer} optimization for {func_name} FAILED mathematical accuracy check")
             return False
         
-        logger.log_performance(base_logger, f"{optimizer} {func_name}", optimized_time)
+        if not (hasattr(logger, '_compact_optimization_mode') and logger._compact_optimization_mode):
+            logger.log_performance(base_logger, f"{optimizer} {func_name}", optimized_time)
         
         if input_shape:
             logger.log_debug(f"📐 Field operation shape: {input_shape}, Complex: {profile_data['complex_valued']}")
@@ -292,6 +305,10 @@ def field_theory_jax_optimize(preserve_complex: bool = True, static_argnums: Opt
     - Supports trajectory integration operations
     """
     def decorator(func: Callable) -> Callable:
+        # Temporarily disable JAX due to mathematical accuracy issues
+        logger.log_warning(f"JAX optimization disabled for {func.__name__} due to accuracy issues - using original function")
+        return func
+        
         if not JAX_AVAILABLE:
             logger.log_warning(f"JAX not available for {func.__name__} - using original function")
             return func

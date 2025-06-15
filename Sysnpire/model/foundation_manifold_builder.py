@@ -36,13 +36,23 @@ import json
 project_root = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(project_root))
 
+# Configure JAX to reduce logging spam
+import os
+os.environ['JAX_LOG_COMPILES'] = '0'
+
 from Sysnpire.model.intial.bge_ingestion import BGEIngestion
 from Sysnpire.model.intial.mpnet_ingestion import MPNetIngestion
 from Sysnpire.model.charge_factory import ChargeFactory, ChargeParameters
 from Sysnpire.database.field_universe import FieldUniverse
+
 from Sysnpire.utils.logger import get_logger
 
 logger = get_logger(__name__)
+
+# Enable compact optimization logging for cleaner output during heavy math
+from Sysnpire.utils.logger import SysnpireLogger
+sysnpire_logger = SysnpireLogger()
+sysnpire_logger._compact_optimization_mode = True
 
 
 @dataclass
@@ -96,7 +106,15 @@ class FoundationManifoldBuilder:
         """
         self.config = config
         self.charge_factory = ChargeFactory()
-        self.universe = FieldUniverse()
+        
+        # Create FieldUniverse with custom config to avoid Lance storage conflicts
+        from Sysnpire.database.field_universe import FieldUniverseConfig
+        universe_config = FieldUniverseConfig(
+            lance_storage_path=str(self.config.output_directory / "universe_storage"),
+            enable_redis_cache=False,  # Disable redis for test environment
+            strict_validation=True
+        )
+        self.universe = FieldUniverse(universe_config)
         self.models = {}
         self.statistics = {
             'total_embeddings_processed': 0,
@@ -222,13 +240,17 @@ class FoundationManifoldBuilder:
         batch_size = self.config.batch_size
         total_batches = (len(embeddings) + batch_size - 1) // batch_size
         
+        logger.info(f"🔄 Processing {len(embeddings)} embeddings in {total_batches} batches...")
+        
         for batch_idx in range(total_batches):
             start_idx = batch_idx * batch_size
             end_idx = min(start_idx + batch_size, len(embeddings))
             batch_embeddings = embeddings[start_idx:end_idx]
             
-            logger.info(f"Processing batch {batch_idx + 1}/{total_batches} "
-                       f"(embeddings {start_idx}-{end_idx})")
+            # Compact progress indicator
+            progress_bar = "█" * (batch_idx + 1) + "░" * (total_batches - batch_idx - 1)
+            progress_pct = ((batch_idx + 1) / total_batches) * 100
+            print(f"\r📊 [{progress_bar}] {progress_pct:.0f}% - Batch {batch_idx + 1}/{total_batches}", end="", flush=True)
             
             # Compute manifold properties for batch using new ingestion interface
             properties_batch = []
@@ -299,6 +321,10 @@ class FoundationManifoldBuilder:
                 logger.error(f"Failed to process batch {batch_idx}: {e}")
                 self.statistics['errors_encountered'].append(f"Batch processing error: {batch_idx} - {e}")
                 continue
+        
+        # Complete the progress bar
+        print(f"\r📊 [{'█' * total_batches}] 100% - Processing complete! ✅")
+        logger.info(f"🔄 Manifold transformation complete: {len(embeddings)} embeddings processed")
     
     def execute_foundation_building(self) -> None:
         """

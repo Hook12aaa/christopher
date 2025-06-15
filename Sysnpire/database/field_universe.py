@@ -39,7 +39,7 @@ from .abstraction_layer.charge_transformer import ChargeTransformer, TensorTrans
 try:
     from .lance_storage.charge_manifold_store import ChargeManifoldStore
     CHARGE_MANIFOLD_STORE_AVAILABLE = True
-except ImportError:
+except ImportError as e:
     ChargeManifoldStore = None
     CHARGE_MANIFOLD_STORE_AVAILABLE = False
 
@@ -189,6 +189,7 @@ class FieldUniverse:
             self.manifold_store = None
             self.spatial_indexer = None
             logger.warning("❌ Lance storage not available - install pylance")
+            logger.info("⚠️  Continuing without Lance storage (fallback mode)")
         
         # Redis hot cache
         if REDIS_CACHE_AVAILABLE and self.config.enable_redis_cache:
