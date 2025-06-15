@@ -139,7 +139,8 @@ class ChargeFactory:
         emotional_trajectory = None
         
         # Generate Φ^semantic(τ, s) using DTF semantic field if available
-        dtf_semantic_field = None
+        dtf_semantic_field_magnitude = 0.0
+        dtf_semantic_field_complex = complex(0)
         if metadata and metadata.get('dtf_enabled') and metadata.get('manifold_data'):
             logger.debug(f"Processing {token} with DTF semantic field enhancement")
             
@@ -160,17 +161,19 @@ class ChargeFactory:
                 )
                 
                 # Extract DTF-enhanced Φ^semantic(τ, s)
-                dtf_semantic_field = dtf_results.get('dtf_phi_semantic_magnitude', 0.0)
+                dtf_semantic_field_magnitude = dtf_results.get('dtf_phi_semantic_magnitude', 0.0)
+                dtf_semantic_field_complex = dtf_results.get('dtf_phi_semantic_complex', complex(0))
                 complete_charge_magnitude = dtf_results.get('complete_charge_magnitude', 0.0)
                 
-                if dtf_semantic_field > 0:
-                    logger.debug(f"DTF enhanced {token}: Φ^semantic={dtf_semantic_field:.4f}, Q(τ,C,s)={complete_charge_magnitude:.4f}")
+                if dtf_semantic_field_magnitude > 0:
+                    logger.debug(f"DTF enhanced {token}: Φ^semantic={dtf_semantic_field_magnitude:.4f}, Q(τ,C,s)={complete_charge_magnitude:.4f}")
                 else:
                     logger.debug(f"DTF fallback for {token}: using standard semantic field")
                     
             except Exception as e:
                 logger.warning(f"DTF processing failed for {token}: {e}")
-                dtf_semantic_field = None
+                dtf_semantic_field_magnitude = 0.0
+                dtf_semantic_field_complex = complex(0)
         
         # TODO: Compute e^(iθ_total(τ,C,s)) - complete phase integration
         # Use manifold_properties: 'phase_angles'
@@ -238,12 +241,12 @@ class ChargeFactory:
             charge.trajectory_data = None
         
         # Enhance with DTF semantic field if available
-        if dtf_semantic_field is not None and dtf_semantic_field > 0:
+        if dtf_semantic_field_magnitude > 0:
             # Store DTF semantic field data for enhanced Φ^semantic(τ, s) computation
-            charge.dtf_semantic_field = dtf_semantic_field
+            charge.dtf_semantic_field = dtf_semantic_field_complex
             charge.dtf_enhanced = True
             charge.foundation_processing = True
-            logger.debug(f"Enhanced {token} with DTF Φ^semantic: {dtf_semantic_field:.4f}")
+            logger.debug(f"Enhanced {token} with DTF Φ^semantic: {dtf_semantic_field_magnitude:.4f}")
         else:
             charge.dtf_enhanced = False
             charge.foundation_processing = metadata.get('foundation_processing', False) if metadata else False

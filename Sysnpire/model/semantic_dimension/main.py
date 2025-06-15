@@ -172,39 +172,16 @@ def _run_dtf_processing(embedding: np.ndarray,
             
             if dtf_results:
                 # Extract Φ^semantic(τ, s) from DTF processing
-                phi_semantic = dtf_results.get('field_value', 0+0j)
+                phi_semantic = dtf_results.get('transformed_field', 0+0j)
                 dtf_basis_count = dtf_pool.semantic_basis_set.get('num_functions', 0) if dtf_pool.semantic_basis_set else 0
                 
                 logger.info(f"DTF Φ^semantic extracted: magnitude={abs(phi_semantic):.4f}, phase={np.angle(phi_semantic):.3f}, basis_functions={dtf_basis_count}")
                 
-                # Now integrate with COMPLETE charge formula components
-                # Create ConceptualCharge using DTF-enhanced semantic field
-                from Sysnpire.model.charge_factory import ChargeFactory, ChargeParameters
-                
-                charge_params = ChargeParameters(
-                    observational_state=observational_state,
-                    gamma=gamma,
-                    context=f"dtf_{context}",
-                    field_temperature=field_temperature,
-                    time_evolution=1.0
-                )
-                
-                charge_factory = ChargeFactory()
-                
-                # Create complete charge Q(τ, C, s) with DTF semantic field
-                conceptual_charge = charge_factory.create_charge_from_embedding(
-                    embedding=embedding,
-                    parameters=charge_params,
-                    manifold_properties=manifold_properties,
-                    dtf_semantic_field=phi_semantic,  # Pass DTF field as Φ^semantic component
-                    token=f"dtf_{context}"
-                )
-                
-                # Get complete charge magnitude including all Q(τ, C, s) components
-                complete_charge_magnitude = abs(conceptual_charge.compute_complete_charge())
+                # Extract DTF semantic field magnitude for return to ChargeFactory
                 dtf_field_magnitude = abs(phi_semantic)
+                complete_charge_magnitude = 0.0  # Will be computed in ChargeFactory
                 
-                logger.info(f"Complete Q(τ, C, s) with DTF: {complete_charge_magnitude:.4f} (DTF Φ^semantic: {dtf_field_magnitude:.4f})")
+                logger.info(f"DTF semantic field extracted for ChargeFactory: Φ^semantic={dtf_field_magnitude:.4f}")
                 
             else:
                 logger.warning("DTF processing returned no results")
@@ -237,6 +214,7 @@ def _run_dtf_processing(embedding: np.ndarray,
     enhanced_results = original_results.copy()
     enhanced_results.update({
         'dtf_phi_semantic_magnitude': dtf_field_magnitude,  # Φ^semantic(τ, s) from DTF
+        'dtf_phi_semantic_complex': locals().get('phi_semantic', complex(0)),  # Complex DTF field value
         'dtf_basis_functions': dtf_basis_count,
         'dtf_processing_mode': 'real_manifold_data' if manifold_data else 'no_manifold_data',
         'dtf_manifold_available': manifold_data is not None,
