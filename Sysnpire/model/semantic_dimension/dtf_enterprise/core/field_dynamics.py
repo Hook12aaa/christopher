@@ -580,9 +580,9 @@ if __name__ == "__main__":
         logger.info(f"Stability: stable={stability['is_stable']}, "
                    f"convergence_rate={stability['convergence_rate']:.3f}")
     
-    # Test field evolution
+    # Test field evolution with deterministic initial state
     logger.info("Testing field evolution...")
-    initial_state = np.random.randn(n_positions) * 0.1
+    initial_state = np.zeros(n_positions)  # Start from rest - no random data per CLAUDE.md
     time_span = (0, 30)
     eval_times = np.linspace(0, 30, 51)
     

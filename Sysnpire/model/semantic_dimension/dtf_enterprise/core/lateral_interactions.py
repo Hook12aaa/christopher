@@ -105,8 +105,7 @@ class LateralInteractionEngine:
             
         except Exception as e:
             logger.error(f"Failed to extract interaction kernel: {e}")
-            # Return default kernel as fallback
-            return self._create_default_kernel()
+            raise RuntimeError(f"DTF interaction kernel extraction failed - no fallback allowed per CLAUDE.md: {e}")
     
     def _analyze_neighborhood_structure(self,
                                       similarities: List[float],
@@ -371,7 +370,7 @@ class LateralInteractionEngine:
         }
     
     def _create_default_kernel(self) -> Dict[str, Any]:
-        """Create a default DTF interaction kernel as fallback."""
+        """Create a mathematical DTF interaction kernel template (not used as fallback)."""
         def default_mexican_hat(distance_vector: np.ndarray) -> float:
             distance = np.linalg.norm(distance_vector)
             if distance <= 0.5:
@@ -389,7 +388,7 @@ class LateralInteractionEngine:
             },
             'neighborhood_analysis': {},
             'validation': {'is_valid': True, 'has_excitation': True, 'has_inhibition': True},
-            'kernel_type': 'default_fallback',
+            'kernel_type': 'mathematical_template',
             'source_model_neighborhoods': False
         }
     
@@ -497,22 +496,35 @@ if __name__ == "__main__":
     # Initialize engine
     engine = LateralInteractionEngine(interaction_type="mexican_hat", adaptive_parameters=True)
     
-    # Create test neighborhood data
-    central_embedding = np.random.randn(768) * 0.1  # MPNet-style
-    neighbor_embeddings = [np.random.randn(768) * 0.1 + central_embedding * 0.5 for _ in range(20)]
-    neighbor_similarities = np.random.beta(2, 2, 20).tolist()  # Realistic similarity distribution
-    neighbor_tokens = [f"token_{i}" for i in range(20)]
-    
-    # Extract interaction kernel
-    kernel_data = engine.extract_interaction_kernel_from_neighborhoods(
-        central_embedding=central_embedding,
-        neighbor_embeddings=neighbor_embeddings,
-        neighbor_similarities=neighbor_similarities,
-        neighbor_tokens=neighbor_tokens
-    )
-    
-    logger.info(f"Extracted kernel type: {kernel_data['kernel_parameters']['type']}")
-    logger.info(f"Kernel validation: {kernel_data['validation']['is_valid']}")
+    try:
+        from Sysnpire.model.bge_encoder import BGEEncoder
+        encoder = BGEEncoder()
+        
+        # Create real neighborhood data from BGE embeddings
+        central_text = "semantic field theory"
+        central_embedding = encoder.encode(central_text)
+        
+        neighbor_texts = ["field dynamics", "semantic analysis", "mathematical theory", "complex systems", "manifold geometry"]
+        neighbor_embeddings = [encoder.encode(text) for text in neighbor_texts]
+        neighbor_similarities = [np.dot(central_embedding, emb) / (np.linalg.norm(central_embedding) * np.linalg.norm(emb)) 
+                               for emb in neighbor_embeddings]
+        neighbor_tokens = neighbor_texts
+        
+        # Extract interaction kernel
+        kernel_data = engine.extract_interaction_kernel_from_neighborhoods(
+            central_embedding=central_embedding,
+            neighbor_embeddings=neighbor_embeddings,
+            neighbor_similarities=neighbor_similarities,
+            neighbor_tokens=neighbor_tokens
+        )
+        
+        logger.info(f"Extracted kernel type: {kernel_data['kernel_parameters']['type']}")
+        logger.info(f"Kernel validation: {kernel_data['validation']['is_valid']}")
+        
+    except Exception as e:
+        logger.error(f"Cannot test with real embeddings: {e}")
+        logger.error("Real BGE embeddings required - no random test data allowed per CLAUDE.md")
+        raise
     
     # Test kernel function
     interaction_func = kernel_data['interaction_function']

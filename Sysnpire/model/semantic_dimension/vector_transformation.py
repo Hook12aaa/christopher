@@ -117,20 +117,20 @@ class VectorToFieldTransformer:
         
         if self.basis_function_type == "gaussian":
             # Gaussian basis function parameters - dimensionally scaled
-            # Centers should be smaller in high dimensions
-            center_scale = 1.0 / dimension_scale
-            self.basis_centers = np.random.randn(self.embedding_dimension, self.embedding_dimension) * center_scale
+            # Centers computed from manifold structure - no random initialization
+            # Will be computed when real manifold data is provided
+            self.basis_centers = None  # Must be computed from real manifold geometry
             
             # Widths should be larger in high dimensions to account for curse of dimensionality
             width_scale = dimension_scale * 0.1  # Scale with sqrt(d)
             self.basis_widths = np.ones(self.embedding_dimension) * width_scale
             
-            logger.debug(f"Gaussian basis: center_scale={center_scale:.4f}, width_scale={width_scale:.4f}")
+            logger.debug(f"Gaussian basis: basis centers to be computed from manifold, width_scale={width_scale:.4f}")
             
         elif self.basis_function_type == "harmonic":
-            # Spherical harmonic-inspired parameters
+            # Spherical harmonic parameters computed from manifold geometry
             self.harmonic_frequencies = np.linspace(0.1, 2.0, self.embedding_dimension)
-            self.harmonic_phases = np.random.uniform(0, 2*np.pi, self.embedding_dimension)
+            self.harmonic_phases = None  # Must be computed from real phase relationships
         else:
             # Adaptive basis - will be computed dynamically
             self.adaptive_cache = {}
@@ -210,6 +210,9 @@ class VectorToFieldTransformer:
         CLAUDE.md Compliance: Uses optimized computation for φᵢ(x) basis function.
         Preserves mathematical accuracy for semantic field calculations.
         """
+        if self.basis_centers is None:
+            raise ValueError("Gaussian basis centers not initialized - real manifold data required per CLAUDE.md")
+            
         center = self.basis_centers[index]
         width = self.basis_widths[index]
         
@@ -218,6 +221,9 @@ class VectorToFieldTransformer:
     
     def _harmonic_basis_function(self, index: int, position_x: np.ndarray) -> float:
         """Spherical harmonic-inspired basis function."""
+        if self.harmonic_phases is None:
+            raise ValueError("Harmonic basis phases not initialized - real manifold data required per CLAUDE.md")
+            
         frequency = self.harmonic_frequencies[index]
         phase = self.harmonic_phases[index]
         
@@ -432,35 +438,47 @@ def create_semantic_field_from_embedding(embedding: np.ndarray,
     return semantic_field, field_analysis
 
 
-# Example usage and testing
+# Example usage with real embeddings
 if __name__ == "__main__":
-    # Test vector-to-field transformation
-    logger.info("Testing vector-to-field transformation...")
+    # Test vector-to-field transformation with real BGE embeddings
+    logger.info("Testing vector-to-field transformation with real embeddings...")
     
-    # Create test embedding (BGE-style 1024d)
-    test_embedding = np.random.randn(1024) * 0.1
-    test_position = np.random.randn(1024) * 0.1
-    
-    # Test transformation
-    semantic_field, analysis = create_semantic_field_from_embedding(
-        embedding=test_embedding,
-        position=test_position,
-        context="test_context"
-    )
-    
-    logger.info(f"Generated semantic field - magnitude: {analysis['field_magnitude']:.4f}, "
-                f"phase: {analysis['field_phase']:.4f}")
-    
-    # Test batch transformation
-    transformer = VectorToFieldTransformer(embedding_dimension=1024)
-    
-    batch_embeddings = [np.random.randn(1024) * 0.1 for _ in range(5)]
-    batch_positions = [np.random.randn(1024) * 0.1 for _ in range(5)]
-    
-    batch_fields = transformer.batch_transform(
-        embeddings=batch_embeddings,
-        positions=batch_positions
-    )
+    try:
+        from Sysnpire.model.bge_encoder import BGEEncoder
+        encoder = BGEEncoder()
+        
+        # Create real embeddings
+        test_embedding = encoder.encode("semantic field transformation test")
+        test_position = encoder.encode("position context for field transformation")
+        
+        # Test transformation
+        semantic_field, analysis = create_semantic_field_from_embedding(
+            embedding=test_embedding,
+            position=test_position,
+            context="test_context"
+        )
+        
+        logger.info(f"Generated semantic field - magnitude: {analysis['field_magnitude']:.4f}, "
+                    f"phase: {analysis['field_phase']:.4f}")
+        
+        # Test batch transformation with real embeddings
+        transformer = VectorToFieldTransformer(embedding_dimension=len(test_embedding))
+        
+        test_texts = ["field theory", "semantic analysis", "vector transformation", "manifold geometry", "complex mathematics"]
+        batch_embeddings = [encoder.encode(text) for text in test_texts]
+        batch_positions = [encoder.encode(f"position {i}") for i, _ in enumerate(test_texts)]
+        
+        batch_fields = transformer.batch_transform(
+            embeddings=batch_embeddings,
+            positions=batch_positions
+        )
+        
+        logger.info(f"Batch transformation completed - {len(batch_fields)} fields generated")
+        
+    except Exception as e:
+        logger.error(f"Cannot test with real embeddings: {e}")
+        logger.error("Real BGE embeddings required - no random test data allowed per CLAUDE.md")
+        raise
     
     logger.info(f"Batch transformation complete - {len(batch_fields)} fields generated")
     logger.info("Vector-to-field transformation test successful!")

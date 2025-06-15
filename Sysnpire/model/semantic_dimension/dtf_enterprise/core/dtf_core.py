@@ -251,8 +251,7 @@ class DTFMathematicalCore:
             
         except Exception as e:
             logger.error(f"DTF steady-state solver failed: {e}")
-            # Return a reasonable fallback
-            return np.full_like(initial_guess, self.resting_level)
+            raise RuntimeError(f"DTF steady-state computation failed - no fallback allowed per CLAUDE.md: {e}")
     
     def evolve_field(self,
                     initial_state: np.ndarray,
@@ -304,8 +303,7 @@ class DTFMathematicalCore:
                 
         except Exception as e:
             logger.error(f"DTF field evolution error: {e}")
-            # Return static field as fallback
-            return np.tile(initial_state, (len(time_steps), 1))
+            raise RuntimeError(f"DTF field evolution failed - no fallback allowed per CLAUDE.md: {e}")
     
     def compute_field_stability(self,
                                steady_state: np.ndarray,
@@ -480,9 +478,9 @@ if __name__ == "__main__":
     logger.info(f"Stability analysis: stable={stability['is_stable']}, "
                f"max_eigenvalue={stability['max_real_eigenvalue']:.3f}")
     
-    # Test field evolution
+    # Test field evolution with deterministic initial state
     time_steps = np.linspace(0, 50, 101)
-    initial_state = np.random.randn(n_positions) * 0.1
+    initial_state = np.zeros(n_positions)  # Start from rest state - no random data per CLAUDE.md
     
     evolution = dtf_core.evolve_field(
         initial_state=initial_state,

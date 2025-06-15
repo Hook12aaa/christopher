@@ -400,8 +400,11 @@ class SparseSemanticField:
 ```python
 def test_field_linearity():
     """Test linearity property of field generation"""
+    from Sysnpire.model.bge_encoder import BGEEncoder
+    
     generator = SemanticFieldGenerator()
-    position = np.random.randn(1024)
+    encoder = BGEEncoder()
+    position = encoder.encode("field position context")
     
     # Generate fields for individual tokens
     field1 = generator.generate_semantic_field("love", position)
@@ -460,7 +463,8 @@ def benchmark_field_generation():
     }
     
     test_tokens = ["democracy", "love", "betrayal", "innovation", "justice"]
-    position = np.random.randn(1024)
+    encoder = BGEEncoder()
+    position = encoder.encode("benchmark position context")
     
     results = {}
     

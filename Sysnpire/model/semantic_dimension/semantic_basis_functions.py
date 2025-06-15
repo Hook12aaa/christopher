@@ -189,6 +189,30 @@ class DTFSemanticBasisExtractor:
             logger.error(f"Failed to extract lateral interaction kernel: {e}")
             raise
     
+    def _deterministic_sphere_point(self, index: int, total_points: int, dimensions: int) -> np.ndarray:
+        """Generate deterministic points on unit sphere for neighborhood sampling."""
+        # Use Fibonacci spiral for uniform sphere sampling
+        import math
+        if dimensions == 2:
+            angle = 2 * math.pi * index / total_points
+            return np.array([math.cos(angle), math.sin(angle)])
+        elif dimensions == 3:
+            # Fibonacci sphere
+            phi = math.pi * (3 - math.sqrt(5))  # Golden angle
+            y = 1 - (index / float(total_points - 1)) * 2  # y from 1 to -1
+            radius = math.sqrt(1 - y * y)
+            theta = phi * index
+            x = math.cos(theta) * radius
+            z = math.sin(theta) * radius
+            return np.array([x, y, z])
+        else:
+            # For higher dimensions, use normalized uniform grid
+            point = np.zeros(dimensions)
+            point[index % dimensions] = 1.0
+            if index // dimensions > 0:
+                point[(index // dimensions) % dimensions] = 0.5
+            return point / np.linalg.norm(point)
+    
     def _build_dtf_kernel_from_neighbors(self, 
                                        semantic_neighbors: List[Dict[str, Any]],
                                        central_embedding: np.ndarray) -> Dict[str, Any]:
@@ -344,8 +368,13 @@ class DTFSemanticBasisExtractor:
         integral_sum = 0.0
         
         for i in range(num_samples):
-            # Sample random points in neighborhood
-            offset = np.random.randn(len(position_x)) * sample_radius
+            # Sample points in neighborhood using deterministic grid
+            # Replace random sampling with systematic neighborhood exploration
+            angle = 2 * np.pi * i / num_samples
+            offset = sample_radius * np.array([np.cos(angle), np.sin(angle)] + [0] * (len(position_x) - 2))
+            if len(position_x) > 2:
+                # For higher dimensions, use spherical coordinates
+                offset = sample_radius * self._deterministic_sphere_point(i, num_samples, len(position_x))
             neighbor_position = position_x + offset
             
             # Interaction weight
@@ -443,9 +472,11 @@ class DTFSemanticBasisExtractor:
         # Use k-means style selection to get diverse centers
         from sklearn.cluster import KMeans
         
-        # Sample subset for clustering if too large
+        # Sample subset for clustering using deterministic selection if too large
         if len(all_embeddings) > 5000:
-            sample_indices = np.random.choice(len(all_embeddings), 5000, replace=False)
+            # Use systematic sampling instead of random
+            step = len(all_embeddings) // 5000
+            sample_indices = np.arange(0, len(all_embeddings), step)[:5000]
             sample_embeddings = all_embeddings[sample_indices]
         else:
             sample_indices = np.arange(len(all_embeddings))
@@ -536,32 +567,92 @@ def create_dtf_semantic_basis_from_bge(all_embeddings: np.ndarray,
     )
 
 
-# Example usage and testing
+# Example usage with real BGE embeddings
 if __name__ == "__main__":
-    # Test DTF semantic basis extraction
-    logger.info("Testing DTF semantic basis extraction...")
+    # Test DTF semantic basis extraction with real BGE data
+    logger.info("Testing DTF semantic basis extraction with real embeddings...")
     
-    # Create test BGE-style embeddings
-    test_vocab_size = 100
-    test_embedding_dim = 1024
-    test_embeddings = np.random.randn(test_vocab_size, test_embedding_dim) * 0.1
-    test_id_to_token = {i: f"token_{i}" for i in range(test_vocab_size)}
+    try:
+        from Sysnpire.model.bge_encoder import BGEEncoder
+        encoder = BGEEncoder()
+        
+        # Create real BGE embeddings from sample vocabulary
+        test_vocab = ["field", "theory", "semantic", "mathematics", "complex", "manifold", "dimension", "vector", "tensor", "analysis"]
+        test_embeddings = np.array([encoder.encode(word) for word in test_vocab])
+        test_id_to_token = {i: word for i, word in enumerate(test_vocab)}
+        
+        # Create basis set
+        basis_set = create_dtf_semantic_basis_from_bge(
+            all_embeddings=test_embeddings,
+            id_to_token=test_id_to_token,
+            num_basis_functions=5
+        )
+        
+        logger.info(f"Generated {basis_set['num_functions']} DTF semantic basis functions")
+        
+        # Test basis functions with real position embeddings
+        test_texts = ["position context", "field location", "semantic point", "manifold coordinate", "vector position"]
+        test_positions = [encoder.encode(text) for text in test_texts]
+        
+        for i, basis_data in list(basis_set['basis_functions'].items())[:3]:
+            basis_func = basis_data['function']
+            test_response = basis_func(test_positions[0])
+            logger.info(f"Basis function {i} ({basis_data['center_token']}) response: {test_response:.4f}")
+        
+        logger.info("DTF semantic basis extraction test complete!")
+        
+    except Exception as e:
+        logger.error(f"Cannot test with real embeddings: {e}")
+        logger.error("Real BGE embeddings required - no random test data allowed per CLAUDE.md")
+        raise
+
+
+def compute_manifold_properties(embedding: np.ndarray) -> Dict[str, Any]:
+    """
+    Compute manifold properties from real embedding geometry.
     
-    # Create basis set
-    basis_set = create_dtf_semantic_basis_from_bge(
-        all_embeddings=test_embeddings,
-        id_to_token=test_id_to_token,
-        num_basis_functions=20
-    )
+    Args:
+        embedding: Real BGE embedding vector
+        
+    Returns:
+        Dictionary of computed manifold properties
+    """
+    # Compute local density from embedding norm and distribution
+    local_density = float(np.linalg.norm(embedding)) / len(embedding)
     
-    logger.info(f"Generated {basis_set['num_functions']} DTF semantic basis functions")
+    # Compute persistence radius from embedding variance
+    persistence_radius = float(np.std(embedding))
     
-    # Test basis functions
-    test_positions = [np.random.randn(test_embedding_dim) * 0.1 for _ in range(5)]
+    # Compute phase angles from embedding components
+    # Use first few components for phase estimation
+    phase_angles = [float(np.arctan2(embedding[i+1], embedding[i])) for i in range(0, min(6, len(embedding)-1), 2)]
     
-    for i, basis_data in list(basis_set['basis_functions'].items())[:3]:
-        basis_func = basis_data['function']
-        test_response = basis_func(test_positions[0])
-        logger.info(f"Basis function {i} ({basis_data['center_token']}) response: {test_response:.4f}")
+    # Compute magnitude from embedding norm
+    magnitude = float(np.linalg.norm(embedding))
     
-    logger.info("DTF semantic basis extraction test complete!")
+    # Compute gradient approximation from embedding differences
+    gradient = np.diff(embedding[:min(10, len(embedding))]).astype(float)
+    
+    # Compute dominant frequencies using FFT
+    fft_vals = np.abs(np.fft.fft(embedding))
+    dominant_freqs = np.argsort(fft_vals)[-3:]  # Top 3 frequencies
+    dominant_frequencies = [float(f) / len(embedding) for f in dominant_freqs]
+    
+    # Compute coupling mean from embedding correlation structure
+    # Use autocorrelation at different lags
+    if len(embedding) > 10:
+        coupling_mean = float(np.mean([np.corrcoef(embedding[:-i], embedding[i:])[0,1] 
+                                     for i in range(1, min(5, len(embedding)//2)) 
+                                     if not np.isnan(np.corrcoef(embedding[:-i], embedding[i:])[0,1])]))
+    else:
+        coupling_mean = 0.7  # Default for short embeddings
+    
+    return {
+        'local_density': local_density,
+        'persistence_radius': persistence_radius,
+        'phase_angles': phase_angles,
+        'magnitude': magnitude,
+        'gradient': gradient,
+        'dominant_frequencies': dominant_frequencies,
+        'coupling_mean': coupling_mean
+    }

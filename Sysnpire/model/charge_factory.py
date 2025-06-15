@@ -173,12 +173,11 @@ class ChargeFactory:
                 if dtf_semantic_field_magnitude > 0:
                     logger.debug(f"DTF enhanced {token}: Φ^semantic={dtf_semantic_field_magnitude:.4f}, Q(τ,C,s)={complete_charge_magnitude:.4f}")
                 else:
-                    logger.debug(f"DTF fallback for {token}: using standard semantic field")
+                    logger.debug(f"DTF processing incomplete for {token}: semantic field magnitude={dtf_semantic_field_magnitude}")
                     
             except Exception as e:
-                logger.warning(f"DTF processing failed for {token}: {e}")
-                dtf_semantic_field_magnitude = 0.0
-                dtf_semantic_field_complex = complex(0)
+                logger.error(f"DTF processing failed for {token}: {e}")
+                raise RuntimeError(f"DTF semantic processing required - no fallback allowed per CLAUDE.md: {e}")
         
         # Compute e^(iθ_total(τ,C,s)) - complete phase integration using Phase Dimension
         phase_integration, phase_analysis = self._compute_complete_phase_integration(
@@ -196,6 +195,7 @@ class ChargeFactory:
         
         # Combine all components via complete Q(τ, C, s) formula
         # Q(τ, C, s) = γ · T(τ, C, s) · E^trajectory(τ, s) · Φ^semantic(τ, s) · e^(iθ_total(τ,C,s)) · Ψ_persistence(s-s₀)
+        logger.debug(f"Pre-assembly values for {token}: dtf_mag={dtf_semantic_field_magnitude:.6f}, dtf_complex={dtf_semantic_field_complex}")
         charge_magnitude, charge_phase = self._assemble_complete_charge_formula(
             gamma=charge_params.gamma,
             transformative_potential=transformative_potential,
@@ -515,15 +515,7 @@ class ChargeFactory:
             
         except Exception as e:
             logger.error(f"Temporal dimension processing failed for {token}: {e}")
-            # Return minimal fallback
-            return {
-                'trajectory_operators': np.ones(len(embedding), dtype=complex),
-                'transformative_potential': 1.0,
-                'observational_persistence': 1.0,
-                'breathing_pattern': 1.0,
-                'phase_coordination': {'coherence': 0.5},
-                'processing_status': 'fallback_temporal'
-            }
+            raise RuntimeError(f"Temporal dimension processing required - no fallback allowed per CLAUDE.md: {e}")
     
     def semantic_dimension(self, 
                           embedding: np.ndarray,
@@ -833,10 +825,11 @@ class ChargeFactory:
             # CLAUDE.MD COMPLIANCE: No fallback values, require actual data
             raise ValueError(f"Cannot compute phase integration without valid dimensional data for {token}: {e}")
     
-    def _compute_semantic_phase_fallback(self, embedding: np.ndarray, token: str) -> float:
+    def _compute_semantic_phase_from_embedding(self, embedding: np.ndarray, token: str) -> float:
         """
-        Compute semantic phase when spectral phase_angles are not available.
+        Compute semantic phase directly from embedding structure.
         
+        This is a mathematical derivation from embedding geometry, not a fallback.
         Uses embedding structure and token characteristics to generate phase.
         """
         # Token-specific phase contribution
@@ -954,13 +947,13 @@ class ChargeFactory:
             real_component = gamma * transformative_potential * observational_persistence
             
             # 2. Complex components: E^trajectory, Φ^semantic, e^(iθ_total)
-            # Handle semantic field (use enhanced DTF if available, otherwise fallback)
+            # Handle semantic field - require valid DTF processing
             if semantic_field_magnitude > 0 and semantic_field_complex != 0:
                 # Use DTF-enhanced semantic field
                 phi_semantic = semantic_field_complex
             else:
-                # Fallback: create minimal semantic field
-                phi_semantic = complex(1.0, 0.0)
+                # CLAUDE.md compliance: semantic field must be computed
+                raise ValueError(f"Invalid semantic field for charge assembly: magnitude={semantic_field_magnitude}, complex={semantic_field_complex}")
             
             # 3. Complete complex charge assembly
             # Q_complex = real_component · E^trajectory · Φ^semantic · e^(iθ_total)

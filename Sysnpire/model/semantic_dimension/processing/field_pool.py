@@ -389,8 +389,8 @@ class SemanticFieldPool:
     
     def _generate_default_position(self) -> np.ndarray:
         """Generate a default position for field evaluation."""
-        # Use small random position around origin
-        return np.random.randn(self.embedding_dimension) * 0.1
+        # Use origin as default position - no random data per CLAUDE.md
+        return np.zeros(self.embedding_dimension)
     
     def process_all(self) -> int:
         """

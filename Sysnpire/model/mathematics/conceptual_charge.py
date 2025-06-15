@@ -286,10 +286,18 @@ class ConceptualCharge:
     
     def get_charge_magnitude(self) -> float:
         """Calculate the magnitude of the complete conceptual charge."""
+        # If enhanced by ChargeFactory, use the precomputed value
+        if hasattr(self, 'complete_charge_magnitude'):
+            return self.complete_charge_magnitude
+        # Otherwise compute from base methods
         return abs(self.compute_complete_charge())
     
     def get_phase_factor(self) -> float:
         """Calculate the phase factor of the complete conceptual charge."""
+        # If enhanced by ChargeFactory, use the precomputed value
+        if hasattr(self, 'complete_charge_phase'):
+            return self.complete_charge_phase
+        # Otherwise compute from base methods
         return np.angle(self.compute_complete_charge())
     
     def update_observational_state(self, new_s: float):
