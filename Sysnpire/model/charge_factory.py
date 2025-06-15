@@ -32,6 +32,7 @@ project_root = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(project_root))
 
 from Sysnpire.model.mathematics.conceptual_charge import ConceptualCharge
+from Sysnpire.model.temporal_dimension import TrajectoryOperatorEngine
 from Sysnpire.utils.logger import get_logger
 
 logger = get_logger(__name__)
@@ -71,6 +72,12 @@ class ChargeFactory:
         """
         logger.info("Initializing ChargeFactory for Q(τ, C, s) transformations")
         self.charge_count = 0
+        
+        # Initialize trajectory operator engine for T(τ, C, s) component
+        self.trajectory_engine = TrajectoryOperatorEngine(
+            embedding_dimension=1024,  # Default for BGE, will adapt dynamically
+            integration_method="adaptive_quad"
+        )
     
     def create_charge(self, 
                      embedding: np.ndarray,
@@ -104,9 +111,28 @@ class ChargeFactory:
         # Extract token from metadata
         token = metadata.get('token', f'token_{charge_id}') if metadata else f'token_{charge_id}'
         
-        # TODO: Compute T(τ, C, s) - transformative potential tensor
-        # Use manifold_properties: 'gradient', 'hessian_eigenvalues', 'principal_components'
-        transformative_potential = None
+        # Adapt trajectory engine dimension to embedding dimension
+        embedding_dim = len(embedding)
+        if embedding_dim != self.trajectory_engine.embedding_dimension:
+            self.trajectory_engine = TrajectoryOperatorEngine(
+                embedding_dimension=embedding_dim,
+                integration_method="adaptive_quad"
+            )
+        
+        # Compute T(τ, C, s) - transformative potential tensor using enhanced temporal dimension
+        logger.debug(f"Computing temporal dimension for {token} with embedding dim {embedding_dim}")
+        temporal_results = self.temporal_dimension(
+            embedding=embedding,
+            charge_params=charge_params,
+            metadata=metadata
+        )
+        
+        transformative_potential = temporal_results.get('transformative_potential', 1.0)
+        trajectory_operators = temporal_results.get('trajectory_operators')
+        breathing_pattern = temporal_results.get('breathing_pattern', 1.0)
+        frequency_evolution = temporal_results.get('frequency_evolution')
+        phase_accumulation = temporal_results.get('phase_accumulation')
+        semantic_modulation = temporal_results.get('semantic_modulation', np.zeros(3))
         
         # TODO: Calculate E^trajectory(τ, s) - emotional trajectory integration  
         # Use manifold_properties: 'coupling_mean', 'coupling_variance'
@@ -150,16 +176,16 @@ class ChargeFactory:
         # Use manifold_properties: 'phase_angles'
         phase_integration = None
         
-        # TODO: Apply Ψ_persistence(s-s₀) - observational persistence
-        # Use manifold_properties: 'persistence_radius', 'persistence_score'
-        observational_persistence = None
+        # Extract Ψ_persistence(s-s₀) - observational persistence from temporal results
+        observational_persistence = temporal_results.get('observational_persistence', 1.0)
+        phase_coordination = temporal_results.get('phase_coordination', {})
         
         # TODO: Combine all components via Q(τ, C, s) formula
         # Q = γ · T · E · Φ · e^(iθ) · Ψ
         charge_magnitude = None
         charge_phase = None
         
-        # Create ConceptualCharge with DTF enhancement
+        # Create ConceptualCharge with enhanced trajectory operator integration
         charge = ConceptualCharge(
             token=token,
             semantic_vector=embedding,
@@ -167,6 +193,49 @@ class ChargeFactory:
             observational_state=charge_params.observational_state,
             gamma=charge_params.gamma
         )
+        
+        # Replace ConceptualCharge's random trajectory parameters with computed ones from temporal dimension
+        if trajectory_operators is not None:
+            # Extract proper trajectory parameters from temporal processing
+            embedding_dim = len(embedding)
+            
+            # Replace random omega_base with computed frequencies from temporal dimension
+            charge.omega_base = self.trajectory_engine.base_frequencies[:embedding_dim]
+            
+            # Replace random phi_base with token/context-dependent phases
+            token_hash = hash(token) % 1000 / 1000.0
+            context_hash = hash(charge_params.context) % 1000 / 1000.0
+            charge.phi_base = np.array([
+                2 * np.pi * (token_hash + i / embedding_dim + 0.1 * context_hash)
+                for i in range(embedding_dim)
+            ])
+            
+            # Enhanced breathing parameters based on temporal coordination
+            coherence = phase_coordination.get('coherence', 0.5)
+            charge.beta_breathing = np.full(embedding_dim, 0.1 + 0.4 * coherence)
+            
+            # Enhanced persistence parameters from temporal dimension  
+            charge.alpha_persistence = self.trajectory_engine.persistence_alpha
+            charge.lambda_persistence = self.trajectory_engine.exponential_lambda
+            charge.beta_persistence = self.trajectory_engine.cosine_beta
+            charge.sigma_persistence_sq = self.trajectory_engine.gaussian_sigma**2
+            
+            # Store rich trajectory data for DTF and final charge output
+            charge.trajectory_data = {
+                'trajectory_operators': trajectory_operators,
+                'transformative_magnitude': np.abs(trajectory_operators),
+                'frequency_evolution': frequency_evolution,
+                'phase_accumulation': phase_accumulation,
+                'semantic_modulation': semantic_modulation,
+                'total_transformative_potential': transformative_potential,
+                'observational_state': charge_params.observational_state,
+                'context_hash': hash(charge_params.context) % 1000 / 1000.0
+            }
+            
+            logger.debug(f"Enhanced {token} with trajectory data: T={transformative_potential:.4f}, dims={len(trajectory_operators)}")
+        else:
+            logger.warning(f"No trajectory operators computed for {token}, using ConceptualCharge defaults")
+            charge.trajectory_data = None
         
         # Enhance with DTF semantic field if available
         if dtf_semantic_field is not None and dtf_semantic_field > 0:
@@ -313,6 +382,104 @@ class ChargeFactory:
             return False
         
         return True
+    
+    def temporal_dimension(self,
+                          embedding: np.ndarray,
+                          charge_params: ChargeParameters,
+                          metadata: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        """
+        TEMPORAL DIMENSION PROCESSING: Core trajectory operator computation T(τ, C, s).
+        
+        This function implements the temporal dimension component of the complete 
+        Q(τ, C, s) formula, focusing specifically on trajectory integration and
+        observational persistence.
+        
+        MATHEMATICAL FOUNDATION:
+        T(τ, C, s) = ∫₀ˢ ω_i(τ,s')·e^(iφ_i(τ,s')) ds'
+        Ψ_persistence(s-s₀) = exp(-(s-s₀)²/2σ²) + α·exp(-λ(s-s₀))·cos(β(s-s₀))
+        
+        Args:
+            embedding: Base semantic vector (1024d for BGE, 768d for MPNet)
+            charge_params: Field parameters for temporal processing
+            metadata: Optional context and processing metadata
+            
+        Returns:
+            Dict containing temporal dimension processing results:
+            - 'trajectory_operators': Complex trajectory operator array
+            - 'transformative_potential': Overall T(τ,C,s) magnitude
+            - 'observational_persistence': Ψ_persistence value
+            - 'developmental_distance': Transformative distance measure
+            - 'phase_coordination': Phase relationships across dimensions
+        """
+        token = metadata.get('token', 'unknown') if metadata else 'unknown'
+        
+        try:
+            # Adapt engine to embedding dimension
+            embedding_dim = len(embedding)
+            if embedding_dim != self.trajectory_engine.embedding_dimension:
+                self.trajectory_engine = TrajectoryOperatorEngine(
+                    embedding_dimension=embedding_dim,
+                    integration_method="adaptive_quad"
+                )
+            
+            # Compute trajectory operators and transformative analysis
+            trajectory_results = self.trajectory_engine.compute_trajectory_integral(
+                token=token,
+                context=charge_params.context,
+                observational_state=charge_params.observational_state,
+                semantic_embedding=embedding
+            )
+            
+            # Extract key transformative data
+            trajectory_operators = trajectory_results['trajectory_operators']
+            transformative_potential = trajectory_results['total_transformative_potential']
+            frequency_evolution = trajectory_results['frequency_evolution']
+            phase_accumulation = trajectory_results['phase_accumulation']
+            semantic_modulation = trajectory_results['semantic_modulation']
+            
+            # Compute observational persistence
+            persistence = self.trajectory_engine.generate_observational_persistence(
+                observational_distance=charge_params.observational_state
+            )
+            if isinstance(persistence, np.ndarray):
+                persistence = np.mean(persistence)
+            
+            # Generate breathing pattern for semantic coupling
+            breathing_pattern = self.trajectory_engine.generate_breathing_pattern(
+                observational_state=charge_params.observational_state
+            )
+            
+            # Compute phase coordination
+            phase_info = self.trajectory_engine.compute_phase_coordination(
+                trajectory_operators=trajectory_operators,
+                observational_state=charge_params.observational_state
+            )
+            
+            logger.debug(f"Temporal processing for {token}: T={transformative_potential:.4f}, Ψ={persistence:.4f}")
+            
+            return {
+                'trajectory_operators': trajectory_operators,
+                'transformative_potential': transformative_potential,
+                'frequency_evolution': frequency_evolution,
+                'phase_accumulation': phase_accumulation,
+                'semantic_modulation': semantic_modulation,
+                'observational_persistence': persistence,
+                'breathing_pattern': breathing_pattern,
+                'phase_coordination': phase_info,
+                'processing_status': 'enhanced_temporal'
+            }
+            
+        except Exception as e:
+            logger.error(f"Temporal dimension processing failed for {token}: {e}")
+            # Return minimal fallback
+            return {
+                'trajectory_operators': np.ones(len(embedding), dtype=complex),
+                'transformative_potential': 1.0,
+                'observational_persistence': 1.0,
+                'breathing_pattern': 1.0,
+                'phase_coordination': {'coherence': 0.5},
+                'processing_status': 'fallback_temporal'
+            }
     
     def semantic_dimension(self, 
                           embedding: np.ndarray,

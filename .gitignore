@@ -4,3 +4,13 @@ __pycache__/
 *.pyo
 logs/
 old_code.py
+
+# Model output directories
+manifold_tensors/
+test_manifold/
+foundation_manifold/
+*.db
+*.lance
+
+# System files
+.DS_Store

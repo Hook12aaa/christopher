@@ -309,7 +309,7 @@ class ChargeManifoldStore:
                 charge_records.append({
                     'charge_id': charge_id,
                     'token': charge.token,
-                    'timestamp': pa.scalar(time.time() * 1000000).cast(pa.timestamp('us')),
+                    'timestamp': pa.scalar(int(time.time() * 1000000), type=pa.timestamp('us')),
                     'observational_state': charge.observational_state,
                     'gamma': charge.gamma,
                     'complete_charge_real': float(complete_charge.real),

@@ -149,7 +149,7 @@ def _run_dtf_processing(embedding: np.ndarray,
         # Create DTF field pool using REAL manifold embeddings
         dtf_pool = create_dtf_field_pool_with_basis_extraction(
             manifold_data=manifold_data,
-            pool_config={'capacity': 100, 'embedding_dimension': embedding.shape[0]}
+            pool_config={'pool_capacity': 100}
         )
         
         # Process embedding through DTF to get Φ^semantic(τ, s)
@@ -162,13 +162,13 @@ def _run_dtf_processing(embedding: np.ndarray,
         
         if added_count > 0:
             # Process through DTF semantic field generation
-            dtf_pool.process_next()
+            dtf_pool.process_all()
             
             # Get DTF semantic field Φ^semantic(τ, s)
             dtf_results = None
-            for result in dtf_pool.return_to_manifold(limit=1):
+            for result in dtf_pool.return_to_manifold():
                 dtf_results = result
-                break
+                break  # Only get first result
             
             if dtf_results:
                 # Extract Φ^semantic(τ, s) from DTF processing

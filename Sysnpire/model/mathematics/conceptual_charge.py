@@ -54,17 +54,40 @@ class ConceptualCharge:
         """Initialize field parameters for trajectory and emotional dynamics."""
         d = len(self.semantic_vector)
         
-        # Trajectory parameters for T_i(τ,s)
-        self.omega_base = np.random.uniform(0.1, 1.0, d)  # Base frequency evolution
-        self.phi_base = np.random.uniform(0, 2*np.pi, d)  # Base phase relationships
+        # Trajectory parameters for T_i(τ,s) - will be enhanced by ChargeFactory
+        # Using deterministic initialization based on token/context instead of random
+        token_hash = hash(self.token) % 1000 / 1000.0
+        context_hash = hash(str(self.context)) % 1000 / 1000.0
         
-        # Emotional trajectory parameters for E^trajectory(τ,s)
-        self.alpha_emotional = np.random.uniform(0.5, 2.0, d)  # Emotional amplification
-        self.sigma_emotional_sq = np.random.uniform(0.1, 1.0, d)  # Emotional selectivity
-        self.v_emotional = np.random.randn(d)  # Emotional alignment vector
+        self.omega_base = np.array([
+            1.0 / (10000.0 ** (2.0 * i / d)) * (1.0 + 0.1 * token_hash)
+            for i in range(d)
+        ])  # Base frequency evolution (deterministic)
+        self.phi_base = np.array([
+            2 * np.pi * (token_hash + i / d + 0.1 * context_hash)
+            for i in range(d)
+        ])  # Base phase relationships (deterministic)
         
-        # Semantic breathing parameters for Φ^semantic(τ,s)
-        self.beta_breathing = np.random.uniform(0.1, 0.5, d)  # Breathing modulation depth
+        # Emotional trajectory parameters for E^trajectory(τ,s) - deterministic based on semantic content
+        semantic_norm = np.linalg.norm(self.semantic_vector)
+        self.alpha_emotional = np.array([
+            1.0 + 0.5 * np.tanh(self.semantic_vector[i] / max(semantic_norm, 1e-6))
+            for i in range(d)
+        ])  # Emotional amplification (content-dependent)
+        
+        self.sigma_emotional_sq = np.array([
+            0.3 + 0.4 * np.abs(self.semantic_vector[i]) / max(semantic_norm, 1e-6)
+            for i in range(d)
+        ])  # Emotional selectivity (content-dependent)
+        
+        # Emotional alignment based on semantic vector structure
+        self.v_emotional = self.semantic_vector / max(semantic_norm, 1e-6)
+        
+        # Semantic breathing parameters for Φ^semantic(τ,s) - content and context dependent
+        self.beta_breathing = np.array([
+            0.1 + 0.4 * np.abs(self.semantic_vector[i]) / max(semantic_norm, 1e-6)
+            for i in range(d)
+        ])  # Breathing modulation depth (content-dependent)
         self.w_weights = np.ones(d)  # Semantic weighting
         
         # Persistence parameters for Ψ_persistence(s-s₀)
@@ -273,3 +296,53 @@ class ConceptualCharge:
         """Update the observational state and record trajectory."""
         self.trajectory_history.append(self.observational_state)
         self.observational_state = new_s
+    
+    def get_transformative_movement(self) -> Dict[str, any]:
+        """
+        Get transformative movement data from trajectory operators.
+        
+        This provides movement through meaning space - how the conceptual charge
+        transforms through observational states.
+        
+        Returns:
+            Dictionary with transformative movement characteristics:
+            - 'transformative_potential': Overall T(τ,C,s) magnitude
+            - 'frequency_patterns': ω_i(τ,s') evolution across dimensions
+            - 'phase_patterns': φ_i(τ,s') accumulation across dimensions
+            - 'semantic_modulation': How semantic content shapes transformation
+            - 'movement_coherence': How aligned transformation is across dimensions
+        """
+        if hasattr(self, 'trajectory_data') and self.trajectory_data is not None:
+            # Rich trajectory data from enhanced processing
+            traj_data = self.trajectory_data
+            
+            # Compute movement coherence
+            magnitudes = traj_data['transformative_magnitude']
+            coherence = np.std(magnitudes) / (np.mean(magnitudes) + 1e-6)  # Lower = more coherent
+            
+            return {
+                'transformative_potential': traj_data['total_transformative_potential'],
+                'frequency_patterns': traj_data['frequency_evolution'],
+                'phase_patterns': traj_data['phase_accumulation'],
+                'semantic_modulation': traj_data['semantic_modulation'],
+                'movement_coherence': 1.0 / (1.0 + coherence),  # Convert to 0-1 scale
+                'dimensional_magnitudes': magnitudes,
+                'observational_state': traj_data['observational_state'],
+                'movement_available': True
+            }
+        else:
+            # Fallback to basic trajectory computation
+            s = self.observational_state
+            basic_operators = [self.trajectory_operator(s, i) for i in range(min(3, len(self.omega_base)))]
+            magnitudes = [abs(op) for op in basic_operators]
+            
+            return {
+                'transformative_potential': np.mean(magnitudes),
+                'frequency_patterns': self.omega_base[:3],
+                'phase_patterns': self.phi_base[:3],
+                'semantic_modulation': np.zeros(3),
+                'movement_coherence': 0.5,  # Default coherence
+                'dimensional_magnitudes': np.array(magnitudes),
+                'observational_state': s,
+                'movement_available': False
+            }
