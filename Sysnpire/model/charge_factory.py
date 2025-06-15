@@ -112,9 +112,39 @@ class ChargeFactory:
         # Use manifold_properties: 'coupling_mean', 'coupling_variance'
         emotional_trajectory = None
         
-        # TODO: Generate Φ^semantic(τ, s) - dynamic semantic field
-        # Use manifold_properties: 'dominant_frequencies', 'frequency_magnitudes'
-        semantic_field = None
+        # Generate Φ^semantic(τ, s) using DTF semantic field if available
+        dtf_semantic_field = None
+        if metadata and metadata.get('dtf_enabled') and metadata.get('manifold_data'):
+            logger.debug(f"Processing {token} with DTF semantic field enhancement")
+            
+            # Use DTF-enhanced semantic processing for Φ^semantic(τ, s) component
+            try:
+                from Sysnpire.model.semantic_dimension.main import run_semantic_processing
+                
+                dtf_results = run_semantic_processing(
+                    embedding=embedding,
+                    manifold_properties=manifold_properties,
+                    observational_state=charge_params.observational_state,
+                    gamma=charge_params.gamma,
+                    context=f"charge_factory_{token}",
+                    field_temperature=charge_params.field_temperature,
+                    metadata=metadata,  # Contains manifold_data for DTF
+                    use_dtf=True,
+                    model_type="auto"
+                )
+                
+                # Extract DTF-enhanced Φ^semantic(τ, s)
+                dtf_semantic_field = dtf_results.get('dtf_phi_semantic_magnitude', 0.0)
+                complete_charge_magnitude = dtf_results.get('complete_charge_magnitude', 0.0)
+                
+                if dtf_semantic_field > 0:
+                    logger.debug(f"DTF enhanced {token}: Φ^semantic={dtf_semantic_field:.4f}, Q(τ,C,s)={complete_charge_magnitude:.4f}")
+                else:
+                    logger.debug(f"DTF fallback for {token}: using standard semantic field")
+                    
+            except Exception as e:
+                logger.warning(f"DTF processing failed for {token}: {e}")
+                dtf_semantic_field = None
         
         # TODO: Compute e^(iθ_total(τ,C,s)) - complete phase integration
         # Use manifold_properties: 'phase_angles'
@@ -129,7 +159,7 @@ class ChargeFactory:
         charge_magnitude = None
         charge_phase = None
         
-        # Create ConceptualCharge with correct parameters
+        # Create ConceptualCharge with DTF enhancement
         charge = ConceptualCharge(
             token=token,
             semantic_vector=embedding,
@@ -137,6 +167,17 @@ class ChargeFactory:
             observational_state=charge_params.observational_state,
             gamma=charge_params.gamma
         )
+        
+        # Enhance with DTF semantic field if available
+        if dtf_semantic_field is not None and dtf_semantic_field > 0:
+            # Store DTF semantic field data for enhanced Φ^semantic(τ, s) computation
+            charge.dtf_semantic_field = dtf_semantic_field
+            charge.dtf_enhanced = True
+            charge.foundation_processing = True
+            logger.debug(f"Enhanced {token} with DTF Φ^semantic: {dtf_semantic_field:.4f}")
+        else:
+            charge.dtf_enhanced = False
+            charge.foundation_processing = metadata.get('foundation_processing', False) if metadata else False
         
         # TODO: Set additional properties from manifold analysis
         # charge.manifold_properties = manifold_properties

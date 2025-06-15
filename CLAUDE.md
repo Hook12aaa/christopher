@@ -161,6 +161,7 @@ E_trajectory[i] = α_i * exp(-|v_i - v_E|²/2σ²) * trajectory_accumulation
 - **NO simulated or default values**: Never use placeholder, mock, or default values for mathematical parameters. All field theory calculations must use actual computed values from the mathematical formulations. When parameters are needed, they must be explicitly provided or calculated from the theoretical framework.
 - **NO simulated model outputs**: Never use np.random, fake embeddings, or simulated model responses. Always use actual model inference from loaded models (BGE, transformers, etc.). If a model is not available, request it be provided rather than creating fake outputs.
 - **NO half-fixes or workarounds**: Never create simplified test scripts or bypass actual model loading. All functionality must work with the complete technology stack (TensorFlow, BGE models, etc.). If there are environment issues, they must be properly resolved, not worked around.
+- **NO code duplication**: Never duplicate existing functionality from other modules. The abstraction layer must connect to and use existing implementations from Sysnpire/model/ rather than reimplementing mathematical formulations. Reuse ConceptualCharge objects and their methods rather than creating parallel implementations.
 
 ### Module Structure and Context
 

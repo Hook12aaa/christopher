@@ -258,13 +258,29 @@ class FoundationManifoldBuilder:
                 properties_batch.append(manifold_properties)
                 metadata_batch.append(metadata)
             
-            # Transform batch into conceptual charges
+            # Transform batch into conceptual charges with DTF semantic field enhancement
             try:
+                # Create manifold data for DTF processing
+                dtf_manifold_data = {
+                    'embeddings': embeddings,  # Full embedding set for DTF basis extraction
+                    'id_to_token': id_to_token,
+                    'model_type': model_type,
+                    'foundation_processing': True
+                }
+                
+                # Enhance metadata with DTF manifold data for downstream processing
+                enhanced_metadata_batch = []
+                for metadata in metadata_batch:
+                    enhanced_metadata = metadata.copy()
+                    enhanced_metadata['manifold_data'] = dtf_manifold_data  # Enable DTF processing
+                    enhanced_metadata['dtf_enabled'] = True
+                    enhanced_metadata_batch.append(enhanced_metadata)
+                
                 charges = self.charge_factory.create_charges_batch(
                     embeddings=batch_embeddings,
                     properties_batch=properties_batch,
                     charge_params=self.config.charge_params,
-                    metadata_batch=metadata_batch
+                    metadata_batch=enhanced_metadata_batch  # Pass DTF-enabled metadata
                 )
                 
                 # Yield charges for processing/storage
@@ -418,45 +434,88 @@ def test_embedding_iteration():
         # Test iteration and storage
         processed_embeddings = []
         charge_count = 0
+        stored_count = 0
         
         for charge in builder.create_universe_from_manifold(test_manifold, "BGE"):
             # Extract real token name and charge data
             try:
                 charge_magnitude = charge.get_charge_magnitude() if hasattr(charge, 'get_charge_magnitude') else abs(charge.compute_complete_charge())
                 token_name = charge.token if hasattr(charge, 'token') else f'token_{charge_count}'
+                
+                # Check DTF status
+                dtf_enhanced = getattr(charge, 'dtf_enhanced', False)
+                dtf_semantic_field = getattr(charge, 'dtf_semantic_field', None)
+                
             except Exception as e:
                 charge_magnitude = 'Error'
                 token_name = f'token_{charge_count}'
+                dtf_enhanced = False
+                dtf_semantic_field = None
                 logger.debug(f"Error extracting charge data: {e}")
+            
+            # Store charge in universe database
+            try:
+                storage_success = builder.universe.add_charge(charge)
+                if storage_success:
+                    stored_count += 1
+                    logger.debug(f"Stored charge {token_name} with DTF={dtf_enhanced}")
+                else:
+                    logger.warning(f"Failed to store charge {token_name}")
+            except Exception as e:
+                logger.error(f"Storage error for {token_name}: {e}")
             
             processed_embeddings.append({
                 'charge_magnitude': charge_magnitude,
                 'token': token_name,
-                'index': charge_count
+                'index': charge_count,
+                'dtf_enhanced': dtf_enhanced,
+                'dtf_semantic_field': str(dtf_semantic_field) if dtf_semantic_field else None,
+                'stored': storage_success if 'storage_success' in locals() else False
             })
             charge_count += 1
             
             # Log progress
             if charge_count % 10 == 0:
-                logger.info(f"Processed {charge_count} embeddings...")
+                logger.info(f"Processed {charge_count} embeddings, stored {stored_count}...")
         
         # Print results
         logger.info("=" * 50)
         logger.info("EMBEDDING ITERATION TEST RESULTS")
         logger.info("=" * 50)
         logger.info(f"Total embeddings processed: {charge_count}")
+        logger.info(f"Total charges stored in DB: {stored_count}")
         logger.info(f"Expected embeddings: {len(test_embeddings)}")
-        logger.info(f"Success: {charge_count == len(test_embeddings)}")
+        logger.info(f"Processing success: {charge_count == len(test_embeddings)}")
+        logger.info(f"Storage success rate: {stored_count}/{charge_count} ({100*stored_count/max(1,charge_count):.1f}%)")
         
-        # Show sample of processed embeddings
+        # Count DTF enhanced charges
+        dtf_count = sum(1 for e in processed_embeddings if e.get('dtf_enhanced', False))
+        logger.info(f"DTF enhanced charges: {dtf_count}/{charge_count} ({100*dtf_count/max(1,charge_count):.1f}%)")
+        
+        # Show sample of processed embeddings with DTF info
         logger.info("\nFirst 5 processed embeddings:")
         for i, embedding_data in enumerate(processed_embeddings[:5]):
             logger.info(f"  {i+1}. Token: {embedding_data['token']}, "
-                       f"Index: {embedding_data['index']}, "
-                       f"Charge: {embedding_data['charge_magnitude']}")
+                       f"Charge: {embedding_data['charge_magnitude']}, "
+                       f"DTF: {embedding_data['dtf_enhanced']}, "
+                       f"Stored: {embedding_data['stored']}")
+        
+        # Check database storage
+        if stored_count > 0:
+            logger.info(f"\n✅ Database storage test: {stored_count} charges stored successfully")
+            # Check if storage directory has files
+            import os
+            storage_path = builder.config.output_directory / "manifold_tensors"
+            if storage_path.exists():
+                files = os.listdir(storage_path)
+                logger.info(f"Database files created: {files}")
+            else:
+                logger.warning("No storage directory found")
+        else:
+            logger.warning("❌ Database storage test: No charges were stored")
         
         logger.info("🧪 EMBEDDING ITERATION TEST COMPLETE 🧪")
-        return charge_count == len(test_embeddings)
+        return charge_count == len(test_embeddings) and stored_count > 0
         
     except Exception as e:
         logger.error(f"Test failed with error: {e}")

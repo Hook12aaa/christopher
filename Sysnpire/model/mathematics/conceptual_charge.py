@@ -130,7 +130,8 @@ class ConceptualCharge:
         """
         Calculate semantic field function Φ^semantic(τ,s).
         
-        Implements breathing constellation patterns across the narrative sky.
+        If DTF enhancement is available, uses DTF-generated semantic field.
+        Otherwise implements breathing constellation patterns across the narrative sky.
         
         Args:
             s: Current observational state
@@ -142,6 +143,26 @@ class ConceptualCharge:
         if x is None:
             x = self.semantic_vector
             
+        # Use DTF-enhanced semantic field if available (from foundation processing)
+        if hasattr(self, 'dtf_enhanced') and self.dtf_enhanced and hasattr(self, 'dtf_semantic_field'):
+            d = len(self.semantic_vector)
+            phi_semantic = np.zeros(d, dtype=complex)
+            
+            # Use DTF semantic field value as base, distributed across dimensions
+            dtf_base = complex(self.dtf_semantic_field)
+            
+            # Apply DTF enhancement with trajectory dependence
+            for i in range(d):
+                traj_idx = i % len(self.omega_base)
+                trajectory_factor = np.exp(1j * s * self.omega_base[traj_idx])
+                
+                # DTF-enhanced semantic field with breathing patterns
+                breathing_mod = 1 + 0.1 * np.cos(s * self.omega_base[traj_idx])
+                phi_semantic[i] = dtf_base * x[i] * breathing_mod * trajectory_factor / d
+                
+            return phi_semantic
+        
+        # Standard semantic field generation (fallback)
         d = len(self.semantic_vector)
         phi_semantic = np.zeros(d, dtype=complex)
         

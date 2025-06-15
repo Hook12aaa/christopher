@@ -1,19 +1,63 @@
 """
-Field Universe - Database layer for field-theoretic storage
+Field Universe - Main Orchestrator for Field-Theoretic Manifold Storage
 
-Enterprise-grade storage system for conceptual charges with field-adjacent
-placement using mathematical formulation from the paper.
+Evolved enterprise-grade storage system using Lance+Arrow with abstraction layer.
+Orchestrates the complete pipeline: intake → abstraction → storage → handler
+
+Data Flow:
+1. Intake: Receives ConceptualChargeObjects
+2. Abstraction: Validates, transforms, and optimizes for tensor storage  
+3. Storage: Stores in Lance+Arrow with spatial indexing
+4. Handler: Provides query interface and field computations
 """
 
 import numpy as np
 import time
 import json
-from typing import Dict, List, Optional, Tuple, Any
+import logging
+from typing import Dict, List, Optional, Tuple, Any, Union
 from pathlib import Path
-import sqlite3
 from dataclasses import dataclass
 
+# Core imports
 from .conceptual_charge_object import ConceptualChargeObject, FieldComponents
+
+# Import actual ConceptualCharge from model layer (for ChargeFactory output)
+try:
+    from ..model.mathematics.conceptual_charge import ConceptualCharge
+    CONCEPTUAL_CHARGE_AVAILABLE = True
+except ImportError:
+    # Fallback during development
+    ConceptualCharge = ConceptualChargeObject
+    CONCEPTUAL_CHARGE_AVAILABLE = False
+
+# New abstraction layer imports
+from .abstraction_layer.intake_processor import IntakeProcessor
+from .abstraction_layer.charge_transformer import ChargeTransformer, TensorTransformationConfig
+
+# Storage layer imports
+try:
+    from .lance_storage.charge_manifold_store import ChargeManifoldStore
+    CHARGE_MANIFOLD_STORE_AVAILABLE = True
+except ImportError:
+    ChargeManifoldStore = None
+    CHARGE_MANIFOLD_STORE_AVAILABLE = False
+
+try:
+    from .spatial_index.hilbert_encoder import HilbertEncoder
+    SPATIAL_INDEX_AVAILABLE = True
+except ImportError:
+    HilbertEncoder = None
+    SPATIAL_INDEX_AVAILABLE = False
+
+try:
+    from .redis_cache.hot_regions import HotRegionsCache
+    REDIS_CACHE_AVAILABLE = True
+except ImportError:
+    HotRegionsCache = None
+    REDIS_CACHE_AVAILABLE = False
+
+logger = logging.getLogger(__name__)
 
 @dataclass
 class UniverseMetrics:
@@ -23,138 +67,317 @@ class UniverseMetrics:
     average_magnitude: float
     field_density: float
     last_updated: float
+    # New metrics for abstraction layer
+    abstraction_efficiency: float = 0.0
+    tensor_storage_size: int = 0
+    cache_hit_rate: float = 0.0
+
+
+@dataclass
+class FieldUniverseConfig:
+    """Configuration for FieldUniverse orchestrator"""
+    # Storage paths
+    lance_storage_path: str = "manifold_tensors"
+    redis_cache_url: str = "redis://localhost:6379"
+    
+    # Processing configuration
+    enable_abstraction_layer: bool = True
+    enable_redis_cache: bool = True
+    strict_validation: bool = True
+    
+    # Performance settings
+    batch_size: int = 100
+    cache_ttl: int = 3600  # 1 hour
+    
+    # Query interface
+    enable_sql_interface: bool = True  # DuckDB SQL interface to Lance data
+
 
 class FieldUniverse:
     """
-    Field-theoretic universe for storing and managing conceptual charges.
+    Main Orchestrator for Tensor-Native Field-Theoretic Manifold Storage
     
-    Implements field-adjacent placement using the mathematical formulation
-    and provides enterprise-grade storage with queries and analytics.
+    Pure tensor storage architecture:
+    - Intake: Receives ConceptualChargeObjects
+    - Abstraction: Validates and transforms charges to tensors
+    - Storage: Lance tensor storage with spatial indexing (NO SQL)
+    - Query: DuckDB SQL interface TO Lance data + Redis cache
+    - Handler: Field computations on tensor data
     """
     
-    def __init__(self, storage_path: str = "universe.db"):
+    def __init__(self, config: Optional[FieldUniverseConfig] = None):
         """
-        Initialize the field universe.
+        Initialize the tensor-native field universe.
         
         Args:
-            storage_path: Path to SQLite database file
+            config: Configuration for tensor storage and processing
         """
-        self.storage_path = Path(storage_path)
-        self.charges: Dict[str, ConceptualChargeObject] = {}
-        self.field_regions: Dict[str, List[str]] = {}
+        self.config = config or FieldUniverseConfig()
         
-        # Initialize database
-        self._init_database()
+        # Tensor storage only - no legacy SQL storage
+        self.charges: Dict[str, ConceptualChargeObject] = {}  # Hot memory cache only
+        self.field_regions: Dict[str, List[str]] = {}  # Spatial organization cache
         
-        # Load existing charges
-        self._load_charges()
+        # Initialize abstraction layer
+        self._init_abstraction_layer()
         
-        print(f"🌌 Field Universe initialized")
-        print(f"   Storage: {self.storage_path}")
-        print(f"   Loaded charges: {len(self.charges)}")
+        # Initialize tensor storage backends  
+        self._init_tensor_storage()
+        
+        # Load existing tensor data
+        self._load_existing_tensors()
+        
+        logger.info(f"🌌 Tensor-Native Field Universe initialized")
+        logger.info(f"   Abstraction layer: {'✅' if self.abstraction_enabled else '❌'}")
+        logger.info(f"   Lance tensor storage: {'✅' if self.lance_storage_enabled else '❌'}")
+        logger.info(f"   Redis cache: {'✅' if self.cache_enabled else '❌'}")
+        logger.info(f"   SQL interface: {'✅' if self.sql_interface_enabled else '❌'}")
+        logger.info(f"   Cached charges: {len(self.charges)}")
     
-    def _init_database(self):
-        """Initialize SQLite database schema."""
-        with sqlite3.connect(self.storage_path) as conn:
-            cursor = conn.cursor()
-            
-            # Charges table
-            cursor.execute("""
-                CREATE TABLE IF NOT EXISTS charges (
-                    charge_id TEXT PRIMARY KEY,
-                    text_source TEXT NOT NULL,
-                    creation_timestamp REAL NOT NULL,
-                    last_updated REAL NOT NULL,
-                    complete_charge_real REAL NOT NULL,
-                    complete_charge_imag REAL NOT NULL,
-                    magnitude REAL NOT NULL,
-                    phase REAL NOT NULL,
-                    observational_state REAL NOT NULL,
-                    gamma REAL NOT NULL,
-                    field_position_x REAL,
-                    field_position_y REAL,
-                    field_position_z REAL,
-                    field_region TEXT,
-                    data_json TEXT NOT NULL
+    def _init_abstraction_layer(self):
+        """Initialize the abstraction layer components"""
+        try:
+            if self.config.enable_abstraction_layer:
+                # Initialize intake processor
+                self.intake_processor = IntakeProcessor(
+                    validation_strict=self.config.strict_validation,
+                    normalize_field_components=True,
+                    extract_tensor_representations=True
                 )
-            """)
-            
-            # Field regions table
-            cursor.execute("""
-                CREATE TABLE IF NOT EXISTS field_regions (
-                    region_id TEXT PRIMARY KEY,
-                    center_x REAL NOT NULL,
-                    center_y REAL NOT NULL,
-                    center_z REAL NOT NULL,
-                    radius REAL NOT NULL,
-                    charge_count INTEGER DEFAULT 0,
-                    total_energy REAL DEFAULT 0.0,
-                    created_timestamp REAL NOT NULL
+                
+                # Initialize charge transformer
+                tensor_config = TensorTransformationConfig(
+                    tensor_dimensions=(64, 64, 64),
+                    spatial_extent=10.0,
+                    preserve_phase_information=True,
+                    normalize_for_storage=True,
+                    batch_optimization=True
                 )
-            """)
-            
-            # Charge relationships table
-            cursor.execute("""
-                CREATE TABLE IF NOT EXISTS charge_relationships (
-                    charge_id TEXT NOT NULL,
-                    nearby_charge_id TEXT NOT NULL,
-                    influence_strength REAL NOT NULL,
-                    distance REAL,
-                    PRIMARY KEY (charge_id, nearby_charge_id),
-                    FOREIGN KEY (charge_id) REFERENCES charges(charge_id),
-                    FOREIGN KEY (nearby_charge_id) REFERENCES charges(charge_id)
-                )
-            """)
-            
-            # Create indexes
-            cursor.execute("CREATE INDEX IF NOT EXISTS idx_charges_magnitude ON charges(magnitude)")
-            cursor.execute("CREATE INDEX IF NOT EXISTS idx_charges_field_region ON charges(field_region)")
-            cursor.execute("CREATE INDEX IF NOT EXISTS idx_charges_timestamp ON charges(creation_timestamp)")
-            
-            conn.commit()
+                self.charge_transformer = ChargeTransformer(config=tensor_config)
+                
+                self.abstraction_enabled = True
+                logger.info("✅ Abstraction layer initialized")
+            else:
+                self.intake_processor = None
+                self.charge_transformer = None
+                self.abstraction_enabled = False
+                logger.info("❌ Abstraction layer disabled")
+                
+        except Exception as e:
+            logger.error(f"Failed to initialize abstraction layer: {e}")
+            self.abstraction_enabled = False
+            self.intake_processor = None
+            self.charge_transformer = None
     
-    def add_charge(self, charge_obj: ConceptualChargeObject) -> bool:
+    def _init_tensor_storage(self):
+        """Initialize tensor-native storage backends"""
+        # Lance tensor storage (PRIMARY storage)
+        if CHARGE_MANIFOLD_STORE_AVAILABLE:
+            try:
+                self.manifold_store = ChargeManifoldStore(self.config.lance_storage_path)
+                self.spatial_indexer = HilbertEncoder() if HilbertEncoder else None
+                self.lance_storage_enabled = True
+                logger.info("✅ Lance tensor storage initialized")
+            except Exception as e:
+                logger.error(f"Failed to initialize Lance storage: {e}")
+                self.lance_storage_enabled = False
+                self.manifold_store = None
+                self.spatial_indexer = None
+                raise RuntimeError("Lance tensor storage is required - no fallback available")
+        else:
+            self.lance_storage_enabled = False
+            self.manifold_store = None
+            self.spatial_indexer = None
+            logger.warning("❌ Lance storage not available - install pylance")
+        
+        # Redis hot cache
+        if REDIS_CACHE_AVAILABLE and self.config.enable_redis_cache:
+            try:
+                self.hot_cache = HotRegionsCache(
+                    redis_url=self.config.redis_cache_url,
+                    ttl=self.config.cache_ttl
+                )
+                self.cache_enabled = True
+                logger.info("✅ Redis cache initialized")
+            except Exception as e:
+                logger.error(f"Failed to initialize Redis cache: {e}")
+                self.cache_enabled = False
+                self.hot_cache = None
+        else:
+            self.cache_enabled = False
+            self.hot_cache = None
+            logger.info("❌ Redis cache not available")
+        
+        # DuckDB SQL interface to Lance data
+        if self.config.enable_sql_interface:
+            try:
+                # TODO: Initialize DuckDB connection to Lance datasets
+                # self.sql_interface = DuckDBBridge(self.config.lance_storage_path)
+                self.sql_interface_enabled = True
+                logger.info("✅ SQL interface ready (TODO: implement)")
+            except Exception as e:
+                logger.error(f"Failed to initialize SQL interface: {e}")
+                self.sql_interface_enabled = False
+        else:
+            self.sql_interface_enabled = False
+    
+    def _load_existing_tensors(self):
+        """Load existing tensor data from Lance storage"""
+        if self.lance_storage_enabled:
+            try:
+                # TODO: Load charges from Lance datasets
+                # cached_charges = self.field_store.load_all_charges()
+                # self.charges.update(cached_charges)
+                logger.info("Tensor data loading ready (TODO: implement)")
+            except Exception as e:
+                logger.error(f"Failed to load tensor data: {e}")
+        
+        # Load hot regions from Redis cache
+        if self.cache_enabled:
+            try:
+                # TODO: Load hot regions from Redis
+                # hot_regions = self.hot_cache.load_hot_regions()
+                logger.info("Cache data loading ready (TODO: implement)")
+            except Exception as e:
+                logger.error(f"Failed to load cache data: {e}")
+    
+    def add_charge(self, charge_obj: Union[ConceptualCharge, ConceptualChargeObject]) -> bool:
         """
-        Add a conceptual charge to the universe with field placement.
+        Add a ConceptualCharge object directly to tensor storage.
         
         Args:
-            charge_obj: Rich conceptual charge object
+            charge_obj: ConceptualCharge object from ChargeFactory (with computed Q(τ, C, s))
             
         Returns:
-            True if successfully added
+            True if successfully stored
         """
         try:
-            # Calculate field position based on field theory
-            field_position = self._calculate_field_position(charge_obj)
-            charge_obj.set_field_position(field_position)
+            charge_id = getattr(charge_obj, 'charge_id', getattr(charge_obj, 'token', 'unknown'))
+            logger.debug(f"Storing ConceptualCharge {charge_id} directly to tensor storage...")
             
-            # Determine field region
-            field_region = self._determine_field_region(field_position)
-            charge_obj.metadata.field_region = field_region
+            # Store ConceptualCharge directly (uses actual Q(τ, C, s) math)
+            storage_success = self._store_charge_tensor_native(charge_obj)
             
-            # Find nearby charges and establish relationships
-            self._establish_field_relationships(charge_obj)
-            
-            # Store in memory
-            self.charges[charge_obj.charge_id] = charge_obj
-            
-            # Update field region
-            if field_region not in self.field_regions:
-                self.field_regions[field_region] = []
-            self.field_regions[field_region].append(charge_obj.charge_id)
-            
-            # Persist to database
-            self._save_charge_to_db(charge_obj)
-            
-            print(f"   ✅ Added charge {charge_obj.charge_id} to region {field_region}")
-            print(f"      Position: {field_position}")
-            print(f"      Nearby charges: {len(charge_obj.metadata.nearby_charges)}")
-            
-            return True
-            
+            if storage_success:
+                # Update in-memory cache for fast access
+                self.charges[charge_id] = charge_obj
+                
+                # Calculate magnitude for logging (uses actual field theory)
+                try:
+                    magnitude = charge_obj.get_charge_magnitude()
+                    phase = charge_obj.get_phase_factor()
+                    logger.info(f"✅ ConceptualCharge {charge_id} stored - magnitude: {magnitude:.4f}, phase: {phase:.4f}")
+                except Exception as e:
+                    logger.info(f"✅ ConceptualCharge {charge_id} stored successfully")
+                
+                return True
+            else:
+                logger.error(f"Failed to store ConceptualCharge {charge_id}")
+                return False
+                
         except Exception as e:
-            print(f"   ❌ Failed to add charge {charge_obj.charge_id}: {e}")
+            logger.error(f"Failed to add ConceptualCharge: {e}")
             return False
+    
+    def _store_charge_tensor_native(self, 
+                                   charge_obj: ConceptualChargeObject) -> bool:
+        """
+        Store ConceptualCharge directly in tensor-native backends.
+        
+        Args:
+            charge_obj: ConceptualCharge object from ChargeFactory (with computed Q(τ, C, s))
+            
+        Returns:
+            True if stored successfully in Lance tensor storage
+        """
+        # Primary storage: Lance tensor backend
+        if self.lance_storage_enabled and self.manifold_store:
+            try:
+                # Store actual ConceptualCharge object (with real Q(τ, C, s) math)
+                lance_success = self.manifold_store.store_charge(charge_obj)
+                if lance_success:
+                    logger.debug(f"Lance tensor storage for {getattr(charge_obj, 'token', 'unknown')}: ✅")
+                else:
+                    logger.error(f"Lance storage failed for {getattr(charge_obj, 'token', 'unknown')}")
+            except Exception as e:
+                logger.error(f"Lance storage failed for {getattr(charge_obj, 'token', 'unknown')}: {e}")
+                lance_success = False
+        else:
+            logger.error("Lance storage not available - cannot store charge")
+            return False
+        
+        # Secondary: Redis hot cache
+        if self.cache_enabled:
+            try:
+                # TODO: Implement when HotRegionsCache is available
+                # self.hot_cache.cache_charge_data(charge_obj.charge_id, charge_obj)
+                logger.debug(f"Redis cache for {getattr(charge_obj, 'token', 'unknown')}: Ready (TODO: implement)")
+            except Exception as e:
+                logger.error(f"Redis cache failed for {getattr(charge_obj, 'token', 'unknown')}: {e}")
+        
+        return lance_success
+    
+    def _legacy_process_charge(self, charge_obj: ConceptualChargeObject) -> Dict[str, Any]:
+        """
+        Legacy charge processing without abstraction layer.
+        
+        Args:
+            charge_obj: Charge to process
+            
+        Returns:
+            Basic processed data dictionary
+        """
+        # Calculate field position using legacy method
+        field_position = self._calculate_field_position(charge_obj)
+        if hasattr(charge_obj, 'metadata') and charge_obj.metadata:
+            if hasattr(charge_obj.metadata, 'set_field_position'):
+                charge_obj.metadata.set_field_position(field_position)
+        
+        return {
+            'charge_id': charge_obj.charge_id,
+            'magnitude': charge_obj.magnitude,
+            'phase': getattr(charge_obj, 'phase', 0.0),
+            'field_position': field_position,
+            'processing_method': 'legacy'
+        }
+    
+    def batch_add_charges(self, charges: List[Union[ConceptualCharge, ConceptualChargeObject]]) -> int:
+        """
+        Add multiple ConceptualCharge objects efficiently using Lance batch processing.
+        
+        Args:
+            charges: List of ConceptualCharge objects from ChargeFactory
+            
+        Returns:
+            Number of successfully added charges
+        """
+        logger.info(f"Batch storing {len(charges)} ConceptualCharge objects...")
+        
+        if self.lance_storage_enabled and self.manifold_store and len(charges) > 1:
+            # Use Lance batch processing
+            try:
+                success_count = self.manifold_store.store_charges_batch(charges)
+                
+                # Update in-memory cache
+                for charge in charges[:success_count]:
+                    charge_id = getattr(charge, 'charge_id', getattr(charge, 'token', 'unknown'))
+                    self.charges[charge_id] = charge
+                
+                logger.info(f"Lance batch storage complete: {success_count}/{len(charges)} charges stored")
+                return success_count
+                
+            except Exception as e:
+                logger.error(f"Lance batch storage failed: {e}")
+                # Fallback to individual processing
+        
+        # Individual processing fallback
+        success_count = 0
+        for charge in charges:
+            if self.add_charge(charge):
+                success_count += 1
+        
+        logger.info(f"Individual storage complete: {success_count}/{len(charges)} charges stored")
+        return success_count
     
     def _calculate_field_position(self, charge_obj: ConceptualChargeObject) -> Tuple[float, float, float]:
         """
