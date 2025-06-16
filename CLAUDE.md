@@ -6,22 +6,16 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 This codebase implements the complete Field Theory of Social Constructs as defined in the research paper. **Critical**: All development must respect the mathematical formulations.
 
-### The Complete Conceptual Charge Formula
+## Critical Formulas (Condensed)
 
-The core implementation centers on this complete mathematical formulation:
+- Core charge equation: `Q(τ,C,s) = γ·T·E·Φ·e^(iθ)·Ψ`  
+- Trajectory integration: `T_i = ∫₀ˢ ω_i·e^(iφ_i) ds'`  
+*See MATH_SPEC.md for complete derivations*
 
-```LaTexcl
+## Implementation Constraints
 
-Q(τ, C, s) = γ · T(τ, C, s) · E^trajectory(τ, s) · Φ^semantic(τ, s) · e^(iθ_total(τ,C,s)) · Ψ_persistence(s-s₀)
-```
-
-**Component Definitions:**
-- **γ**: Global field calibration factor
-- **T(τ, C, s)**: Transformative potential tensor with trajectory integration: `T_i(τ,s) = ∫₀ˢ ω_i(τ,s')·e^(iφ_i(τ,s')) ds'`
-- **E^trajectory(τ, s)**: Emotional trajectory integration (NOT static valence/arousal/dominance)
-- **Φ^semantic(τ, s)**: Dynamic semantic field generation with breathing patterns
-- **e^(iθ_total(τ,C,s))**: Complete phase integration from all sources
-- **Ψ_persistence(s-s₀)**: Observational persistence with dual-decay structure
+- 🔴 **Never** use static emotional categories
+- 🟢 **Always** maintain field-valued calculations
 
 ### Key Theoretical Principles
 
@@ -31,40 +25,11 @@ Q(τ, C, s) = γ · T(τ, C, s) · E^trajectory(τ, s) · Φ^semantic(τ, s) · 
 4. **Observer Contingency**: Meaning emerges through contextual observation, not predetermined categories
 5. **Non-Euclidean Geometry**: Field effects create curved semantic landscapes
 
-## Commands
-
-### Installation
-```bash
-cd constructivist_field_theory
-pip install -r requirements.txt
-```
-
-### Running Tests
-```bash
-# Run all tests
-pytest
-
-# Run complete field theory tests
-pytest tests/test_complete_field_theory.py
-
-# Run with coverage
-pytest --cov
-```
-
 ### Linting and Formatting
 ```bash
 flake8
 black .
 isort .
-```
-
-### Running the API Server
-```bash
-# Development mode
-python api/main.py
-
-# Production mode
-hypercorn api.main:app --bind 0.0.0.0:8000
 ```
 
 ## Architecture Overview

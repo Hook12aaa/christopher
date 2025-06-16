@@ -410,13 +410,14 @@ class BGEIngestion():
             embedding_result = {
                 'index': int(idx),
                 'token': token,
+                'vector': embedding.tolist(), 
                 'similarity': float(similarity),
                 'manifold_properties': manifold_props
             }
             
             results['embeddings'].append(embedding_result)
         
-        logger.info(f"Extracted manifold properties for {len(top_indices)} embeddings")
+        logger.info(f"🔍 BGE search complete: extracted {len(top_indices)} similar embeddings for analysis")
         return results
     
     def extract_manifold_properties(self, embedding: np.ndarray, index: int, 
@@ -717,6 +718,219 @@ class BGEIngestion():
             'interpolation_quality': float(1.0 / (1.0 + mean_uncertainty)),  # Higher is better
             'query_points': query_points
         }
+
+    def extract_spatial_field_analysis(self, num_samples: int = 1000, return_full_details: bool = False) -> Dict[str, Any]:
+        """
+        SPATIAL FIELD ANALYSIS: Extract comprehensive spatial field properties from BGE embeddings.
+        
+        This method orchestrates the existing spatial analysis engines to extract
+        field-theoretic properties needed for S_τ(x) = Σᵢ e_τ,ᵢ · φᵢ(x) · e^(iθ_τ,ᵢ) transformation.
+        
+        SPATIAL ANALYSIS COMPONENTS:
+        - Manifold geometry: Local curvature, density, gradients (ManifoldGeometryProcessor)
+        - Heat kernel dynamics: Temporal field evolution on discrete Laplacian (HeatKernelEvolutionEngine)  
+        - Similarity fields: Cosine similarity distributions for field correlation (SimilarityCalculator)
+        - Frequency decomposition: Spectral basis for phase relationships (FrequencyAnalyzer)
+        - Correlation structure: Neighborhood coupling properties (CorrelationAnalyzer)
+        
+        Args:
+            num_samples: Number of embeddings to analyze (default: 1000)
+            return_full_details: If True, returns complete analysis results for all embeddings.
+                               If False, returns samples + aggregated statistics (default: False)
+                               
+        Returns:
+            Complete spatial field analysis for semantic field design.
+            When return_full_details=True: Includes full per-embedding analysis (memory intensive!)
+            When return_full_details=False: Includes samples + aggregated field parameters
+        """
+        if not hasattr(self, '_embedding_data'):
+            self._embedding_data = self.load_total_embeddings()
+            
+        embeddings = self._embedding_data['embeddings']
+        id_to_token = self._embedding_data['id_to_token']
+        
+        # Sample embeddings for spatial analysis
+        if len(embeddings) > num_samples:
+            sample_indices = np.linspace(0, len(embeddings)-1, num_samples, dtype=int)
+        else:
+            sample_indices = np.arange(len(embeddings))
+            
+        sample_embeddings = embeddings[sample_indices]
+        
+        logger.info(f"Computing spatial field analysis for {len(sample_indices)} embeddings...")
+        
+        # 1. SPATIAL CLUSTERING ANALYSIS for basis function centers
+        from sklearn.cluster import KMeans
+        n_clusters = min(50, len(sample_embeddings) // 20)  # Basis function centers
+        kmeans = KMeans(n_clusters=n_clusters, random_state=42, n_init=10)
+        cluster_labels = kmeans.fit_predict(sample_embeddings)
+        cluster_centers = kmeans.cluster_centers_
+        
+        # 2. SPATIAL DISTANCE DISTRIBUTIONS for field interaction radii
+        # Use optimized similarity calculator for spatial correlation analysis
+        spatial_correlations = []
+        for i in range(min(20, len(sample_embeddings))):
+            query_embedding = sample_embeddings[i]
+            similarities = self.similarity_calculator.compute_cosine_similarities(
+                sample_embeddings, query_embedding
+            )
+            # Convert similarities to distances for spatial analysis
+            distances = 1.0 - similarities
+            spatial_correlations.append({
+                'query_idx': sample_indices[i],
+                'token': id_to_token.get(sample_indices[i], f"<UNK_{sample_indices[i]}>"),
+                'mean_distance': float(np.mean(distances)),
+                'distance_std': float(np.std(distances)),
+                'nearest_neighbors': distances.argsort()[:10].tolist(),  # Top 10 spatial neighbors
+                'interaction_radius': float(np.percentile(distances, 20))  # 20th percentile as interaction zone
+            })
+        
+        # 3. MANIFOLD GEOMETRY ANALYSIS for field curvature and gradients
+        manifold_properties = []
+        for i in range(min(30, len(sample_embeddings))):
+            # Get spatial neighborhood using similarity calculator
+            query_embedding = sample_embeddings[i]
+            similarities = self.similarity_calculator.compute_cosine_similarities(
+                sample_embeddings, query_embedding
+            )
+            # Get top 20 spatial neighbors
+            neighbor_indices = similarities.argsort()[-21:][:20]  # Exclude self
+            neighbors = sample_embeddings[neighbor_indices]
+            
+            # Use geometry processor for local manifold analysis
+            manifold_props = self.geometry_processor.analyze_manifold_properties(
+                query_embedding, neighbors
+            )
+            manifold_props['token'] = id_to_token.get(sample_indices[i], f"<UNK_{sample_indices[i]}>")
+            manifold_properties.append(manifold_props)
+        
+        # 4. HEAT KERNEL FIELD EVOLUTION for temporal spatial dynamics
+        # Compute discrete Laplacian for spatial field evolution
+        laplacian = self.compute_discrete_laplacian(sample_embeddings, k=20)
+        eigenvals, eigenvecs = np.linalg.eigh(laplacian)
+        
+        # Test field evolution with multiple parameter sets
+        evolution_params = {'time': 0.5, 'temperature': 0.1, 'frequency_cutoff': 0.2}
+        field_evolution_result = self.heat_kernel_engine.process_field_evolution(
+            sample_embeddings, eigenvals, eigenvecs, evolution_params
+        )
+        
+        # 5. FREQUENCY ANALYSIS for spatial phase relationships
+        spatial_spectral_analysis = []
+        for i in range(min(10, len(sample_embeddings))):
+            embedding = sample_embeddings[i]
+            spectral_props = self.frequency_analyzer.analyze_spectral_properties(embedding)
+            spectral_props['token'] = id_to_token.get(sample_indices[i], f"<UNK_{sample_indices[i]}>")
+            spatial_spectral_analysis.append(spectral_props)
+        
+        # 6. SPATIAL CORRELATION STRUCTURE for coupling analysis
+        spatial_coupling_analysis = []
+        for i in range(min(20, len(sample_embeddings))):
+            query_embedding = sample_embeddings[i]
+            similarities = self.similarity_calculator.compute_cosine_similarities(
+                sample_embeddings, query_embedding
+            )
+            neighbor_indices = similarities.argsort()[-21:][:20]  # Spatial neighbors
+            neighbors = sample_embeddings[neighbor_indices]
+            
+            coupling_props = self.correlation_analyzer.analyze_coupling_properties(
+                query_embedding, neighbors
+            )
+            coupling_props['token'] = id_to_token.get(sample_indices[i], f"<UNK_{sample_indices[i]}>")
+            spatial_coupling_analysis.append(coupling_props)
+        
+        # 7. EXTRACT SPATIAL FIELD DESIGN PARAMETERS
+        spatial_field_params = {
+            # Spatial basis function design
+            'basis_centers': {
+                'num_centers': n_clusters,
+                'cluster_centers': cluster_centers.tolist(),
+                'coverage_radius': float(np.mean([
+                    np.mean(self.similarity_calculator.compute_pairwise_distances(
+                        sample_embeddings[cluster_labels == i]
+                    )) for i in range(n_clusters) if np.sum(cluster_labels == i) > 1
+                ])),
+                'cluster_separation': float(np.mean(self.similarity_calculator.compute_pairwise_distances(cluster_centers)))
+            },
+            # Also include spatial_clusters for backward compatibility
+            'spatial_clusters': {
+                'num_clusters': n_clusters,
+                'cluster_centers': cluster_centers.tolist(),
+                'spatial_coverage': {
+                    'mean_intra_cluster_distance': float(np.mean([
+                        np.mean(self.similarity_calculator.compute_pairwise_distances(
+                            sample_embeddings[cluster_labels == i]
+                        )) for i in range(n_clusters) if np.sum(cluster_labels == i) > 1
+                    ])),
+                    'cluster_separation': float(np.mean(self.similarity_calculator.compute_pairwise_distances(cluster_centers)))
+                }
+            },
+            
+            # Spatial interaction parameters
+            'spatial_interactions': {
+                'mean_interaction_radius': float(np.mean([sc['interaction_radius'] for sc in spatial_correlations])),
+                'neighborhood_coherence': float(np.mean([mp['local_density'] for mp in manifold_properties])),
+                'spatial_gradient_strength': float(np.mean([mp['gradient_magnitude'] for mp in manifold_properties])),
+                'curvature_distribution': {
+                    'mean': float(np.mean([mp['local_curvature'] for mp in manifold_properties])),
+                    'std': float(np.std([mp['local_curvature'] for mp in manifold_properties]))
+                }
+            },
+            
+            # Spatial field evolution
+            'spatial_dynamics': {
+                'heat_kernel_coherence': field_evolution_result['temporal_coherence'],
+                'active_spatial_modes': field_evolution_result['active_modes'],
+                'eigenfrequency_spectrum': field_evolution_result['eigenfrequencies'],
+                'field_stability': field_evolution_result['field_stability']
+            },
+            
+            # Spatial phase structure
+            'spatial_phase_properties': {
+                'mean_spectral_entropy': float(np.mean([sa['spectral_entropy'] for sa in spatial_spectral_analysis])),
+                'phase_variance_distribution': [sa['phase_variance'] for sa in spatial_spectral_analysis],
+                'dominant_spatial_frequencies': [sa['dominant_frequencies'] for sa in spatial_spectral_analysis]
+            },
+            
+            # Spatial coupling structure
+            'spatial_coupling': {
+                'coupling_strength_distribution': [sca['coupling_mean'] for sca in spatial_coupling_analysis],
+                'correlation_consistency': float(np.mean([sca['correlation_consistency'] for sca in spatial_coupling_analysis])),
+                'temporal_persistence': float(np.mean([sca['trajectory_persistence'] for sca in spatial_coupling_analysis]))
+            }
+        }
+        
+        # Configure return data based on return_full_details parameter
+        if return_full_details:
+            logger.info("Returning FULL spatial analysis details (memory intensive!)")
+            return {
+                'spatial_field_parameters': spatial_field_params,
+                'spatial_correlations': spatial_correlations,          # FULL DATA
+                'manifold_geometry': manifold_properties,              # FULL DATA  
+                'field_evolution': field_evolution_result,
+                'spectral_analysis': spatial_spectral_analysis,       # FULL DATA
+                'coupling_analysis': spatial_coupling_analysis,       # FULL DATA
+                'embedding_dimension': sample_embeddings.shape[1],
+                'samples_analyzed': len(sample_indices),
+                'spatial_analysis_complete': True,
+                'full_details_returned': True,
+                'memory_usage_warning': f"Returned {len(spatial_correlations)} correlations, {len(manifold_properties)} manifold analyses, {len(spatial_spectral_analysis)} spectral analyses, {len(spatial_coupling_analysis)} coupling analyses"
+            }
+        else:
+            logger.info("Returning SAMPLED spatial analysis (memory efficient)")
+            return {
+                'spatial_field_parameters': spatial_field_params,
+                'spatial_correlations': spatial_correlations[:5],     # Sample for inspection
+                'manifold_geometry': manifold_properties[:5],         # Sample for inspection  
+                'field_evolution': field_evolution_result,
+                'spectral_analysis': spatial_spectral_analysis[:3],   # Sample for inspection
+                'coupling_analysis': spatial_coupling_analysis[:5],   # Sample for inspection
+                'embedding_dimension': sample_embeddings.shape[1],
+                'samples_analyzed': len(sample_indices),
+                'spatial_analysis_complete': True,
+                'full_details_returned': False,
+                'available_full_data': f"{len(spatial_correlations)} correlations, {len(manifold_properties)} manifold analyses, {len(spatial_spectral_analysis)} spectral analyses, {len(spatial_coupling_analysis)} coupling analyses (use return_full_details=True to get all)"
+            }
 
     def benchmark_performance(self, embeddings_data: Dict[str, Any] = None) -> Dict[str, Any]:
         """

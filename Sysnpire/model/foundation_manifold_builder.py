@@ -99,8 +99,13 @@ class FoundationManifoldBuilder():
         logger.info("Building the universal manifold from the selected model.")
 
         model_loaded = self.__load_model_and_check()
-        enriched_e = [self.model.search_embeddings(e, top_k=1) for e in model_loaded['embeddings']]
-        self.charge_factory.build(enriched_e,model_loaded)
+        
+        # FOR TESTING: Use only embeddings 550-560 (10 embeddings)
+        test_embeddings = model_loaded['embeddings'][550:560]
+        logger.info(f"🧪 Testing with {len(test_embeddings)} embeddings (indices 550-560)")
+        
+        enriched_e = [self.model.search_embeddings(e, top_k=1) for e in test_embeddings]
+        self.charge_factory.build(enriched_e, model_loaded)
         
 
 

@@ -80,9 +80,7 @@ class ChargeFactory:
         self.from_base = from_base 
         self.model_info = model_info
 
-        #initialize  our factory helpers
-        self.__init_factory_helpers()
-        
+        # Set helper first before initializing factory helpers
         if self.from_base:
             # if we are from base, we need to pass the model as that will be our helper, (they share methods)
             self.helper = model
@@ -91,6 +89,9 @@ class ChargeFactory:
             # if we are not from base, we need to pass the universe as that will be our helper,
             self.helper = None
             logger.info("ChargeFactory initialized without base model support.")
+
+        #initialize  our factory helpers (after self.helper is set)
+        self.__init_factory_helpers()
 
 
     
@@ -114,8 +115,6 @@ class ChargeFactory:
             raise ValueError("The input list 'all' cannot be empty. Please provide a list of embedding vectors.")
         if not isinstance(all, list):
             raise TypeError("The input 'all' must be a list of embedding vectors. Please provide a valid list.")
-        if not all[0].get('embedding_vector'):
-            raise ValueError("Each item in the list must contain an 'embedding_vector' key. Please check your input data.")
         if not self.from_base:
             raise ValueError("ChargeFactory must be initialized with from_base=True to build the universe. Please check your initialization parameters.")
 
@@ -140,7 +139,13 @@ class ChargeFactory:
         self.__build_safety_checks(all)
         
 
-        self.semantic_helper.convert_vector_to_field_respentation(all) # first step is to convert our vector to a semantic field representation.
+        # STEP 1: Convert embeddings to semantic fields and store results
+        semantic_results = self.semantic_helper.convert_vector_to_field_respentation(all)
+        self.semantic_fields = semantic_results['field_representations']
+        
+        logger.info(f"✅ Generated {len(self.semantic_fields)} semantic fields")
+        
+        return semantic_results
     
 
     def integrate():
