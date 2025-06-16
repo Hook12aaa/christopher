@@ -1,0 +1,445 @@
+"""
+Field Coupling - Temporal-Semantic Field Integration
+
+Mathematical Reference: Section 3.1.4.3.4
+Formula: Φ^semantic(τ,s) = w_i * T_i(τ,s) * x[i] * breathing_modulation(s) * e^(iθ(s))
+
+This module implements the crucial coupling between temporal trajectory operators
+and semantic fields, creating the breathing constellation patterns that enable
+dynamic meaning evolution.
+"""
+
+import numpy as np
+from typing import Dict, Any, Optional, Union, Tuple
+import logging
+
+logger = logging.getLogger(__name__)
+
+
+class TemporalFieldCoupler:
+    """
+    Bridge T(τ,C,s) trajectory operators with Φ^semantic(τ,s) fields.
+    
+    Implements the mathematical coupling that transforms static semantic embeddings
+    into dynamic, trajectory-dependent semantic fields through temporal modulation.
+    """
+    
+    def __init__(self, embedding_dimension: int = 1024):
+        """
+        Initialize temporal-semantic field coupling engine.
+        
+        Args:
+            embedding_dimension: Dimension of semantic embedding space
+        """
+        self.embedding_dimension = embedding_dimension
+        
+        # Coupling weights for field integration
+        self.coupling_weights = self._initialize_coupling_weights()
+        
+        logger.info(f"Initialized TemporalFieldCoupler for {embedding_dimension}D space")
+    
+    def _initialize_coupling_weights(self) -> np.ndarray:
+        """Initialize dimension-specific coupling weights w_i."""
+        # Decreasing importance with dimension index (follows 1/f pattern)
+        weights = np.array([1.0 / (1.0 + i/10) for i in range(self.embedding_dimension)])
+        return weights / np.sum(weights)  # Normalize to sum to 1
+    
+    def couple_temporal_semantic_fields(self,
+                                      trajectory_operators: np.ndarray,
+                                      semantic_embedding: np.ndarray,
+                                      breathing_modulation: Union[float, complex],
+                                      phase_accumulation: np.ndarray,
+                                      observational_state: Union[float, complex]) -> Dict[str, np.ndarray]:
+        """
+        Implement Φ^semantic(τ,s) = w_i * T_i(τ,s) * x[i] * breathing_modulation(s) * e^(iθ(s)).
+        
+        This is the core field coupling that creates dynamic semantic fields from
+        static embeddings through temporal trajectory modulation.
+        
+        Args:
+            trajectory_operators: Complex T_i(τ,s) trajectory operators
+            semantic_embedding: Static semantic vector x[i]
+            breathing_modulation: Rhythmic expansion/contraction factor
+            phase_accumulation: Complex phase θ(s) from trajectory evolution
+            observational_state: Current observational state s
+            
+        Returns:
+            Dictionary with coupled semantic field components
+        """
+        # Ensure arrays have compatible dimensions
+        min_len = min(len(trajectory_operators), len(semantic_embedding), len(phase_accumulation))
+        T_i = trajectory_operators[:min_len]
+        x_i = semantic_embedding[:min_len]
+        theta_i = phase_accumulation[:min_len]
+        w_i = self.coupling_weights[:min_len]
+        
+        # Compute complex phase exponentials: e^(iθ(s))
+        phase_exponentials = np.exp(1j * theta_i)
+        
+        # Apply complete coupling formula: w_i * T_i(τ,s) * x[i] * breathing_modulation * e^(iθ(s))
+        coupled_field = w_i * T_i * x_i * breathing_modulation * phase_exponentials
+        
+        # Compute field properties for analysis
+        field_magnitude = np.abs(coupled_field)
+        field_phase = np.angle(coupled_field)
+        
+        # Compute field breathing effects
+        breathing_strength = np.abs(breathing_modulation)
+        breathing_phase = np.angle(breathing_modulation) if np.iscomplexobj(breathing_modulation) else 0.0
+        
+        # Analyze temporal modulation effects
+        temporal_modulation_strength = np.mean(np.abs(T_i))
+        semantic_activation = np.mean(np.abs(x_i))
+        
+        return {
+            'coupled_semantic_field': coupled_field,
+            'field_magnitude': field_magnitude,
+            'field_phase': field_phase,
+            'temporal_modulation_strength': temporal_modulation_strength,
+            'semantic_activation': semantic_activation,
+            'breathing_strength': breathing_strength,
+            'breathing_phase': breathing_phase,
+            'coupling_weights': w_i,
+            'observational_state': observational_state,
+            'field_coherence': self._compute_field_coherence(coupled_field)
+        }
+    
+    def _compute_field_coherence(self, coupled_field: np.ndarray) -> float:
+        """Compute coherence measure for the coupled semantic field."""
+        # Coherence as phase alignment measure
+        phases = np.angle(coupled_field)
+        complex_mean = np.mean(np.exp(1j * phases))
+        coherence = np.abs(complex_mean)
+        return float(coherence)
+
+
+class BreathingPatternGenerator:
+    """
+    Create rhythmic field modulations for semantic constellation breathing.
+    
+    Generates complex breathing patterns that modulate semantic fields based on
+    observational state evolution, creating the dynamic expansion/contraction
+    that enables meaning adaptation.
+    """
+    
+    def __init__(self):
+        """Initialize breathing pattern generator."""
+        self.base_frequency = 0.1
+        self.harmonic_frequencies = [0.3, 0.7, 1.1]  # Harmonic overtones
+        self.phase_offsets = [0.0, np.pi/3, 2*np.pi/3]  # Phase relationships
+        
+        logger.info("Initialized BreathingPatternGenerator")
+    
+    def generate_complex_breathing(self,
+                                 observational_state: Union[float, complex],
+                                 context_influence: float,
+                                 depth: float) -> complex:
+        """
+        Generate complex breathing modulation pattern.
+        
+        Creates multi-harmonic breathing with complex phase relationships
+        that modulate semantic field expansion/contraction.
+        
+        Args:
+            observational_state: Current observational state s
+            context_influence: Context-dependent modulation factor
+            depth: Breathing depth (0-1)
+            
+        Returns:
+            Complex breathing modulation factor
+        """
+        # Convert to complex if needed
+        if np.isrealobj(observational_state):
+            s = complex(observational_state, 0)
+        else:
+            s = observational_state
+        
+        # Generate multi-harmonic breathing pattern
+        breathing_components = []
+        
+        for freq, phase_offset in zip(self.harmonic_frequencies, self.phase_offsets):
+            # Complex oscillation: e^(i(freq*s + phase_offset))
+            component = np.exp(1j * (freq * s + phase_offset))
+            breathing_components.append(component)
+        
+        # Primary breathing component
+        primary = np.exp(1j * self.base_frequency * s)
+        
+        # Combine components with decreasing weights
+        weights = [1.0, 0.3, 0.2, 0.1]
+        combined = (weights[0] * primary + 
+                   weights[1] * breathing_components[0] +
+                   weights[2] * breathing_components[1] + 
+                   weights[3] * breathing_components[2])
+        
+        # Apply context influence and depth modulation
+        breathing_modulation = 1.0 + depth * context_influence * combined
+        
+        return breathing_modulation
+    
+    def generate_synchronized_breathing(self,
+                                      observational_state: Union[float, complex],
+                                      phase_coordination: Dict[str, Any],
+                                      depth: float) -> complex:
+        """
+        Generate breathing synchronized with cross-dimensional phase coordination.
+        
+        Creates breathing patterns that align with phase relationships across
+        semantic, emotional, and temporal dimensions.
+        
+        Args:
+            observational_state: Current observational state
+            phase_coordination: Phase data from temporal orchestration
+            depth: Breathing depth
+            
+        Returns:
+            Synchronized complex breathing pattern
+        """
+        # Extract coordination information
+        if 'coherence' not in phase_coordination:
+            raise ValueError("coherence must be present in phase_coordination. CLAUDE.md prohibits default values.")
+        if 'mean_phase' not in phase_coordination:
+            raise ValueError("mean_phase must be present in phase_coordination. CLAUDE.md prohibits default values.")
+        coherence = phase_coordination['coherence']
+        mean_phase = phase_coordination['mean_phase']
+        
+        # Generate base breathing
+        base_breathing = self.generate_complex_breathing(observational_state, depth=depth)
+        
+        # Synchronize with cross-dimensional phases
+        sync_factor = coherence * np.exp(1j * mean_phase)
+        synchronized_breathing = base_breathing * (1.0 + 0.1 * sync_factor)
+        
+        return synchronized_breathing
+
+
+class SemanticTemporalSynchronizer:
+    """
+    Align temporal and semantic phases for coherent field evolution.
+    
+    Ensures that temporal trajectory evolution and semantic field changes
+    maintain phase coherence for stable meaning representation.
+    """
+    
+    def __init__(self, embedding_dimension: int = 1024):
+        """
+        Initialize semantic-temporal synchronizer.
+        
+        Args:
+            embedding_dimension: Dimension of semantic embedding space
+        """
+        self.embedding_dimension = embedding_dimension
+        self.synchronization_matrix = self._initialize_sync_matrix()
+        
+        logger.info(f"Initialized SemanticTemporalSynchronizer for {embedding_dimension}D space")
+    
+    def _initialize_sync_matrix(self) -> np.ndarray:
+        """Initialize synchronization matrix for phase alignment."""
+        # Create coupling matrix with nearest-neighbor interactions
+        sync_matrix = np.eye(self.embedding_dimension, dtype=complex)
+        
+        # Add complex coupling between adjacent dimensions
+        for i in range(self.embedding_dimension - 1):
+            coupling_strength = 0.1 * np.exp(1j * 0.1 * i)
+            sync_matrix[i, i+1] = coupling_strength
+            sync_matrix[i+1, i] = np.conj(coupling_strength)
+        
+        return sync_matrix
+    
+    def synchronize_phases(self,
+                         temporal_phases: np.ndarray,
+                         semantic_phases: np.ndarray,
+                         observational_state: Union[float, complex]) -> Dict[str, np.ndarray]:
+        """
+        Synchronize temporal and semantic phases for coherent evolution.
+        
+        Aligns phase relationships between temporal trajectory operators
+        and semantic field components to maintain field coherence.
+        
+        Args:
+            temporal_phases: Phases from temporal trajectory operators
+            semantic_phases: Phases from semantic field components
+            observational_state: Current observational state
+            
+        Returns:
+            Dictionary with synchronized phase information
+        """
+        # Ensure compatible dimensions
+        min_len = min(len(temporal_phases), len(semantic_phases), self.embedding_dimension)
+        t_phases = temporal_phases[:min_len]
+        s_phases = semantic_phases[:min_len]
+        sync_matrix = self.synchronization_matrix[:min_len, :min_len]
+        
+        # Compute phase differences
+        phase_diff = t_phases - s_phases
+        
+        # Apply synchronization matrix for cross-dimensional coupling
+        synchronized_temporal = sync_matrix @ np.exp(1j * t_phases)
+        synchronized_semantic = sync_matrix @ np.exp(1j * s_phases)
+        
+        # Extract synchronized phases
+        sync_temporal_phases = np.angle(synchronized_temporal)
+        sync_semantic_phases = np.angle(synchronized_semantic)
+        
+        # Compute synchronization quality metrics
+        phase_coherence = np.abs(np.mean(np.exp(1j * (sync_temporal_phases - sync_semantic_phases))))
+        sync_strength = 1.0 - np.var(sync_temporal_phases - sync_semantic_phases) / (2 * np.pi**2)
+        
+        return {
+            'synchronized_temporal_phases': sync_temporal_phases,
+            'synchronized_semantic_phases': sync_semantic_phases,
+            'original_phase_difference': phase_diff,
+            'synchronized_phase_difference': sync_temporal_phases - sync_semantic_phases,
+            'phase_coherence': phase_coherence,
+            'synchronization_strength': sync_strength,
+            'observational_state': observational_state
+        }
+    
+    def compute_field_alignment(self,
+                              temporal_field: np.ndarray,
+                              semantic_field: np.ndarray) -> Dict[str, float]:
+        """
+        Compute alignment between temporal and semantic field components.
+        
+        Measures how well temporal trajectory operators align with semantic
+        field evolution for field theory coherence.
+        
+        Args:
+            temporal_field: Complex temporal field components
+            semantic_field: Complex semantic field components
+            
+        Returns:
+            Dictionary with alignment metrics
+        """
+        # Ensure compatible dimensions
+        min_len = min(len(temporal_field), len(semantic_field))
+        t_field = temporal_field[:min_len]
+        s_field = semantic_field[:min_len]
+        
+        # Compute complex alignment
+        complex_alignment = np.mean(np.conj(t_field) * s_field)
+        alignment_magnitude = np.abs(complex_alignment)
+        alignment_phase = np.angle(complex_alignment)
+        
+        # Compute correlation between magnitudes
+        t_magnitudes = np.abs(t_field)
+        s_magnitudes = np.abs(s_field)
+        magnitude_correlation = np.corrcoef(t_magnitudes, s_magnitudes)[0, 1]
+        
+        # Compute phase alignment
+        t_phases = np.angle(t_field)
+        s_phases = np.angle(s_field)
+        phase_alignment = np.abs(np.mean(np.exp(1j * (t_phases - s_phases))))
+        
+        return {
+            'complex_alignment_magnitude': alignment_magnitude,
+            'complex_alignment_phase': alignment_phase,
+            'magnitude_correlation': magnitude_correlation,
+            'phase_alignment': phase_alignment,
+            'overall_coherence': (alignment_magnitude + magnitude_correlation + phase_alignment) / 3
+        }
+
+
+class FieldCouplingIntegrator:
+    """
+    Main integration class for temporal-semantic field coupling.
+    
+    Combines all field coupling components to provide complete temporal-semantic
+    field integration for the Q(τ,C,s) formula.
+    """
+    
+    def __init__(self, embedding_dimension: int = 1024):
+        """
+        Initialize complete field coupling integration system.
+        
+        Args:
+            embedding_dimension: Dimension of semantic embedding space
+        """
+        self.embedding_dimension = embedding_dimension
+        
+        # Initialize component systems
+        self.field_coupler = TemporalFieldCoupler(embedding_dimension)
+        self.breathing_generator = BreathingPatternGenerator()
+        self.phase_synchronizer = SemanticTemporalSynchronizer(embedding_dimension)
+        
+        logger.info(f"Initialized FieldCouplingIntegrator for {embedding_dimension}D space")
+    
+    def integrate_temporal_semantic_fields(self,
+                                         trajectory_data: Dict[str, Any],
+                                         semantic_embedding: np.ndarray,
+                                         observational_state: Union[float, complex],
+                                         context: str = "general") -> Dict[str, Any]:
+        """
+        Complete integration of temporal and semantic fields.
+        
+        Implements the full field coupling process that transforms static semantic
+        embeddings into dynamic, trajectory-modulated semantic fields.
+        
+        Args:
+            trajectory_data: Complete trajectory data from temporal dimension
+            semantic_embedding: Static semantic embedding vector
+            observational_state: Current observational state
+            context: Context string for contextual modulation
+            
+        Returns:
+            Complete field coupling results
+        """
+        # Extract trajectory components
+        trajectory_operators = trajectory_data['trajectory_operators']
+        phase_accumulation = trajectory_data['phase_accumulation']
+        if 'phase_coordination' not in trajectory_data:
+            raise ValueError("phase_coordination must be present in trajectory_data. CLAUDE.md prohibits default values.")
+        phase_coordination = trajectory_data['phase_coordination']
+        
+        # Generate synchronized breathing pattern
+        breathing_modulation = self.breathing_generator.generate_synchronized_breathing(
+            observational_state=observational_state,
+            phase_coordination=phase_coordination
+        )
+        
+        # Perform temporal-semantic field coupling
+        coupling_results = self.field_coupler.couple_temporal_semantic_fields(
+            trajectory_operators=trajectory_operators,
+            semantic_embedding=semantic_embedding,
+            breathing_modulation=breathing_modulation,
+            phase_accumulation=phase_accumulation,
+            observational_state=observational_state
+        )
+        
+        # Synchronize temporal and semantic phases
+        temporal_phases = np.angle(trajectory_operators)
+        semantic_phases = np.angle(coupling_results['coupled_semantic_field'])
+        
+        sync_results = self.phase_synchronizer.synchronize_phases(
+            temporal_phases=temporal_phases,
+            semantic_phases=semantic_phases,
+            observational_state=observational_state
+        )
+        
+        # Compute field alignment
+        alignment_results = self.phase_synchronizer.compute_field_alignment(
+            temporal_field=trajectory_operators,
+            semantic_field=coupling_results['coupled_semantic_field']
+        )
+        
+        return {
+            # Core coupling results
+            'coupled_semantic_field': coupling_results['coupled_semantic_field'],
+            'field_magnitude': coupling_results['field_magnitude'],
+            'field_phase': coupling_results['field_phase'],
+            'breathing_modulation': breathing_modulation,
+            
+            # Synchronization results
+            'phase_synchronization': sync_results,
+            'field_alignment': alignment_results,
+            
+            # Integration metrics
+            'temporal_modulation_strength': coupling_results['temporal_modulation_strength'],
+            'field_coherence': coupling_results['field_coherence'],
+            'breathing_strength': coupling_results['breathing_strength'],
+            
+            # Processing metadata
+            'observational_state': observational_state,
+            'context': context,
+            'coupling_complete': True
+        }

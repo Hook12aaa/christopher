@@ -129,15 +129,60 @@ class PhaseExtractor:
                     logger.debug(f"Extracted direct emotional phase: {emotional_phase:.4f}")
                     return self._normalize_phase(emotional_phase)
             
-            # Priority 2: Complex emotional trajectory
+            # Priority 2: Complex emotional trajectory (enhanced for arrays and complex numbers)
             if 'emotional_trajectory_complex' in emotional_data:
                 complex_trajectory = emotional_data['emotional_trajectory_complex']
                 if isinstance(complex_trajectory, complex):
                     emotional_phase = np.angle(complex_trajectory)
                     logger.debug(f"Extracted emotional phase from complex trajectory: {emotional_phase:.4f}")
                     return emotional_phase
+                elif isinstance(complex_trajectory, (list, np.ndarray)):
+                    # Handle complex trajectory arrays
+                    complex_array = np.array(complex_trajectory)
+                    if len(complex_array) > 0 and np.any(np.iscomplex(complex_array)):
+                        # Extract representative phase from complex array
+                        complex_elements = complex_array[np.iscomplex(complex_array)]
+                        if len(complex_elements) > 0:
+                            emotional_phase = np.angle(complex_elements[0])  # Use first complex element
+                            logger.debug(f"Extracted emotional phase from complex array: {emotional_phase:.4f}")
+                            return emotional_phase
             
-            # Priority 3: Emotional field modulation
+            # Priority 3: Phase components array (new format from emotional dimension)
+            if 'phase_components' in emotional_data:
+                phase_components = emotional_data['phase_components']
+                if isinstance(phase_components, (list, np.ndarray)) and len(phase_components) > 0:
+                    # Use first phase component or average if multiple
+                    if len(phase_components) == 1:
+                        emotional_phase = phase_components[0]
+                    else:
+                        emotional_phase = np.mean(phase_components)
+                    
+                    if isinstance(emotional_phase, (int, float)) and np.isfinite(emotional_phase):
+                        logger.debug(f"Extracted emotional phase from phase_components: {emotional_phase:.4f}")
+                        return self._normalize_phase(emotional_phase)
+            
+            # Priority 4: Complex field data structure
+            if 'complex_field_data' in emotional_data:
+                complex_field_data = emotional_data['complex_field_data']
+                if isinstance(complex_field_data, dict):
+                    # Try direct phase from complex field data
+                    if 'phase' in complex_field_data:
+                        emotional_phase = complex_field_data['phase']
+                        if isinstance(emotional_phase, (int, float)) and np.isfinite(emotional_phase):
+                            logger.debug(f"Extracted emotional phase from complex_field_data.phase: {emotional_phase:.4f}")
+                            return self._normalize_phase(emotional_phase)
+                    
+                    # Try reconstructing from real/imag components
+                    if 'real' in complex_field_data and 'imag' in complex_field_data:
+                        real_part = complex_field_data['real']
+                        imag_part = complex_field_data['imag']
+                        if isinstance(real_part, (int, float)) and isinstance(imag_part, (int, float)):
+                            complex_value = complex(real_part, imag_part)
+                            emotional_phase = np.angle(complex_value)
+                            logger.debug(f"Extracted emotional phase from real/imag components: {emotional_phase:.4f}")
+                            return emotional_phase
+            
+            # Priority 5: Emotional field modulation
             if 'field_modulation' in emotional_data:
                 modulation = emotional_data['field_modulation']
                 if isinstance(modulation, dict) and 'emotional_phase' in modulation:
@@ -146,7 +191,32 @@ class PhaseExtractor:
                         logger.debug(f"Extracted emotional phase from field modulation: {emotional_phase:.4f}")
                         return self._normalize_phase(emotional_phase)
             
-            # Priority 4: Gaussian alignment phase
+            # Priority 6: Trajectory modulation effects  
+            if 'trajectory_accumulation' in emotional_data:
+                traj_accum = emotional_data['trajectory_accumulation']
+                if isinstance(traj_accum, (int, float)) and traj_accum != 0:
+                    # Convert trajectory accumulation to phase representation
+                    emotional_phase = 2 * np.pi * (traj_accum % 1.0)  # Map to [0, 2π)
+                    logger.debug(f"Extracted emotional phase from trajectory accumulation: {emotional_phase:.4f}")
+                    return self._normalize_phase(emotional_phase)
+            
+            # Priority 7: Field coupling effects
+            if 'field_magnitudes' in emotional_data:
+                field_magnitudes = emotional_data['field_magnitudes']
+                if isinstance(field_magnitudes, (list, np.ndarray)) and len(field_magnitudes) > 0:
+                    # Use phase derived from field magnitude pattern
+                    magnitude_array = np.array(field_magnitudes)
+                    if np.any(magnitude_array > 0):
+                        # Compute phase from magnitude variations
+                        if len(magnitude_array) > 1:
+                            magnitude_gradient = np.gradient(magnitude_array)
+                            emotional_phase = np.arctan2(magnitude_gradient[0], magnitude_array[0] + 1e-10)
+                        else:
+                            emotional_phase = np.arcsin(np.clip(magnitude_array[0], -1, 1))
+                        logger.debug(f"Extracted emotional phase from field magnitudes: {emotional_phase:.4f}")
+                        return self._normalize_phase(emotional_phase)
+            
+            # Priority 8: Gaussian alignment phase
             if 'gaussian_alignment' in emotional_data:
                 alignment = emotional_data['gaussian_alignment']
                 if isinstance(alignment, (int, float)) and alignment != 0:

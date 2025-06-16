@@ -21,6 +21,7 @@ import logging
 from .trajectory_evolution import EmotionalTrajectoryIntegrator, EmotionalTrajectoryParams, create_emotional_trajectory_params
 from .attention_deconstruction import AttentionGeometryAnalyzer, create_attention_analyzer
 from .field_modulation import EmotionalFieldModulator, apply_emotional_modulation
+from .phase_integration_bridge import EmotionalPhaseIntegrationBridge, integrate_emotional_with_complete_phase
 
 logger = logging.getLogger(__name__)
 
@@ -97,6 +98,21 @@ def compute_emotional_trajectory(token: str,
             
             # Coupling analysis for debugging
             'coupling_analysis': trajectory_results['coupling_analysis'],
+            
+            # Phase Integration Data - formatted for phase dimension
+            'emotional_data_for_phase': {
+                'emotional_trajectory_complex': emotional_trajectory_complex,
+                'emotional_phase': emotional_phase,
+                'emotional_magnitude': emotional_magnitude,
+                'complex_field_data': {
+                    'magnitude': emotional_magnitude,
+                    'phase': emotional_phase,
+                    'real': emotional_trajectory_complex.real,
+                    'imag': emotional_trajectory_complex.imag
+                },
+                'phase_components': [emotional_phase],  # Array format for phase extraction
+                'field_magnitudes': [emotional_magnitude]  # Array format for phase extraction
+            },
             
             # Integration metadata
             'processing_method': 'deconstructed_transformer_mathematics',
@@ -361,6 +377,48 @@ def warp_semantic_field_with_emotional_trajectory(semantic_results: Dict[str, An
         logger.info(f"Semantic field enhanced: {semantic_field_complex} → {enhanced_semantic_field}, "
                    f"enhancement factor: {enhanced_magnitude/abs(semantic_field_complex):.3f}")
         
+        # Prepare data for complete phase integration
+        semantic_data = {
+            'phase_angles': manifold_properties.get('phase_angles', []),
+            'semantic_modulation': manifold_properties.get('semantic_modulation', []),
+            'gradient': manifold_properties.get('gradient', []),
+            'semantic_field_complex': enhanced_semantic_field
+        }
+        
+        trajectory_data = {
+            'phase_accumulation': [],  # Will be provided by temporal dimension
+            'frequency_evolution': [],  # Will be provided by temporal dimension  
+            'transformative_magnitude': [1.0],  # Basic trajectory data
+            'total_transformative_potential': 1.0
+        }
+        
+        # Perform complete phase integration using phase integration bridge
+        try:
+            logger.debug(f"Computing complete phase integration for token '{token}'")
+            
+            unified_complex_field, complete_phase_integration = integrate_emotional_with_complete_phase(
+                emotional_results=emotional_results,
+                semantic_data=semantic_data,
+                trajectory_data=trajectory_data,
+                context=context,
+                observational_state=observational_state,
+                manifold_properties=manifold_properties
+            )
+            
+            logger.debug(f"Complete phase integration successful: unified field={unified_complex_field}")
+            
+        except Exception as e:
+            logger.warning(f"Complete phase integration failed for '{token}': {e}")
+            # Create basic phase integration data
+            unified_complex_field = enhanced_semantic_field * emotional_trajectory_complex
+            complete_phase_integration = {
+                'unified_complex_field': unified_complex_field,
+                'total_phase': np.angle(unified_complex_field),
+                'total_magnitude': abs(unified_complex_field),
+                'integration_status': 'fallback',
+                'error': str(e)
+            }
+        
         # Update semantic results with emotional enhancements
         enhanced_results = semantic_results.copy()
         enhanced_results.update({
@@ -387,10 +445,17 @@ def warp_semantic_field_with_emotional_trajectory(semantic_results: Dict[str, An
             'metric_warping_factor': field_analysis.get('metric_warping_factor', 1.0),
             'geometric_distortions': field_analysis.get('num_distortions', 0),
             
+            # Complete Phase Integration Results
+            'unified_complex_field': unified_complex_field,
+            'complete_phase_integration': complete_phase_integration,
+            'total_phase': complete_phase_integration.get('total_phase', enhanced_phase),
+            'phase_coherence': complete_phase_integration.get('field_quality_metrics', {}).get('phase_coherence', 0.5),
+            
             # Processing status
             'emotional_warping_applied': True,
             'emotional_integration_status': 'complete',
-            'processing_method': 'emotional_field_warping',
+            'phase_integration_status': complete_phase_integration.get('integration_status', 'unknown'),
+            'processing_method': 'emotional_field_warping_with_phase_integration',
             'field_theory_compliant': True
         })
         
@@ -491,5 +556,8 @@ __all__ = [
     'compute_batch_emotional_trajectories',
     'get_emotional_dimension_info',
     'warp_semantic_field_with_emotional_trajectory',
-    'integrate_emotional_dimension_with_semantic_results'
+    'integrate_emotional_dimension_with_semantic_results',
+    # Phase integration capabilities
+    'EmotionalPhaseIntegrationBridge',
+    'integrate_emotional_with_complete_phase'
 ]
