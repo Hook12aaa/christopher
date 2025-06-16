@@ -4,13 +4,14 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Mathematical Foundation
 
-This codebase implements the complete Field Theory of Social Constructs as defined in the research paper. **Critical**: All development must respect the mathematical formulations detailed below.
+This codebase implements the complete Field Theory of Social Constructs as defined in the research paper. **Critical**: All development must respect the mathematical formulations.
 
 ### The Complete Conceptual Charge Formula
 
 The core implementation centers on this complete mathematical formulation:
 
-```
+```LaTexcl
+
 Q(τ, C, s) = γ · T(τ, C, s) · E^trajectory(τ, s) · Φ^semantic(τ, s) · e^(iθ_total(τ,C,s)) · Ψ_persistence(s-s₀)
 ```
 
@@ -70,106 +71,73 @@ hypercorn api.main:app --bind 0.0.0.0:8000
 
 ### Core Mathematical Components
 
-1. **Core Mathematics** (`/core_mathematics/`)
-   - `ConceptualCharge`: Complete Q(τ, C, s) implementation
-   - Methods: `trajectory_operator()`, `emotional_trajectory_integration()`, `semantic_field_generation()`, `total_phase_integration()`, `observational_persistence()`, `compute_complete_charge()`
+1. **Model Layer** (`/Sysnpire/model/`)
+   - `ConceptualCharge`: Complete Q(τ, C, s) implementation with field-theoretic mathematics
+   - `ChargeFactory`: Transforms embeddings into dynamic conceptual charges using complete field theory
+   - Dimensions: `/semantic_dimension/`, `/temporal_dimension/`, `/emotional_dimension/`, `/shared_components/`
+   - `FoundationManifoldBuilder`: Orchestrates transformation from foundation models (BGE, MPNet) to universal manifold
+   - Initial ingestion: `/initial/bge_ingestion.py`, `/initial/mpnet_ingestion.py`
 
-2. **Embedding Engine** (`/embedding_engine/`)
-   - `ConceptualChargeGenerator`: Creates charges using BGE-Large-v1.5
-   - Supports context, observational_state, and gamma parameters
-   - Batch processing with field-theoretic formulation
+2. **Database Layer** (`/Sysnpire/database/`)
+   - `FieldUniverse`: Main orchestrator for tensor-native field-theoretic manifold storage
+   - Lance+Arrow tensor storage with spatial indexing (primary storage)
+   - Redis hot cache for frequently accessed field regions
+   - `ConceptualChargeObject`: Storage representation with field components
+   - Abstraction layer: intake processor and charge transformer
+   - DuckDB SQL interface to Lance datasets
+   - Spatial indexing via Hilbert encoding for field proximity queries
 
-3. **API Layer** (`/api/`)
-   - Field-theoretic endpoints accepting complex mathematical parameters
-   - `/charges/generate`: Full Q(τ, C, s) creation
-   - `/charges/batch`: Multiple charge generation
-   - `/charges/analyze`: Trajectory and field analysis
+3. **Processing Pipeline** (`/Sysnpire/`)
+   - **Intake**: Foundation model embeddings → `ChargeFactory` 
+   - **Transformation**: Static embeddings → Dynamic field charges via Q(τ, C, s)
+   - **Storage**: Tensor-native storage in Lance with field positioning
+   - **Query**: Field-theoretic proximity and trajectory analysis
 
-### Mathematical Implementation Details
+### Key Architecture Differences
 
-#### Trajectory Operators
-```python
-# Complex integration over observational states
-T_i = ∫₀ˢ ω_i(τ,s')·e^(iφ_i(τ,s')) ds'
-```
+**ChargeFactory Design:**
 
-#### Emotional Trajectory Integration
-```python
-# Gaussian alignment with trajectory accumulation
-E_trajectory[i] = α_i * exp(-|v_i - v_E|²/2σ²) * trajectory_accumulation
-```
+- Model-agnostic: Works with BGE, MPNet, or any embedding source
+- Two modes: `from_base=True` (foundation model) vs integration mode
+- Focused responsibility: Pure mathematical transformation to Q(τ, C, s)
+- No data sourcing - receives preprocessed embeddings with mathematical properties
 
-#### Semantic Field Generation
-```python
-# Breathing constellation patterns
-φ_semantic[i] = w_i * T_i * x[i] * breathing_modulation * e^(iθ)
-```
+**FoundationManifoldBuilder:**
 
-#### Phase Integration
-```python
-# Complete phase synthesis
-θ_total = θ_semantic + θ_emotional + θ_temporal + θ_interaction + θ_field
-```
+- Orchestrates complete pipeline from foundation model to field universe
+- Handles model selection, loading, validation, and enrichment
+- Integrates with `ChargeFactory` for mathematical transformation
+- Supports BGE Large v1.5 and MPNet base models
 
-#### Observational Persistence
-```python
-# Dual-decay structure
-Ψ = exp(-(s-s₀)²/2σ²) + α*exp(-λ(s-s₀))*cos(β(s-s₀))
-```
+**FieldUniverse Storage:**
 
-### Key Data Flow
+- Tensor-native architecture (no legacy SQL)
+- Lance+Arrow for primary tensor storage with spatial indexing
+- Redis cache for hot field regions and frequently accessed charges
+- Abstraction layer for validation and optimization
+- Batch processing for efficient field computation
 
-1. **Text Input** → BGE-Large-v1.5 → **Semantic Vector** (1024d)
-2. **Context + Observational State** → **Field Parameters**
-3. **Trajectory Integration** → **Dynamic Components**
-4. **Phase Synthesis** → **Complete Charge Q(τ, C, s)**
-5. **Field Effects** → **Complex-valued Results**
+### What TO Do
 
-### Development Guidelines
+- Use actual model inference (BGE embeddings, etc.)
+- Implement complete mathematical formulations
+- Test field-theoretic properties
+- Maintain complex-valued calculations where specified
+- Reuse existing mathematical components
 
-#### Mathematical Accuracy
-- All implementations must match the paper's mathematical formulations exactly
-- Use complex numbers for field calculations, not just real values
-- Implement trajectory integration using scipy.integrate.quad when possible
-- Preserve phase relationships in all calculations
+### What NOT To Do
 
-#### Field Theory Principles
-- Never treat charges as static - all components must evolve with observational state
-- Implement breathing patterns for semantic fields
-- Use trajectory-aware emotional resonance, not categorical emotions
-- Maintain complex-valued field effects throughout
-
-#### API Design
-- Accept `context`, `observational_state`, and `gamma` parameters
-- Return both magnitude and phase information
-- Provide field effect breakdowns for analysis
-- Support trajectory evolution through observational state updates
-
-#### Testing Requirements
-- Test mathematical components against known theoretical properties
-- Verify trajectory dependence (different observational states → different results)
-- Confirm complex-valued outputs where expected
-- Test field effect relationships and phase coherence
-
-### Important Implementation Notes
-
-- **NO static emotional categories**: Use trajectory-dependent emotional field modulation
-- **NO simple vector concatenation**: Implement proper field-theoretic integration
-- **NO Euclidean assumptions**: Account for field-induced metric warping
-- **Complex mathematics required**: Use `complex` type for field calculations
-- **Trajectory integration essential**: All components depend on accumulated observational experience
-- **NO simulated or default values**: Never use placeholder, mock, or default values for mathematical parameters. All field theory calculations must use actual computed values from the mathematical formulations. When parameters are needed, they must be explicitly provided or calculated from the theoretical framework.
-- **NO simulated model outputs**: Never use np.random, fake embeddings, or simulated model responses. Always use actual model inference from loaded models (BGE, transformers, etc.). If a model is not available, request it be provided rather than creating fake outputs.
-- **NO half-fixes or workarounds**: Never create simplified test scripts or bypass actual model loading. All functionality must work with the complete technology stack (TensorFlow, BGE models, etc.). If there are environment issues, they must be properly resolved, not worked around.
-- **NO code duplication**: Never duplicate existing functionality from other modules. The abstraction layer must connect to and use existing implementations from Sysnpire/model/ rather than reimplementing mathematical formulations. Reuse ConceptualCharge objects and their methods rather than creating parallel implementations.
+- Never use `np.random` or simulated values for mathematical parameters
+- Don't create simplified test versions that bypass the actual system
+- Avoid duplicating mathematical implementations across modules
+- Don't use static emotional categories or fixed semantic labels
+- Never approximate field calculations unless explicitly required for performance
 
 ### Module Structure and Context
 
-Each module contains mathematical context files (`THEORY.md`) that detail the specific paper sections implemented. Refer to these for component-specific mathematical requirements and theoretical foundations.
+Each module contains mathematical context files (`readme.md`) that detail the specific paper sections implemented. Refer to these for component-specific mathematical requirements and theoretical foundations.
 
 ### Performance Considerations
 
 - Trajectory integration can be computationally intensive - use caching for repeated calculations
 - Complex field calculations may require numerical precision considerations
-- Batch processing should maintain mathematical accuracy while optimizing performance
-- Consider approximations for real-time applications while preserving core field-theoretic properties
