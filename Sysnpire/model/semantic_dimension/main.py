@@ -539,6 +539,7 @@ def _run_dtf_processing(embedding: np.ndarray,
     # Merge results with REAL DTF enhancements (NO PLACEHOLDER VALUES)
     enhanced_results = original_results.copy()
     enhanced_results.update({
+        'semantic_embedding': embedding,  # CRITICAL: Preserve original embedding for emotional warping
         'dtf_phi_semantic_magnitude': dtf_field_magnitude,  # Φ^semantic(τ, s) from DTF
         'dtf_phi_semantic_complex': locals().get('enhanced_phi_semantic', complex(0)),  # Complex DTF field value
         'dtf_basis_functions': dtf_basis_count,

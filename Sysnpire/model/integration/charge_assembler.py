@@ -6,7 +6,7 @@ Complete Formula: Q(τ,C,s) = γ · T(τ,C,s) · E^trajectory(τ,s) · Φ^semant
 
 Documentation: See /models/integration/README.md
 
-TODO: Assemble all dimensions into the complete conceptual charge
+
 """
 
 class ConceptualChargeAssembler:

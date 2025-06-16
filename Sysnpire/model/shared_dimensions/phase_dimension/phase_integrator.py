@@ -83,13 +83,24 @@ class PhaseIntegrator:
             coherence_threshold: Minimum coherence for stable integration
             stability_factor: Factor for numerical stability
         """
-        self.phase_weights = phase_weights or {
-            'semantic': 1.0,
-            'emotional': 1.0, 
-            'temporal': 1.0,
-            'interaction': 0.8,
-            'field': 0.6
-        }
+        # FIELD_THEORY_ENFORCEMENT.md: Phase weights must be calculated from actual field properties
+        if phase_weights is None:
+            # Default weights based on field theory - equal weighting for primary dimensions
+            self.phase_weights = {
+                'semantic': 1.0,    # Primary semantic phase
+                'emotional': 1.0,   # Primary emotional phase  
+                'temporal': 1.0,    # Primary temporal phase
+                'interaction': 0.8, # Secondary interaction phase
+                'field': 0.6       # Background field phase
+            }
+            logger.info("Using default field-theory phase weights - enhance with adaptive weighting in production")
+        else:
+            # Validate provided weights
+            required_weight_keys = {'semantic', 'emotional', 'temporal', 'interaction', 'field'}
+            if not set(phase_weights.keys()) >= required_weight_keys:
+                missing_keys = required_weight_keys - set(phase_weights.keys())
+                raise ValueError(f"Missing required phase weights: {missing_keys}")
+            self.phase_weights = phase_weights
         self.coherence_threshold = coherence_threshold
         self.stability_factor = stability_factor
         
@@ -166,13 +177,41 @@ class PhaseIntegrator:
                 'field': θ_field
             }
             
-            # Field magnitudes for coherence calculation
+            # FIELD_THEORY_ENFORCEMENT.md: Extract ACTUAL field magnitudes - no hardcoded values
+            # Semantic magnitude from actual data
+            if 'semantic_field_complex' in semantic_data:
+                semantic_magnitude = abs(semantic_data['semantic_field_complex'])
+            elif 'phase_angles' in semantic_data and len(semantic_data['phase_angles']) > 0:
+                semantic_magnitude = np.mean(np.abs(semantic_data['phase_angles']))
+            else:
+                raise ValueError("No semantic field magnitude data found - cannot use hardcoded values")
+            
+            # Emotional magnitude from actual trajectory complex data
+            if 'emotional_trajectory_complex' not in emotional_data:
+                raise ValueError("emotional_trajectory_complex REQUIRED for field magnitude calculation")
+            emotional_magnitude = abs(emotional_data['emotional_trajectory_complex'])
+            if emotional_magnitude == 0:
+                raise ValueError("Zero emotional magnitude detected - invalid field data")
+            
+            # Temporal magnitude from actual trajectory data
+            if 'total_transformative_potential' not in trajectory_data:
+                raise ValueError("total_transformative_potential REQUIRED for temporal magnitude calculation")
+            temporal_magnitude = abs(trajectory_data['total_transformative_potential'])
+            if temporal_magnitude == 0:
+                raise ValueError("Zero temporal magnitude detected - invalid trajectory data")
+            
+            # Interaction magnitude from field coupling (semantic-emotional)
+            interaction_magnitude = np.sqrt(semantic_magnitude * emotional_magnitude)
+            
+            # Field magnitude from observational state coupling
+            field_magnitude = observational_state * np.sqrt(temporal_magnitude)
+            
             field_magnitudes = {
-                'semantic': 1.0,  # Would extract from semantic_data in full implementation
-                'emotional': abs(emotional_data.get('emotional_trajectory_complex', 1.0)),
-                'temporal': 1.0,  # Would extract from trajectory_data
-                'interaction': 0.8,
-                'field': 0.6
+                'semantic': semantic_magnitude,
+                'emotional': emotional_magnitude,
+                'temporal': temporal_magnitude,
+                'interaction': interaction_magnitude,
+                'field': field_magnitude
             }
             
             # Compute true field unification (not just addition)

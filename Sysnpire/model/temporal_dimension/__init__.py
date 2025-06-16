@@ -66,7 +66,7 @@ from .field_integration import (
 
 from .field_coupling import (
     FieldCouplingIntegrator,
-    TemporalFieldCoupler,
+    EnhancedTemporalFieldCoupler,
     BreathingPatternGenerator,
     SemanticTemporalSynchronizer
 )
@@ -110,7 +110,7 @@ __all__ = [
     'DevelopmentalDistanceCalculator',
     'TemporalFieldIntegrator',
     'FieldCouplingIntegrator',
-    'TemporalFieldCoupler',
+    'EnhancedTemporalFieldCoupler',
     'BreathingPatternGenerator',
     'SemanticTemporalSynchronizer',
     'TemporalOrchestrator'

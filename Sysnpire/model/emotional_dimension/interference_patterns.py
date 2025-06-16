@@ -29,7 +29,7 @@ class EmotionalComponent:
     frequency: float
     amplitude: float
     source: str
-    coherence: float = 1.0
+    coherence: float  # CLAUDE.md COMPLIANCE: NO default values
 
 
 @dataclass
@@ -57,9 +57,9 @@ class EmotionalInterferenceManager:
     """
     
     def __init__(self,
-                 num_dimensions: int = 1024,
-                 phase_coupling_strength: float = 0.2,
-                 interference_threshold: float = 0.1):
+                 num_dimensions: int,
+                 phase_coupling_strength: float,
+                 interference_threshold: float):
         """
         Initialize emotional interference manager.
         
@@ -282,7 +282,7 @@ class PhaseCoordinator:
     and proper coupling between different emotional influences.
     """
     
-    def __init__(self, coupling_strength: float = 0.1):
+    def __init__(self, coupling_strength: float):
         """
         Initialize phase coordinator.
         
@@ -317,15 +317,17 @@ class PhaseCoordinator:
                 # Start with original phase
                 coordinated_phase = component.phase
                 
-                # Couple with temporal phases if available
-                if temporal_phases is not None and len(temporal_phases) > 0:
-                    temporal_coupling = self.coupling_strength * np.mean(temporal_phases)
-                    coordinated_phase += temporal_coupling
+                # CLAUDE.md COMPLIANCE: Temporal phases are REQUIRED for cross-dimensional coupling
+                if temporal_phases is None or len(temporal_phases) == 0:
+                    raise ValueError("temporal_phases REQUIRED for phase coordination - no 'if available' logic allowed")
+                temporal_coupling = self.coupling_strength * np.mean(temporal_phases)
+                coordinated_phase += temporal_coupling
                 
-                # Couple with semantic phases if available
-                if semantic_phases is not None and len(semantic_phases) > 0:
-                    semantic_coupling = self.coupling_strength * np.mean(semantic_phases)
-                    coordinated_phase += semantic_coupling
+                # CLAUDE.md COMPLIANCE: Semantic phases are REQUIRED for cross-dimensional coupling
+                if semantic_phases is None or len(semantic_phases) == 0:
+                    raise ValueError("semantic_phases REQUIRED for phase coordination - no 'if available' logic allowed")
+                semantic_coupling = self.coupling_strength * np.mean(semantic_phases)
+                coordinated_phase += semantic_coupling
                 
                 # Normalize phase to [-π, π]
                 coordinated_phase = (coordinated_phase + np.pi) % (2 * np.pi) - np.pi
@@ -364,9 +366,9 @@ class ResonanceDetector:
     """
     
     def __init__(self,
-                 frequency_tolerance: float = 0.05,
-                 amplification_max: float = 2.0,
-                 resonance_bandwidth: float = 0.2):
+                 frequency_tolerance: float,
+                 amplification_max: float,
+                 resonance_bandwidth: float):
         """
         Initialize resonance detector.
         
@@ -483,7 +485,7 @@ class InterferencePatterCalculator:
     
     def calculate_interference_stability(self,
                                        interference_history: List[InterferenceResult],
-                                       window_size: int = 10) -> Dict[str, float]:
+                                       window_size: int) -> Dict[str, float]:
         """
         Calculate stability of interference patterns over time.
         
@@ -522,8 +524,8 @@ class InterferencePatterCalculator:
 
 def create_emotional_component(trajectory: complex,
                              source: str,
-                             frequency: float = 1.0,
-                             coherence: float = 1.0) -> EmotionalComponent:
+                             frequency: float,
+                             coherence: float) -> EmotionalComponent:
     """
     Convenience function to create emotional component.
     
@@ -549,7 +551,7 @@ def create_emotional_component(trajectory: complex,
 def compute_multi_emotion_interference(emotional_trajectories: List[complex],
                                      sources: List[str],
                                      token: str,
-                                     observational_state: float = 1.0) -> InterferenceResult:
+                                     observational_state: float) -> InterferenceResult:
     """
     Convenience function for multi-emotion interference calculation.
     

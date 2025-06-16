@@ -97,6 +97,7 @@ def process_semantic_field(embedding: np.ndarray,
         
         results = {
             'semantic_field': semantic_field_complex,
+            'semantic_embedding': embedding,  # CRITICAL: Preserve original embedding for emotional warping
             'breathing_patterns': breathing_patterns,
             'phase_modulation': phase_modulation,
             'field_magnitude': field_magnitude,

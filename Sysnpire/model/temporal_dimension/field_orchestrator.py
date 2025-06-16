@@ -19,7 +19,7 @@ import numpy as np
 from typing import Dict, List, Any, Optional, Union, Tuple
 import logging
 
-from social_construct_field import SocialConstructField, SocialConstructFieldFactory
+from .social_construct_field import SocialConstructField, SocialConstructFieldFactory
 
 logger = logging.getLogger(__name__)
 

@@ -55,9 +55,9 @@ class EmotionalFieldModulator:
     """
     
     def __init__(self,
-                 emotional_coupling_strength: float = 0.3,
-                 distortion_radius: float = 1.0,
-                 max_curvature: float = 2.0):
+                 emotional_coupling_strength: float,
+                 distortion_radius: float,
+                 max_curvature: float):
         """
         Initialize emotional field modulator.
         
@@ -390,9 +390,9 @@ class MetricWarping:
     """
     
     def __init__(self,
-                 base_metric: Optional[MetricTensor] = None,
-                 max_warping: float = 2.0,
-                 stability_threshold: float = 0.01):
+                 base_metric: Optional[MetricTensor],
+                 max_warping: float,
+                 stability_threshold: float):
         """
         Initialize metric warping handler.
         
@@ -469,7 +469,7 @@ class FieldEffectCalculator:
     fields influence semantic field propagation and interaction.
     """
     
-    def __init__(self, coupling_strength: float = 0.2):
+    def __init__(self, coupling_strength: float):
         """Initialize field effect calculator."""
         self.coupling_strength = coupling_strength
     
@@ -528,7 +528,7 @@ class GeometricDistortionManager:
     emotional field effects while maintaining geometric consistency.
     """
     
-    def __init__(self, max_distortions: int = 10):
+    def __init__(self, max_distortions: int):
         """Initialize geometric distortion manager."""
         self.max_distortions = max_distortions
         self.active_distortions = []
@@ -569,7 +569,7 @@ class GeometricDistortionManager:
         
         return total_distortion, total_magnitude
     
-    def cleanup_distortions(self, current_time: float, max_age: float = 10.0):
+    def cleanup_distortions(self, current_time: float, max_age: float):
         """Remove old distortions based on age."""
         # Simplified cleanup - in full implementation would track creation time
         if len(self.active_distortions) > self.max_distortions // 2:
@@ -580,7 +580,7 @@ class GeometricDistortionManager:
 
 def apply_emotional_modulation(semantic_field: np.ndarray,
                              emotional_trajectory: complex,
-                             coupling_strength: float = 0.3) -> Tuple[np.ndarray, Dict[str, Any]]:
+                             coupling_strength: float) -> Tuple[np.ndarray, Dict[str, Any]]:
     """
     Convenience function to apply emotional field modulation.
     
@@ -602,8 +602,8 @@ def apply_emotional_modulation(semantic_field: np.ndarray,
     )
 
 
-def create_emotional_modulator(coupling_strength: float = 0.3,
-                             distortion_radius: float = 1.0) -> EmotionalFieldModulator:
+def create_emotional_modulator(coupling_strength: float,
+                             distortion_radius: float) -> EmotionalFieldModulator:
     """
     Convenience function to create emotional field modulator.
     

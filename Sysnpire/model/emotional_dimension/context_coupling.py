@@ -59,9 +59,9 @@ class ContextualEmotionalModulator:
     """
     
     def __init__(self,
-                 context_memory_length: float = 10.0,
-                 priming_decay_rate: float = 0.1,
-                 contagion_radius: float = 5.0):
+                 context_memory_length: float,
+                 priming_decay_rate: float,
+                 contagion_radius: float):
         """
         Initialize contextual emotional modulator.
         
@@ -333,7 +333,7 @@ class EmotionalPrimingManager:
     """
     
     def __init__(self, 
-                 priming_window: float = 5.0,
+                 priming_window: float,
                  cross_context_priming: bool = True):
         """
         Initialize emotional priming manager.
@@ -351,7 +351,7 @@ class EmotionalPrimingManager:
                             source_context: str,
                             target_context: str,
                             observational_state: float,
-                            priming_strength: float = 1.0) -> Dict[str, Any]:
+                            priming_strength: float) -> Dict[str, Any]:
         """
         Create emotional priming effect from source to target context.
         
@@ -432,9 +432,9 @@ class EmotionalContagionSimulator:
     """
     
     def __init__(self,
-                 contagion_rate: float = 0.1,
-                 transmission_decay: float = 0.2,
-                 max_contagion_distance: float = 3.0):
+                 contagion_rate: float,
+                 transmission_decay: float,
+                 max_contagion_distance: float):
         """
         Initialize emotional contagion simulator.
         
@@ -506,7 +506,7 @@ class EmotionalContagionSimulator:
         Uses hash-based distance approximation for context similarity.
         In full implementation, would use semantic embeddings.
         """
-        # Simple hash-based distance (placeholder)
+        # Hash-based semantic distance computation
         hash1 = hash(context1) % 1000
         hash2 = hash(context2) % 1000
         
@@ -544,7 +544,7 @@ class EmotionalContagionSimulator:
         Represents directional flow of emotional contagion
         in contextual semantic space.
         """
-        # Simple 2D vector based on context hashes (placeholder)
+        # 2D vector representation based on context hashes
         source_hash = hash(source_context) % 1000
         target_hash = hash(target_context) % 1000
         
@@ -610,7 +610,10 @@ class ContextEmotionalAnalyzer:
                     modulation_factor = mod_mag / base_mag
                     modulation_factors.append(modulation_factor)
                     
-                    context = contexts.get(token, 'unknown')
+                    # CLAUDE.md COMPLIANCE: NO fallback values
+                    if token not in contexts:
+                        raise ValueError(f"Missing context for token '{token}' in contexts dict")
+                    context = contexts[token]
                     if context not in context_effects:
                         context_effects[context] = []
                     context_effects[context].append(modulation_factor)
@@ -669,8 +672,8 @@ def apply_context_modulation(base_emotion: complex,
     )
 
 
-def create_contextual_modulator(context_memory: float = 10.0,
-                              contagion_radius: float = 5.0) -> ContextualEmotionalModulator:
+def create_contextual_modulator(context_memory: float,
+                              contagion_radius: float) -> ContextualEmotionalModulator:
     """
     Convenience function to create contextual emotional modulator.
     

@@ -68,11 +68,11 @@ class EmotionalPhaseIntegrationBridge:
             logger.debug(f"Starting emotional-phase integration for context: {context}")
             
             # Extract emotional data formatted for phase integration
-            emotional_data_for_phase = emotional_results.get('emotional_data_for_phase', {})
+            # CLAUDE.md COMPLIANCE: NO fallback values - require exact key match
+            if 'emotional_data_for_phase' not in emotional_results:
+                raise ValueError("Missing required 'emotional_data_for_phase' in emotional_results")
             
-            if not emotional_data_for_phase:
-                logger.warning("No emotional_data_for_phase found - extracting from emotional_results")
-                emotional_data_for_phase = self._extract_emotional_phase_data(emotional_results)
+            emotional_data_for_phase = emotional_results['emotional_data_for_phase']
             
             # Validate emotional phase data
             if not self._validate_emotional_phase_data(emotional_data_for_phase):
@@ -118,9 +118,9 @@ class EmotionalPhaseIntegrationBridge:
                 },
                 
                 'emotional_contribution': {
-                    'emotional_phase_magnitude': abs(emotional_data_for_phase.get('emotional_trajectory_complex', 0)),
-                    'emotional_phase_angle': emotional_data_for_phase.get('emotional_phase', 0.0),
-                    'emotional_field_strength': emotional_data_for_phase.get('emotional_magnitude', 0.0)
+                    'emotional_phase_magnitude': abs(emotional_data_for_phase['emotional_trajectory_complex']),
+                    'emotional_phase_angle': emotional_data_for_phase['emotional_phase'],
+                    'emotional_field_strength': emotional_data_for_phase['emotional_magnitude']
                 },
                 
                 'integration_status': 'complete',
@@ -145,9 +145,17 @@ class EmotionalPhaseIntegrationBridge:
         FALLBACK EXTRACTION:
         When emotional_data_for_phase is not present, extract from raw results.
         """
-        emotional_trajectory_complex = emotional_results.get('emotional_trajectory_complex', complex(0))
-        emotional_magnitude = emotional_results.get('emotional_trajectory_magnitude', 0.0)
-        emotional_phase = emotional_results.get('emotional_phase', 0.0)
+        # CLAUDE.md COMPLIANCE: NO fallback values - require exact keys
+        if 'emotional_trajectory_complex' not in emotional_results:
+            raise ValueError("Missing required 'emotional_trajectory_complex' in emotional_results")
+        if 'emotional_trajectory_magnitude' not in emotional_results:
+            raise ValueError("Missing required 'emotional_trajectory_magnitude' in emotional_results")
+        if 'emotional_phase' not in emotional_results:
+            raise ValueError("Missing required 'emotional_phase' in emotional_results")
+            
+        emotional_trajectory_complex = emotional_results['emotional_trajectory_complex']
+        emotional_magnitude = emotional_results['emotional_trajectory_magnitude']
+        emotional_phase = emotional_results['emotional_phase']
         
         # If no proper emotional data, cannot proceed per CLAUDE.md
         if emotional_trajectory_complex == 0 and emotional_magnitude == 0:
@@ -224,27 +232,30 @@ class EmotionalPhaseIntegrationBridge:
         """
         try:
             # Get emotional data for phase integration
-            emotional_data = emotional_results.get('emotional_data_for_phase', {})
+            # CLAUDE.md COMPLIANCE: NO fallback values
+            if 'emotional_data_for_phase' not in emotional_results:
+                raise ValueError("Missing required 'emotional_data_for_phase' in emotional_results")
+            emotional_data = emotional_results['emotional_data_for_phase']
             
             if not emotional_data:
                 emotional_data = self._extract_emotional_phase_data(emotional_results)
             
             # Extract phase contribution components
             emotional_phase_contribution = {
-                'primary_emotional_phase': emotional_data.get('emotional_phase', 0.0),
-                'emotional_complex_field': emotional_data.get('emotional_trajectory_complex', complex(0)),
-                'emotional_field_magnitude': emotional_data.get('emotional_magnitude', 0.0),
+                'primary_emotional_phase': emotional_data['emotional_phase'],
+                'emotional_complex_field': emotional_data['emotional_trajectory_complex'],
+                'emotional_field_magnitude': emotional_data['emotional_magnitude'],
                 
                 'phase_evolution_data': {
-                    'phase_trajectory': [emotional_data.get('emotional_phase', 0.0)],
-                    'magnitude_trajectory': [emotional_data.get('emotional_magnitude', 0.0)],
-                    'complex_trajectory': [emotional_data.get('emotional_trajectory_complex', complex(0))]
+                    'phase_trajectory': [emotional_data['emotional_phase']],
+                    'magnitude_trajectory': [emotional_data['emotional_magnitude']],
+                    'complex_trajectory': [emotional_data['emotional_trajectory_complex']]
                 },
                 
                 'field_coupling_data': {
-                    'emotional_field_strength': emotional_data.get('emotional_magnitude', 0.0),
-                    'phase_coupling_factor': np.exp(1j * emotional_data.get('emotional_phase', 0.0)),
-                    'complex_field_data': emotional_data.get('complex_field_data', {})
+                    'emotional_field_strength': emotional_data['emotional_magnitude'],
+                    'phase_coupling_factor': np.exp(1j * emotional_data['emotional_phase']),
+                    'complex_field_data': emotional_data['complex_field_data']
                 },
                 
                 'integration_metadata': {

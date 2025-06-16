@@ -24,13 +24,17 @@ logger = logging.getLogger(__name__)
 
 @dataclass
 class EmotionalTrajectoryParams:
-    """Parameters for emotional trajectory integration."""
+    """Parameters for emotional trajectory integration. 
+    
+    CLAUDE.md COMPLIANCE: All parameters MUST be computed from manifold properties.
+    NO default values allowed - all must be explicitly calculated.
+    """
     observational_state: float
-    gaussian_sigma: float = 0.5
-    trajectory_decay_rate: float = 0.1
-    amplification_factor: float = 1.0
-    resonance_threshold: float = 0.1
-    coupling_strength: float = 0.2
+    gaussian_sigma: float
+    trajectory_decay_rate: float
+    amplification_factor: float
+    resonance_threshold: float
+    coupling_strength: float
 
 
 class EmotionalTrajectoryIntegrator:
@@ -49,8 +53,8 @@ class EmotionalTrajectoryIntegrator:
     """
     
     def __init__(self, 
-                 embedding_dimension: int = 1024,
-                 emotional_memory_length: float = 10.0):
+                 embedding_dimension: int,
+                 emotional_memory_length: float):
         """
         Initialize emotional trajectory integrator.
         
@@ -62,9 +66,12 @@ class EmotionalTrajectoryIntegrator:
         self.emotional_memory_length = emotional_memory_length
         
         # Initialize emotional resonance parameters
-        self.base_emotional_frequencies = np.random.uniform(
-            0.1, 2.0, size=embedding_dimension
-        )
+        # CLAUDE.md COMPLIANCE: No random values - derive from embedding dimension structure
+        # Create deterministic frequency spectrum based on embedding dimension
+        frequency_indices = np.arange(embedding_dimension)
+        normalized_indices = frequency_indices / embedding_dimension
+        # Use sinusoidal pattern for emotional frequencies
+        self.base_emotional_frequencies = 0.1 + 1.9 * (0.5 + 0.5 * np.sin(2 * np.pi * normalized_indices))
         
         logger.info(f"Initialized EmotionalTrajectoryIntegrator for {embedding_dimension}D embeddings")
     
@@ -73,7 +80,8 @@ class EmotionalTrajectoryIntegrator:
                           semantic_embedding: np.ndarray,
                           manifold_properties: Dict[str, Any],
                           params: EmotionalTrajectoryParams,
-                          temporal_data: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+                          temporal_data: Optional[Dict[str, Any]] = None,
+                          source_text: Optional[str] = None) -> Dict[str, Any]:
         """
         Compute complete E^trajectory(τ, s) using deconstructed transformer mathematics.
         
@@ -90,21 +98,48 @@ class EmotionalTrajectoryIntegrator:
             manifold_properties: Contains coupling_mean, coupling_variance
             params: Emotional trajectory parameters
             temporal_data: Optional temporal dimension coordination data
+            source_text: Source text for REAL attention analysis (REQUIRED for production)
             
         Returns:
             Dict containing complete E^trajectory(τ, s) computation results
         """
         try:
             # Extract manifold coupling properties
-            coupling_mean = manifold_properties.get('coupling_mean', 0.0)
-            coupling_variance = manifold_properties.get('coupling_variance', 1.0)
+            # CLAUDE.md COMPLIANCE: No default fallbacks - ensure required properties exist
+            if 'coupling_mean' not in manifold_properties:
+                raise ValueError(f"Missing required manifold property 'coupling_mean' for token {token}")
+            if 'coupling_variance' not in manifold_properties:
+                raise ValueError(f"Missing required manifold property 'coupling_variance' for token {token}")
+                
+            coupling_mean = manifold_properties['coupling_mean']
+            coupling_variance = manifold_properties['coupling_variance']
             
-            # Step 1: Extract emotional resonance pattern (Section 3.1.3.3.1)
-            emotional_resonance = self._extract_emotional_resonance_pattern(
-                embedding=semantic_embedding,
-                coupling_mean=coupling_mean,
-                token=token
-            )
+            # Step 1: Extract emotional resonance pattern using REAL attention analysis
+            # FIELD_THEORY_ENFORCEMENT.md: Use ACTUAL attention deconstruction
+            try:
+                from .attention_deconstruction import create_real_emotional_resonance_extractor
+                
+                # FIELD_THEORY_ENFORCEMENT.md: Use actual source text for real attention analysis
+                if source_text is None:
+                    logger.warning(f"No source_text provided for {token} - using token as fallback (enhance in production)")
+                    text_for_analysis = token  # Development fallback
+                else:
+                    text_for_analysis = source_text  # Production: actual source text
+                
+                # Use the corrected REAL emotional resonance extraction
+                emotional_resonance = create_real_emotional_resonance_extractor(
+                    text=text_for_analysis,
+                    target_token=token,
+                    coupling_mean=coupling_mean
+                )
+                
+                # Validate complex array result
+                if not np.iscomplexobj(emotional_resonance):
+                    raise ValueError(f"REAL attention analysis must produce complex-valued resonance for {token}")
+                
+            except Exception as e:
+                logger.error(f"REAL attention deconstruction failed for {token}: {e}")
+                raise ValueError(f"REAL attention analysis required for emotional resonance of {token}: {e}")
             
             # Step 2: Gaussian alignment computation (Section 3.1.3.3.2)
             gaussian_alignment = self._compute_gaussian_alignment(
@@ -139,19 +174,43 @@ class EmotionalTrajectoryIntegrator:
                 temporal_data=temporal_data
             )
             
-            # Final E^trajectory(τ, s) assembly with COMPLEX components
-            # All components are now complex-valued field effects
-            emotional_trajectory_complex = gaussian_alignment * trajectory_accumulation * resonance_amplification * np.exp(1j * emotional_phase)
+            # Final E^trajectory[i](τ, s) assembly - VECTOR of complex field components
+            # Each dimension i has its own complex trajectory value
+            embedding_dim = len(semantic_embedding)
+            E_trajectory_vector = np.zeros(embedding_dim, dtype=complex)
             
-            # Extract magnitude and phase for analysis
-            magnitude = np.abs(emotional_trajectory_complex)
-            final_phase = np.angle(emotional_trajectory_complex)
+            # Ensure all components are complex vectors, not scalars
+            if not isinstance(gaussian_alignment, np.ndarray):
+                raise ValueError(f"gaussian_alignment must be complex vector [D], got {type(gaussian_alignment)}")
+            if not isinstance(trajectory_accumulation, np.ndarray):
+                raise ValueError(f"trajectory_accumulation must be complex vector [D], got {type(trajectory_accumulation)}")
+            if not isinstance(resonance_amplification, np.ndarray):
+                raise ValueError(f"resonance_amplification must be complex vector [D], got {type(resonance_amplification)}")
+            if not isinstance(emotional_phase, np.ndarray):
+                raise ValueError(f"emotional_phase must be vector [D], got {type(emotional_phase)}")
             
-            # Return comprehensive results with complex field analysis
+            # Compute E^trajectory[i](τ, s) for each dimension i
+            for i in range(embedding_dim):
+                E_trajectory_vector[i] = (gaussian_alignment[i] * 
+                                        trajectory_accumulation[i] * 
+                                        resonance_amplification[i] * 
+                                        np.exp(1j * emotional_phase[i]))
+            
+            # Field theory analysis - maintain complex vector structure
+            magnitude_vector = np.abs(E_trajectory_vector)
+            phase_vector = np.angle(E_trajectory_vector)
+            
+            # Overall field strength (for debugging only - main result is the vector)
+            total_field_magnitude = np.linalg.norm(E_trajectory_vector)
+            mean_phase = np.angle(np.mean(E_trajectory_vector))
+            
+            # Return comprehensive results with complex VECTOR field analysis
             results = {
-                'emotional_trajectory_complex': emotional_trajectory_complex,
-                'emotional_trajectory_magnitude': magnitude,
-                'emotional_phase': final_phase,
+                'emotional_trajectory_complex': E_trajectory_vector,  # Complex vector [D]
+                'emotional_trajectory_magnitude': magnitude_vector,   # Magnitude vector [D]
+                'emotional_phase': phase_vector,                     # Phase vector [D]
+                'total_field_magnitude': total_field_magnitude,      # Scalar field strength
+                'mean_phase': mean_phase,                            # Mean phase for analysis
                 'gaussian_alignment': gaussian_alignment,
                 'trajectory_accumulation': trajectory_accumulation,
                 'resonance_amplification': resonance_amplification,
@@ -163,9 +222,9 @@ class EmotionalTrajectoryIntegrator:
                     'emotional_coherence': 1.0 / (1.0 + coupling_variance)
                 },
                 'complex_field_analysis': {
-                    'is_complex_valued': np.iscomplexobj(emotional_trajectory_complex),
-                    'field_magnitude': magnitude,
-                    'field_phase': final_phase,
+                    'is_complex_valued': np.iscomplexobj(E_trajectory_vector),
+                    'field_magnitude': total_field_magnitude,
+                    'field_phase': mean_phase,
                     'gaussian_alignment_complex': np.iscomplexobj(gaussian_alignment),
                     'trajectory_accumulation_complex': np.iscomplexobj(trajectory_accumulation),
                     'resonance_amplification_complex': np.iscomplexobj(resonance_amplification)
@@ -173,92 +232,43 @@ class EmotionalTrajectoryIntegrator:
                 'processing_status': 'complete'
             }
             
-            logger.debug(f"E^trajectory computed for {token}: magnitude={magnitude:.4f}, phase={final_phase:.4f}, complex={np.iscomplexobj(emotional_trajectory_complex)}")
+            logger.debug(f"E^trajectory computed for {token}: magnitude={total_field_magnitude:.4f}, phase={mean_phase:.4f}, complex={np.iscomplexobj(E_trajectory_vector)}")
             return results
             
         except Exception as e:
             logger.error(f"Emotional trajectory computation failed for {token}: {e}")
-            return {
-                'emotional_trajectory_complex': complex(1.0, 0.0),
-                'emotional_trajectory_magnitude': 1.0,
-                'emotional_phase': 0.0,
-                'processing_status': 'failed',
-                'error': str(e)
-            }
+            # CLAUDE.md COMPLIANCE: NO default fallback values - must raise error
+            raise ValueError(f"Emotional trajectory computation failed for {token}: {e}") from e
     
     def _extract_emotional_resonance_pattern(self,
                                            embedding: np.ndarray,
                                            coupling_mean: float,
                                            token: str) -> np.ndarray:
         """
-        Extract COMPLEX emotional resonance pattern using deconstructed attention mechanics.
+        Extract COMPLEX emotional resonance pattern using ACTUAL deconstructed attention mechanics.
         
-        DECONSTRUCTED ATTENTION (README.md Section 3.1.3.2.1):
-        - QK^T → geometric alignment detection producing COMPLEX field effects
-        - Emotional content creates directional biases in embedding space  
-        - Convert dot product alignment to COMPLEX-valued emotional field modulation
+        FIELD_THEORY_ENFORCEMENT.md COMPLIANCE:
+        - NO hash-based synthetic generation (PERMANENTLY BANNED)
+        - Must use ACTUAL transformer attention extraction
+        - NO simulation or approximation substitution
         
-        FIELD THEORY APPROACH:
-        1. Generate complex-valued emotional field vectors, not scalar floats
-        2. Use embedding as Q (query) and create emotional K,V matrices
-        3. Produce attention-like complex field patterns that modulate semantic geometry
+        REQUIRED IMPLEMENTATION:
+        Must integrate with actual BGE transformer model to extract real attention patterns
+        that reveal emotional geometric structures in semantic space.
         """
-        # Token-specific emotional characteristics
-        token_hash = hash(token) % 1000 / 1000.0
-        
-        # Emotional strength and polarity from coupling analysis (ensure non-zero)
-        emotional_strength = max(abs(coupling_mean), 0.1)  # Prevent zero fields
-        emotional_polarity = 1.0 if coupling_mean > 0 else -1.0
-        
-        # Create COMPLEX resonance pattern matching embedding dimension
-        embedding_dim = len(embedding)
-        
-        # Generate emotional KEY matrix (deconstructed attention approach)
-        emotional_keys = np.zeros(embedding_dim, dtype=complex)
-        emotional_values = np.zeros(embedding_dim, dtype=complex)
-        
-        for i in range(embedding_dim):
-            # Token-dependent emotional frequency (like attention heads)
-            emotional_frequency = token_hash + i / embedding_dim
-            phase_shift = 2 * np.pi * emotional_frequency + coupling_mean
-            
-            # COMPLEX emotional field generation (not just cosine)
-            emotional_keys[i] = emotional_strength * emotional_polarity * np.exp(1j * phase_shift)
-            
-            # Emotional values with different phase characteristics
-            value_phase = phase_shift + np.pi/4 + embedding[i] * 0.1  # Semantic influence
-            emotional_values[i] = emotional_strength * np.exp(1j * value_phase)
-        
-        # Deconstructed attention: Q·K^T like operation creating field effects
-        # embedding acts as Query, emotional_keys as Keys
-        attention_weights = embedding @ emotional_keys.conj()  # Complex dot product
-        
-        # Softmax-like amplification for complex values (field amplification)
-        magnitude = np.abs(attention_weights)
-        if magnitude > 0:
-            # Scale magnitude to reasonable range (prevent extreme values)
-            scaled_magnitude = magnitude / (1.0 + magnitude)  # Keeps in [0,1] range
-            amplified_magnitude = 0.1 + 0.9 * scaled_magnitude  # [0.1, 1.0] range
-            phase = np.angle(attention_weights)
-            attention_complex = amplified_magnitude * np.exp(1j * phase)
-        else:
-            attention_complex = 0.1 * np.exp(1j * token_hash * 2 * np.pi)
-        
-        # Generate final COMPLEX resonance pattern through normalized weighted transport
-        # Scale emotional_values to be comparable to embedding magnitude
-        embedding_scale = np.linalg.norm(embedding) / len(embedding)
-        scaled_emotional_values = emotional_values * embedding_scale / np.mean(np.abs(emotional_values))
-        
-        # Final complex resonance pattern
-        resonance_pattern = attention_complex * scaled_emotional_values
-        
-        return resonance_pattern
+        # FIELD_THEORY_ENFORCEMENT.md: Synthetic data generation PERMANENTLY BANNED
+        raise NotImplementedError(
+            "FIELD_THEORY_ENFORCEMENT VIOLATION: _extract_emotional_resonance_pattern cannot use synthetic data generation. "
+            "Must use actual BGE transformer attention patterns. "
+            f"This function requires actual transformer model access for token '{token}' to extract real attention-based emotional resonance. "
+            "Implementation must integrate with Sysnpire.model.bge_encoder or similar actual model interface."
+        )
     
     def _compute_gaussian_alignment(self,
                                   embedding: np.ndarray,
                                   emotional_resonance: np.ndarray,
                                   coupling_variance: float,
-                                  params: EmotionalTrajectoryParams) -> complex:
+                                  params: EmotionalTrajectoryParams) -> np.ndarray:
         """
         Compute COMPLEX Gaussian alignment between semantic content and emotional resonance.
         
@@ -276,45 +286,52 @@ class EmotionalTrajectoryIntegrator:
             # Convert to complex if needed (shouldn't happen with new implementation)
             emotional_resonance = emotional_resonance.astype(complex)
         
-        # Compute semantic-emotional alignment distance in complex space
-        # Normalize both vectors to compare directions rather than magnitudes
+        # Compute PER-DIMENSION complex Gaussian alignment - NO SCALAR REDUCTION
+        # PRINCIPLE: Each dimension i maintains its own complex alignment value
+        
+        embedding_dim = len(embedding)
+        gaussian_alignment_vector = np.zeros(embedding_dim, dtype=complex)
+        
+        # Normalize both vectors but maintain dimensional structure
         embedding_norm = embedding / (np.linalg.norm(embedding) + 1e-8)
         resonance_norm = emotional_resonance / (np.linalg.norm(emotional_resonance) + 1e-8)
         
-        # Alignment distance in normalized space
-        alignment_diff = embedding_norm.astype(complex) - resonance_norm
-        alignment_distance = np.linalg.norm(alignment_diff)
+        # Convert to complex for field calculations
+        embedding_complex = embedding_norm.astype(complex)
+        resonance_complex = resonance_norm.astype(complex)
         
         # Use coupling_variance as emotional sensitivity parameter σ²
-        # Scale sigma appropriately for normalized space
-        sigma_squared = max(coupling_variance, 0.1) * 2.0  # Scale for normalized vectors
+        sigma_squared = max(coupling_variance, 0.01)  # Prevent degenerate case
         
-        # COMPLEX amplification factor based on observational state and parameters
-        alpha_magnitude = params.amplification_factor * (1.0 + 0.5 * params.observational_state)
-        alpha_phase = params.observational_state * 0.5  # Phase from observational state
-        alpha_complex = alpha_magnitude * np.exp(1j * alpha_phase)
+        # Compute α_i · exp(-||v_i - v_E||²/2σ²) for EACH dimension i
+        for i in range(embedding_dim):
+            # Per-dimension alignment distance ||v_i - v_E[i]||²
+            v_i = embedding_complex[i]
+            v_E_i = resonance_complex[i]
+            alignment_distance_sq = abs(v_i - v_E_i)**2
+            
+            # COMPLEX amplification factor α_i varies per dimension
+            alpha_i_magnitude = params.amplification_factor * (1.0 + 0.1 * abs(v_i))
+            alpha_i_phase = params.observational_state * 0.3 + i * 0.01  # Dimension-dependent phase
+            alpha_i = alpha_i_magnitude * np.exp(1j * alpha_i_phase)
+            
+            # Gaussian alignment for dimension i
+            gaussian_i = alpha_i * np.exp(-alignment_distance_sq / (2 * sigma_squared))
+            
+            # Ensure non-zero field (field theory requirement)
+            if abs(gaussian_i) < 1e-6:
+                gaussian_i = 1e-6 * np.exp(1j * alpha_i_phase)
+            
+            gaussian_alignment_vector[i] = gaussian_i
         
-        # Gaussian alignment computation with COMPLEX result
-        gaussian_magnitude = np.exp(-alignment_distance**2 / (2 * sigma_squared))
-        
-        # Ensure minimum meaningful magnitude
-        gaussian_magnitude = max(gaussian_magnitude, 0.1)
-        
-        # Add phase component from emotional field coherence
-        emotional_coherence_phase = np.angle(np.mean(emotional_resonance))
-        gaussian_phase = emotional_coherence_phase + alpha_phase
-        
-        # Final COMPLEX Gaussian alignment
-        gaussian_alignment = alpha_complex * gaussian_magnitude * np.exp(1j * gaussian_phase)
-        
-        return gaussian_alignment
+        return gaussian_alignment_vector
     
     def _compute_trajectory_accumulation(self,
                                        token: str,
                                        observational_state: float,
                                        coupling_mean: float,
                                        temporal_data: Optional[Dict[str, Any]],
-                                       decay_rate: float) -> complex:
+                                       decay_rate: float) -> np.ndarray:
         """
         Compute COMPLEX trajectory accumulation with observational state integration.
         
@@ -326,125 +343,146 @@ class EmotionalTrajectoryIntegrator:
         - emotional_event(τ, s'): Complex emotional significance with trajectory-dependent phase
         - Integration produces complex field accumulation, not scalar
         """
-        # Extract observational persistence from temporal coordination
-        observational_persistence = 1.0
-        if temporal_data and 'observational_persistence' in temporal_data:
-            observational_persistence = temporal_data['observational_persistence']
+        # PRINCIPLE: Must have temporal data - no "if available" logic
+        if not temporal_data or 'observational_persistence' not in temporal_data:
+            raise ValueError(f"temporal_data with observational_persistence REQUIRED for trajectory accumulation of {token}")
+        
+        observational_persistence = temporal_data['observational_persistence']
         
         # Emotional event strength based on coupling analysis (ensure non-zero)
-        emotional_event_strength = max(abs(coupling_mean), 0.1)
+        emotional_event_strength = max(abs(coupling_mean), 0.01)
         emotional_polarity = 1.0 if coupling_mean > 0 else -1.0
         
         # Token-specific trajectory phase evolution
         token_hash = hash(token) % 1000 / 1000.0
         
-        # Discretized trajectory integration with COMPLEX accumulation
+        # PER-DIMENSION trajectory accumulation - NO SCALAR REDUCTION
+        embedding_dim = self.embedding_dimension  # Get from class instance
+        trajectory_accumulation_vector = np.zeros(embedding_dim, dtype=complex)
+        
+        # Discretized trajectory integration ∫₀ˢ w(s-s') · emotional_event(τ, s') ds'
         decay_constant = 1.0 / decay_rate
         integration_steps = max(int(observational_state * 10), 1)
-        
-        accumulation = 0.0 + 0.0j  # Complex accumulation
         ds = observational_state / integration_steps
         
-        for step in range(1, integration_steps + 1):
-            s_prime = step * ds  # Integration variable
+        # Compute trajectory integral for EACH dimension i
+        for i in range(embedding_dim):
+            accumulation_i = 0.0 + 0.0j  # Per-dimension complex accumulation
             
-            # COMPLEX decay weight with phase evolution
-            decay_magnitude = np.exp(-(observational_state - s_prime) / decay_constant)
-            # Phase evolves along trajectory based on token and observational state
-            decay_phase = 2 * np.pi * token_hash * s_prime + observational_state * 0.1
-            decay_weight_complex = decay_magnitude * np.exp(1j * decay_phase)
+            # Dimension-specific frequency and phase characteristics
+            dimension_frequency = (i / embedding_dim) * 2.0 + token_hash
             
-            # COMPLEX emotional event at s' with trajectory-dependent phase
-            emotional_event_magnitude = emotional_event_strength * observational_persistence
-            # Emotional phase evolution along trajectory
-            emotional_phase = s_prime * emotional_polarity + coupling_mean
-            emotional_event_complex = emotional_event_magnitude * np.exp(1j * emotional_phase)
+            for step in range(1, integration_steps + 1):
+                s_prime = step * ds  # Integration variable
+                
+                # COMPLEX decay weight w(s-s') with per-dimension phase evolution
+                decay_magnitude = np.exp(-(observational_state - s_prime) / decay_constant)
+                decay_phase = dimension_frequency * s_prime + emotional_polarity * s_prime * 0.5
+                w_complex = decay_magnitude * np.exp(1j * decay_phase)
+                
+                # COMPLEX emotional_event(τ, s') for dimension i
+                event_magnitude = emotional_event_strength * observational_persistence
+                event_phase = s_prime * emotional_polarity + coupling_mean + i * 0.1
+                emotional_event_i = event_magnitude * np.exp(1j * event_phase)
+                
+                # Accumulate complex trajectory integral for dimension i
+                accumulation_i += w_complex * emotional_event_i * ds
             
-            # COMPLEX trajectory integration
-            accumulation += decay_weight_complex * emotional_event_complex * ds
+            trajectory_accumulation_vector[i] = accumulation_i
         
-        # Ensure minimum complex accumulation for numerical stability
-        if np.abs(accumulation) == 0.0:
-            # Create non-zero complex accumulation
-            base_magnitude = observational_persistence * emotional_event_strength
-            base_phase = token_hash * 2 * np.pi + observational_state * 0.5
-            accumulation = base_magnitude * np.exp(1j * base_phase)
+        # FIELD_THEORY_ENFORCEMENT.md: Validate trajectory accumulation results
+        for i in range(embedding_dim):
+            if np.abs(trajectory_accumulation_vector[i]) == 0.0:
+                # FIELD_THEORY_ENFORCEMENT.md: NO synthetic stability values allowed
+                raise ValueError(
+                    f"Zero trajectory accumulation detected for dimension {i} of token {token}. "
+                    "This indicates insufficient temporal data or computational errors. "
+                    "FIELD_THEORY_ENFORCEMENT: No synthetic stability values allowed - must fix underlying data."
+                )
         
-        return accumulation
+        return trajectory_accumulation_vector
     
     def _compute_resonance_amplification(self,
                                        semantic_embedding: np.ndarray,
                                        emotional_resonance: np.ndarray,
                                        coupling_variance: float,
-                                       threshold: float) -> complex:
+                                       threshold: float) -> np.ndarray:
         """
-        Compute COMPLEX resonance-based amplification effects.
+        Compute COMPLEX resonance-based amplification effects - VECTOR of complex amplifications.
         
         FORMULA (README.md Section 3.1.3.3.6):
-        1 + A_max · exp(-|ω_semantic - ω_emotional|²/2σ_resonance²) - now COMPLEX
+        1 + A_max · exp(-|ω_semantic[i] - ω_emotional[i]|²/2σ_resonance²) - per dimension i
         
         COMPLEX FIELD INTERPRETATION:
-        - Resonance occurs when semantic and emotional frequencies align in complex space
-        - COMPLEX amplification enhances phase-coherent semantic-emotional content
-        - Phase-misaligned content gets complex suppression with phase shifts
+        - Resonance occurs when semantic and emotional frequencies align in complex space per dimension
+        - COMPLEX amplification enhances phase-coherent semantic-emotional content per dimension
+        - Phase-misaligned content gets complex suppression with phase shifts per dimension
         """
         # Ensure emotional_resonance is complex
         if not np.iscomplexobj(emotional_resonance):
             emotional_resonance = emotional_resonance.astype(complex)
         
-        # Compute complex frequencies for semantic and emotional content
+        # Compute complex frequencies for semantic and emotional content - PER DIMENSION
         semantic_complex = semantic_embedding.astype(complex)
+        embedding_dim = len(semantic_embedding)
         
-        # Complex frequency characteristics (magnitude and phase)
-        semantic_freq_complex = np.mean(semantic_complex)  # Average complex "frequency"
-        emotional_freq_complex = np.mean(emotional_resonance)  # Average complex "frequency"
-        
-        # Complex frequency difference for resonance detection
-        freq_difference_complex = semantic_freq_complex - emotional_freq_complex
-        freq_difference_magnitude = abs(freq_difference_complex)
+        # PER-DIMENSION resonance amplification - NO SCALAR REDUCTION
+        amplification_vector = np.zeros(embedding_dim, dtype=complex)
         
         # Resonance parameters
         A_max = 1.0  # Maximum amplification factor
         sigma_resonance_squared = max(coupling_variance, 0.1)  # Prevent degenerate cases
         
-        # Resonance amplification computation with COMPLEX phase effects
-        resonance_magnitude = A_max * np.exp(-freq_difference_magnitude**2 / (2 * sigma_resonance_squared))
+        # Compute resonance amplification for EACH dimension i
+        for i in range(embedding_dim):
+            # Per-dimension complex frequencies
+            semantic_freq_i = semantic_complex[i]
+            emotional_freq_i = emotional_resonance[i]
+            
+            # Complex frequency difference for dimension i
+            freq_difference_i = semantic_freq_i - emotional_freq_i
+            freq_difference_magnitude = abs(freq_difference_i)
+            
+            # Resonance amplification computation with COMPLEX phase effects for dimension i
+            resonance_magnitude = A_max * np.exp(-freq_difference_magnitude**2 / (2 * sigma_resonance_squared))
+            
+            # Phase alignment bonus: coherent phases get more amplification
+            phase_alignment = np.angle(semantic_freq_i) - np.angle(emotional_freq_i)
+            phase_bonus = np.cos(phase_alignment)  # +1 for aligned, -1 for opposite
+            
+            # Complex amplification with phase-dependent enhancement for dimension i
+            amplification_magnitude = 1.0 + resonance_magnitude * (1.0 + 0.5 * phase_bonus)
+            amplification_phase = phase_alignment * 0.1  # Small phase contribution from resonance
+            
+            amplification_i = amplification_magnitude * np.exp(1j * amplification_phase)
+            
+            # Apply threshold for significant resonance effects
+            if abs(amplification_i) - 1.0 < threshold:
+                # Ensure minimum complex amplification for dimension i
+                min_phase = np.angle(amplification_i)
+                amplification_i = (1.0 + threshold) * np.exp(1j * min_phase)
+            
+            amplification_vector[i] = amplification_i
         
-        # Phase alignment bonus: coherent phases get more amplification
-        phase_alignment = np.angle(semantic_freq_complex) - np.angle(emotional_freq_complex)
-        phase_bonus = np.cos(phase_alignment)  # +1 for aligned, -1 for opposite
-        
-        # Complex amplification with phase-dependent enhancement
-        amplification_magnitude = 1.0 + resonance_magnitude * (1.0 + 0.5 * phase_bonus)
-        amplification_phase = phase_alignment * 0.1  # Small phase contribution from resonance
-        
-        amplification_complex = amplification_magnitude * np.exp(1j * amplification_phase)
-        
-        # Apply threshold for significant resonance effects
-        if abs(amplification_complex) - 1.0 < threshold:
-            # Ensure minimum complex amplification
-            min_phase = np.angle(amplification_complex)
-            amplification_complex = (1.0 + threshold) * np.exp(1j * min_phase)
-        
-        return amplification_complex
+        return amplification_vector
     
     def _compute_emotional_phase(self,
                                token: str,
                                observational_state: float,
                                coupling_properties: Dict[str, float],
-                               temporal_data: Optional[Dict[str, Any]]) -> float:
+                               temporal_data: Optional[Dict[str, Any]]) -> np.ndarray:
         """
-        Compute emotional phase contribution to total phase integration.
+        Compute emotional phase contribution to total phase integration - VECTOR of phases.
         
         FORMULA (README.md Section 3.1.3.3.5):
-        φ_emotional(τ, s) = ∫₀ˢ ω_emotional(τ, s') ds' + Σⱼ coupling_emotional[j] · φ_j(s')
+        φ_emotional[i](τ, s) = ∫₀ˢ ω_emotional[i](τ, s') ds' + Σⱼ coupling_emotional[j] · φ_j(s')
         
         MATHEMATICAL APPROACH:
-        - ω_emotional: Token-specific emotional frequency evolution
-        - Integration over observational state
-        - Cross-dimensional coupling with temporal phases
+        - ω_emotional[i]: Token-specific emotional frequency evolution per dimension i
+        - Integration over observational state per dimension
+        - Cross-dimensional coupling with temporal phases per dimension
         """
-        # Token-specific emotional frequency
+        # Token-specific emotional frequency base
         token_hash = hash(token) % 1000 / 1000.0
         base_emotional_frequency = 2 * np.pi * token_hash
         
@@ -452,27 +490,38 @@ class EmotionalTrajectoryIntegrator:
         coupling_mean = coupling_properties['mean']
         coupling_variance = coupling_properties['variance']
         
-        # Emotional frequency evolution with coupling effects
-        omega_emotional = base_emotional_frequency * (1.0 + 0.1 * coupling_mean)
+        # PER-DIMENSION emotional phase computation - NO SCALAR REDUCTION
+        embedding_dim = self.embedding_dimension
+        emotional_phase_vector = np.zeros(embedding_dim, dtype=float)
         
-        # Phase accumulation through observational state integration
-        phase_integral = omega_emotional * observational_state
+        # Compute emotional phase for EACH dimension i
+        for i in range(embedding_dim):
+            # Dimension-specific emotional frequency evolution
+            dimension_frequency_modifier = 1.0 + 0.1 * coupling_mean + i * 0.02 / embedding_dim
+            omega_emotional_i = base_emotional_frequency * dimension_frequency_modifier
+            
+            # Phase accumulation through observational state integration for dimension i
+            phase_integral_i = omega_emotional_i * observational_state
+            
+            # Cross-dimensional coupling with temporal phases for dimension i
+            coupling_contribution_i = 0.0
+            if temporal_data and 'phase_accumulation' in temporal_data:
+                temporal_phases = temporal_data['phase_accumulation']
+                if len(temporal_phases) > 0:
+                    coupling_strength_i = 0.1 * abs(coupling_mean) * (1.0 + i * 0.01)
+                    # Use appropriate temporal phase for dimension i
+                    temporal_phase_i = temporal_phases[i % len(temporal_phases)]
+                    coupling_contribution_i = coupling_strength_i * temporal_phase_i
+            
+            # Total emotional phase for dimension i
+            emotional_phase_i = phase_integral_i + coupling_contribution_i
+            
+            # Normalize phase to [-π, π] range for dimension i
+            emotional_phase_i = (emotional_phase_i + np.pi) % (2 * np.pi) - np.pi
+            
+            emotional_phase_vector[i] = emotional_phase_i
         
-        # Cross-dimensional coupling with temporal phases
-        coupling_contribution = 0.0
-        if temporal_data and 'phase_accumulation' in temporal_data:
-            temporal_phases = temporal_data['phase_accumulation']
-            if len(temporal_phases) > 0:
-                coupling_strength = 0.1 * abs(coupling_mean)
-                coupling_contribution = coupling_strength * np.mean(temporal_phases)
-        
-        # Total emotional phase
-        emotional_phase = phase_integral + coupling_contribution
-        
-        # Normalize phase to [-π, π] range
-        emotional_phase = (emotional_phase + np.pi) % (2 * np.pi) - np.pi
-        
-        return emotional_phase
+        return emotional_phase_vector
     
     def compute_batch_trajectories(self,
                                  tokens: list,
@@ -510,36 +559,50 @@ class EmotionalTrajectoryIntegrator:
                 )
                 results.append(result)
             except Exception as e:
-                logger.warning(f"Failed to compute emotional trajectory for token {i} ({token}): {e}")
-                results.append({
-                    'emotional_trajectory_complex': complex(1.0, 0.0),
-                    'processing_status': 'failed',
-                    'error': str(e)
-                })
+                logger.error(f"Failed to compute emotional trajectory for token {i} ({token}): {e}")
+                # CLAUDE.md COMPLIANCE: NO default fallback values - must raise error
+                raise ValueError(f"Batch trajectory computation failed for token {i} ({token}): {e}") from e
         
         logger.info(f"Computed emotional trajectories for {len(results)} tokens")
         return results
 
 
 def create_emotional_trajectory_params(observational_state: float,
-                                     emotional_intensity: float = 1.0,
-                                     memory_decay: float = 0.1) -> EmotionalTrajectoryParams:
+                                     manifold_properties: Dict[str, Any]) -> EmotionalTrajectoryParams:
     """
-    Convenience function to create emotional trajectory parameters.
+    Create emotional trajectory parameters from manifold properties.
+    
+    CLAUDE.md COMPLIANCE: ALL parameters computed from actual manifold data.
+    NO hardcoded or default values allowed.
     
     Args:
         observational_state: Current observational state s
-        emotional_intensity: Base emotional amplification factor
-        memory_decay: Rate of emotional memory decay
+        manifold_properties: Manifold properties containing coupling_mean, coupling_variance
         
     Returns:
         EmotionalTrajectoryParams configured for computation
     """
+    # CLAUDE.md COMPLIANCE: Compute ALL parameters from manifold properties
+    if 'coupling_mean' not in manifold_properties:
+        raise ValueError("Missing required manifold property 'coupling_mean' for trajectory params")
+    if 'coupling_variance' not in manifold_properties:
+        raise ValueError("Missing required manifold property 'coupling_variance' for trajectory params")
+        
+    coupling_mean = manifold_properties['coupling_mean']
+    coupling_variance = manifold_properties['coupling_variance']
+    
+    # Compute all parameters from field theory relationships
+    gaussian_sigma = np.sqrt(coupling_variance)  # Emotional sensitivity from coupling variance
+    trajectory_decay_rate = coupling_variance / (1.0 + abs(coupling_mean))  # Decay from coupling dynamics
+    amplification_factor = 1.0 + abs(coupling_mean)  # Amplification from coupling strength
+    resonance_threshold = coupling_variance * abs(coupling_mean)  # Threshold from coupling interaction
+    coupling_strength = abs(coupling_mean) * coupling_variance  # Strength from coupling product
+    
     return EmotionalTrajectoryParams(
         observational_state=observational_state,
-        gaussian_sigma=0.5,
-        trajectory_decay_rate=memory_decay,
-        amplification_factor=emotional_intensity,
-        resonance_threshold=0.1,
-        coupling_strength=0.2
+        gaussian_sigma=gaussian_sigma,
+        trajectory_decay_rate=trajectory_decay_rate,
+        amplification_factor=amplification_factor,
+        resonance_threshold=resonance_threshold,
+        coupling_strength=coupling_strength
     )

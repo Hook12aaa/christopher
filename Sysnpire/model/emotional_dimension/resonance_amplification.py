@@ -58,10 +58,10 @@ class ResonanceCalculator:
     """
     
     def __init__(self,
-                 frequency_tolerance: float = 0.05,
-                 amplification_max: float = 2.0,
-                 resonance_bandwidth: float = 0.2,
-                 spectral_resolution: int = 256):
+                 frequency_tolerance: float,
+                 amplification_max: float,
+                 resonance_bandwidth: float,
+                 spectral_resolution: int):
         """
         Initialize resonance calculator.
         
@@ -129,8 +129,8 @@ class ResonanceCalculator:
                 'semantic_spectrum': self._spectrum_to_dict(semantic_spectrum),
                 'emotional_spectrum': self._spectrum_to_dict(emotional_spectrum),
                 'resonance_metrics': resonance_metrics,
-                'frequency_alignment_score': resonance_metrics.get('alignment_score', 0.0),
-                'dominant_resonance_strength': resonance_metrics.get('max_strength', 0.0)
+                'frequency_alignment_score': resonance_metrics['alignment_score'],
+                'dominant_resonance_strength': resonance_metrics['max_strength']
             }
             
             logger.debug(f"Resonance detection for {token}: {len(resonance_conditions)} conditions, amplification={amplification_factor:.3f}")
@@ -398,8 +398,8 @@ class AmplificationEngine:
     """
     
     def __init__(self, 
-                 max_amplification: float = 2.0,
-                 suppression_threshold: float = 0.1):
+                 max_amplification: float,
+                 suppression_threshold: float):
         """
         Initialize amplification engine.
         
@@ -430,8 +430,14 @@ class AmplificationEngine:
             Amplified or suppressed emotional field
         """
         try:
-            amplification_factor = resonance_results.get('overall_amplification', 1.0)
-            memory_strength = resonance_results.get('memory_strength', 0.0)
+            # CLAUDE.md COMPLIANCE: NO fallback values
+            if 'overall_amplification' not in resonance_results:
+                raise ValueError("Missing required 'overall_amplification' in resonance_results")
+            if 'memory_strength' not in resonance_results:
+                raise ValueError("Missing required 'memory_strength' in resonance_results")
+                
+            amplification_factor = resonance_results['overall_amplification']
+            memory_strength = resonance_results['memory_strength']
             
             # Apply amplification with memory enhancement
             memory_enhancement = 1.0 + 0.2 * memory_strength
@@ -462,7 +468,7 @@ class FrequencyMatcher:
     optimal frequency alignments for maximum resonance effects.
     """
     
-    def __init__(self, matching_precision: float = 0.01):
+    def __init__(self, matching_precision: float):
         """
         Initialize frequency matcher.
         
@@ -474,7 +480,7 @@ class FrequencyMatcher:
     def find_optimal_matches(self,
                            semantic_frequencies: np.ndarray,
                            emotional_frequencies: np.ndarray,
-                           max_matches: int = 10) -> List[Tuple[float, float, float]]:
+                           max_matches: int) -> List[Tuple[float, float, float]]:
         """
         Find optimal frequency matches between semantic and emotional domains.
         
@@ -518,8 +524,8 @@ class ResonanceMemoryManager:
     """
     
     def __init__(self, 
-                 memory_decay_rate: float = 0.1,
-                 consolidation_threshold: float = 0.5):
+                 memory_decay_rate: float,
+                 consolidation_threshold: float):
         """
         Initialize resonance memory manager.
         
@@ -582,8 +588,8 @@ class ResonanceMemoryManager:
         return 0.0
 
 
-def create_resonance_calculator(frequency_tolerance: float = 0.05,
-                              amplification_max: float = 2.0) -> ResonanceCalculator:
+def create_resonance_calculator(frequency_tolerance: float,
+                              amplification_max: float) -> ResonanceCalculator:
     """
     Convenience function to create resonance calculator.
     

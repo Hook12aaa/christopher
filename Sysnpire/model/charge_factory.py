@@ -78,6 +78,11 @@ class ChargeFactory:
             embedding_dimension=1024,  # Default for BGE, will adapt dynamically
             integration_method="adaptive_quad"
         )
+        
+        # Initialize temporal orchestrator for cross-dimensional integration
+        from Sysnpire.model.temporal_dimension.temporal_orchestrator import TemporalOrchestrator
+        self.temporal_orchestrator = TemporalOrchestrator(embedding_dimension=1024)
+        self.temporal_orchestrator.integrate_with_charge_factory(self)
     
     def create_charge(self, 
                      embedding: np.ndarray,
@@ -458,59 +463,41 @@ class ChargeFactory:
         token = metadata.get('token', 'unknown') if metadata else 'unknown'
         
         try:
-            # Adapt engine to embedding dimension
-            embedding_dim = len(embedding)
-            if embedding_dim != self.trajectory_engine.embedding_dimension:
-                self.trajectory_engine = TrajectoryOperatorEngine(
-                    embedding_dimension=embedding_dim,
-                    integration_method="adaptive_quad"
-                )
-            
-            # Compute trajectory operators and transformative analysis
-            trajectory_results = self.trajectory_engine.compute_trajectory_integral(
-                token=token,
-                context=charge_params.context,
-                observational_state=charge_params.observational_state,
-                semantic_embedding=embedding
+            # Use temporal orchestrator for complete cross-dimensional integration
+            temporal_results = self.temporal_orchestrator.orchestrate_temporal_flow(
+                embedding=embedding,
+                charge_params=charge_params,
+                metadata=metadata
             )
             
-            # Extract key transformative data
-            trajectory_operators = trajectory_results['trajectory_operators']
-            transformative_potential = trajectory_results['total_transformative_potential']
-            frequency_evolution = trajectory_results['frequency_evolution']
-            phase_accumulation = trajectory_results['phase_accumulation']
-            semantic_modulation = trajectory_results['semantic_modulation']
+            # Extract key components for backward compatibility
+            trajectory_data = temporal_results
             
-            # Compute observational persistence
-            persistence = self.trajectory_engine.generate_observational_persistence(
-                observational_distance=charge_params.observational_state
-            )
-            if isinstance(persistence, np.ndarray):
-                persistence = np.mean(persistence)
-            
-            # Generate breathing pattern for semantic coupling
-            breathing_pattern = self.trajectory_engine.generate_breathing_pattern(
-                observational_state=charge_params.observational_state
-            )
-            
-            # Compute phase coordination
-            phase_info = self.trajectory_engine.compute_phase_coordination(
-                trajectory_operators=trajectory_operators,
-                observational_state=charge_params.observational_state
-            )
-            
-            logger.debug(f"Temporal processing for {token}: T={transformative_potential:.4f}, Ψ={persistence:.4f}")
-            
+            # Ensure all expected fields are present
             return {
-                'trajectory_operators': trajectory_operators,
-                'transformative_potential': transformative_potential,
-                'frequency_evolution': frequency_evolution,
-                'phase_accumulation': phase_accumulation,
-                'semantic_modulation': semantic_modulation,
-                'observational_persistence': persistence,
-                'breathing_pattern': breathing_pattern,
-                'phase_coordination': phase_info,
-                'processing_status': 'enhanced_temporal'
+                # Core temporal components
+                'trajectory_operators': trajectory_data['trajectory_operators'],
+                'transformative_potential': trajectory_data['transformative_potential'],
+                'transformative_potential_tensor': trajectory_data.get('transformative_potential_tensor', {}),
+                
+                # Observational components
+                'observational_persistence': trajectory_data['integrated_persistence'],
+                'breathing_pattern': trajectory_data['universal_breathing'],
+                
+                # Phase and frequency data
+                'phase_coordination': trajectory_data['phase_orchestration'],
+                'frequency_evolution': trajectory_data.get('semantic_temporal_evolution', {}).get('semantic_drift', np.zeros(10)),
+                'phase_accumulation': trajectory_data.get('phase_orchestration', {}).get('coordinated_phases', np.zeros(10)),
+                'semantic_modulation': trajectory_data.get('semantic_temporal_evolution', {}).get('meaning_transformation', 0.0),
+                
+                # Cross-dimensional temporal flow
+                'temporal_field_couplings': trajectory_data['temporal_field_couplings'],
+                'semantic_temporal_evolution': trajectory_data['semantic_temporal_evolution'],
+                'emotional_temporal_trajectory': trajectory_data['emotional_temporal_trajectory'],
+                
+                # Status
+                'processing_status': 'orchestrated_temporal',
+                'orchestration_complete': temporal_results.get('orchestration_complete', True)
             }
             
         except Exception as e:
