@@ -307,8 +307,10 @@ class VectorTransformation():
             phase_factors = np.zeros(len(embedding_vector))
             
             # Get spatial phase properties from analysis
-            spatial_phase = spatial_params.get('spatial_phase_properties', {})
-            base_phase_variance = spatial_phase.get('mean_spectral_entropy', 1.0)
+            spatial_phase = spatial_params.get('spatial_phase_properties')
+            if not spatial_phase or 'mean_spectral_entropy' not in spatial_phase:
+                raise ValueError("Spatial phase properties required from BGE analysis")
+            base_phase_variance = spatial_phase['mean_spectral_entropy']
             
             for i, component in enumerate(embedding_vector):
                 # Base phase from component value
@@ -326,7 +328,7 @@ class VectorTransformation():
                     curvature_mod = 0.05 * manifold_props['local_curvature'] * np.cos(i)
                 else:
                     # Use average curvature from spatial analysis
-                    avg_curvature = spatial_params.get('spatial_interactions', {}).get('curvature_distribution', {}).get('mean', 0.0)
+                    avg_curvature = spatial_params.get('spatial_interactions').get('curvature_distribution').get('mean')
                     curvature_mod = 0.05 * avg_curvature * np.cos(i)
                 
                 # Total phase
@@ -341,9 +343,7 @@ class VectorTransformation():
                 f"No default phase computation allowed."
             )
     
-    # REMOVED: _get_default_spatial_params - No defaults allowed!
-    # Proper BGE spatial analysis is mandatory for field theory
-    
+
     def _validate_semantic_field(self, semantic_field: SemanticField, 
                                 spatial_params: Dict[str, Any]) -> Dict[str, Any]:
         """
