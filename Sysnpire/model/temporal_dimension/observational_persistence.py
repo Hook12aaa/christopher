@@ -50,7 +50,7 @@ class ObservationalPersistence:
     
     def compute_persistence(self, 
                           current_state: float,
-                          reference_state: float = 0.0) -> float:
+                          reference_state: float = 0.0) -> complex:
         """
         Compute persistence value Ψ_persistence(s-s₀).
         
@@ -63,19 +63,18 @@ class ObservationalPersistence:
         """
         distance = abs(current_state - reference_state)
         
-        # Gaussian component - vivid recent memory
+        # Gaussian component - vivid recent memory (complex field effect)
         gaussian_component = np.exp(-(distance**2) / (2 * self.gaussian_sigma**2))
         
-        # Exponential-cosine component - persistent traits
-        exp_cos_component = (self.persistence_alpha * 
-                           np.exp(-self.exponential_lambda * distance) * 
-                           np.cos(self.cosine_beta * distance))
+        # Complex exponential component with phase coupling - persistent traits
+        exp_complex_component = (self.persistence_alpha * 
+                               np.exp(-self.exponential_lambda * distance + 1j * self.cosine_beta * distance))
         
-        return gaussian_component + exp_cos_component
+        return complex(gaussian_component) + exp_complex_component
     
     def compute_memory_components(self,
                                 current_state: float,
-                                reference_state: float = 0.0) -> Dict[str, float]:
+                                reference_state: float = 0.0) -> Dict[str, complex]:
         """
         Compute individual memory components for analysis.
         
@@ -88,18 +87,17 @@ class ObservationalPersistence:
         """
         distance = abs(current_state - reference_state)
         
-        gaussian = np.exp(-(distance**2) / (2 * self.gaussian_sigma**2))
-        exponential = self.persistence_alpha * np.exp(-self.exponential_lambda * distance)
-        cosine = np.cos(self.cosine_beta * distance)
-        exp_cos = exponential * cosine
+        # Complex field components
+        gaussian = complex(np.exp(-(distance**2) / (2 * self.gaussian_sigma**2)))
+        exp_complex = self.persistence_alpha * np.exp(-self.exponential_lambda * distance + 1j * self.cosine_beta * distance)
         
         return {
             'distance': distance,
             'gaussian_component': gaussian,
-            'exponential_component': exponential,
-            'cosine_component': cosine,
-            'exp_cos_component': exp_cos,
-            'total_persistence': gaussian + exp_cos
+            'exp_complex_component': exp_complex,
+            'total_persistence': gaussian + exp_complex,
+            'magnitude': abs(gaussian + exp_complex),
+            'phase': np.angle(gaussian + exp_complex)
         }
     
     def find_memory_horizon(self, 
@@ -131,9 +129,9 @@ class ObservationalPersistence:
         return gaussian_horizon, persistent_horizon
     
     def modulate_by_context(self,
-                          base_persistence: float,
+                          base_persistence: complex,
                           context_relevance: float = 1.0,
-                          semantic_similarity: float = 1.0) -> float:
+                          semantic_similarity: float = 1.0) -> complex:
         """
         Modulate persistence based on contextual factors.
         
@@ -145,11 +143,11 @@ class ObservationalPersistence:
         Returns:
             Context-modulated persistence
         """
-        # Context enhances memory retention
-        context_boost = 1.0 + 0.5 * context_relevance
+        # Context enhances memory retention with phase modulation
+        context_boost = (1.0 + 0.5 * context_relevance) * np.exp(1j * 0.1 * context_relevance)
         
-        # Semantic similarity creates resonance
-        semantic_resonance = 1.0 + 0.3 * semantic_similarity
+        # Semantic similarity creates complex resonance
+        semantic_resonance = (1.0 + 0.3 * semantic_similarity) * np.exp(1j * 0.2 * semantic_similarity)
         
         return base_persistence * context_boost * semantic_resonance
     
@@ -170,15 +168,19 @@ class ObservationalPersistence:
         
         profiles = {
             'states': states,
-            'total_persistence': np.zeros(num_points),
-            'gaussian_component': np.zeros(num_points),
-            'exp_cos_component': np.zeros(num_points)
+            'total_persistence': np.zeros(num_points, dtype=complex),
+            'gaussian_component': np.zeros(num_points, dtype=complex),
+            'exp_complex_component': np.zeros(num_points, dtype=complex),
+            'magnitude': np.zeros(num_points),
+            'phase': np.zeros(num_points)
         }
         
         for i, state in enumerate(states):
             components = self.compute_memory_components(state)
             profiles['total_persistence'][i] = components['total_persistence']
             profiles['gaussian_component'][i] = components['gaussian_component']
-            profiles['exp_cos_component'][i] = components['exp_cos_component']
+            profiles['exp_complex_component'][i] = components['exp_complex_component']
+            profiles['magnitude'][i] = components['magnitude']
+            profiles['phase'][i] = components['phase']
         
         return profiles

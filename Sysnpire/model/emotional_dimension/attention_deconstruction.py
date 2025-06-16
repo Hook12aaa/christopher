@@ -148,31 +148,39 @@ class AttentionGeometryAnalyzer:
         """
         embedding_dim = len(semantic_embedding)
         
-        # Create token-specific emotional query
-        token_hash = hash(token) % 1000 / 1000.0
+        # Create token-specific emotional query using semantic content (NOT random)
+        # Use token's semantic properties to determine emotional query patterns
+        token_semantic_magnitude = np.linalg.norm(semantic_embedding)
+        token_semantic_direction = semantic_embedding / (token_semantic_magnitude + 1e-8)
+        
         Q = np.zeros((self.attention_heads, embedding_dim))
         
         for head in range(self.attention_heads):
-            # Each head looks for different emotional aspects
+            # Each head focuses on different semantic-emotional aspects
             head_frequency = (head + 1) / self.attention_heads
+            # Use semantic embedding properties rather than random hash
             for i in range(embedding_dim):
-                Q[head, i] = semantic_embedding[i] * np.cos(2 * np.pi * head_frequency * token_hash)
+                Q[head, i] = semantic_embedding[i] * np.cos(2 * np.pi * head_frequency * token_semantic_direction[i])
         
-        # Create emotional key matrix
+        # Create emotional key matrix from semantic alignment patterns
         K = np.zeros((self.attention_heads, embedding_dim))
         for head in range(self.attention_heads):
-            K[head] = semantic_embedding * (1.0 + 0.1 * np.sin(2 * np.pi * head / self.attention_heads))
+            # Key represents available emotional resonance in semantic space
+            head_phase = 2 * np.pi * head / self.attention_heads
+            K[head] = semantic_embedding * (1.0 + 0.1 * np.sin(head_phase))
         
-        # Value matrix contains the actual emotional content
+        # Value matrix contains the actual emotional content to transport
         V = np.zeros((self.attention_heads, embedding_dim))
         for head in range(self.attention_heads):
-            V[head] = semantic_embedding  # Base content
+            V[head] = semantic_embedding  # Base semantic content
             
-        # If context is available, incorporate it
+        # If context is available, incorporate it through semantic alignment
         if context_embeddings is not None and len(context_embeddings) > 0:
             context_influence = np.mean(context_embeddings, axis=0)
-            for head in range(self.attention_heads):
-                V[head] += 0.1 * context_influence  # Add context influence
+            # Ensure context has same dimensionality
+            if len(context_influence) == embedding_dim:
+                for head in range(self.attention_heads):
+                    V[head] += 0.1 * context_influence  # Add context influence
         
         return Q, K, V
     
