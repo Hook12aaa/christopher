@@ -129,6 +129,25 @@ class BGEIngestion():
         
         self.cache = {}
 
+    def info(self) -> Dict[str, Any]:
+        """
+        Provide information about the BGE model and its unconventional field theory approach.
+        
+        Returns:
+            Dict containing:
+            - 'model_name': Name of the BGE model
+            - 'description': Explanation of the unconventional field theory approach
+            - 'device': Current device used for computations (CPU, CUDA, MPS)
+        """
+        return {
+            'model_name': self.model_name,
+            'description': "BGE model used for extracting discrete field samples for conti,nuous field theory operations.",
+            'device': str(self.device) if hasattr(self, 'device') else "Not loaded",
+            'dimension': 1024,  # BGE-Large has 1024-dimensional embeddings
+            'vocab_size': 30522,  # Approximate vocabulary size for BGE-Large
+            'random_seed': self.random_seed,
+        }
+
     def _load_model(self) -> None:
         """
         Load the BGE model with automatic CPU/GPU detection.

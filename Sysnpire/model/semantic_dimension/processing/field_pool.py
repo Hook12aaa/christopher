@@ -27,28 +27,21 @@ from pathlib import Path
 project_root = Path(__file__).resolve().parent.parent.parent.parent
 sys.path.insert(0, str(project_root))
 
-from Sysnpire.model.semantic_dimension.vector_transformation import VectorToFieldTransformer
-from Sysnpire.model.semantic_dimension.semantic_basis_functions import DTFSemanticBasisExtractor, create_dtf_semantic_basis_from_bge
+from Sysnpire.model.semantic_dimension.vector_transformation import VectorTransformation
 from Sysnpire.utils.logger import get_logger
-from Sysnpire.utils.field_theory_optimizers import (
-    field_theory_jax_optimize, field_theory_numba_optimize, 
-    field_theory_auto_optimize
-)
 
 logger = get_logger(__name__)
 
 
-@field_theory_auto_optimize(prefer_accuracy=True, profile=True)
-def _optimized_dtf_field_computation(embedding_components: np.ndarray, 
+def _compute_field_from_components(embedding_components: np.ndarray, 
                                    basis_values: np.ndarray, 
                                    phase_factors: np.ndarray) -> complex:
     """
-    Optimized DTF semantic field computation for S_τ(x) = Σᵢ e_τ,ᵢ · φᵢ(x) · e^(iθ_τ,ᵢ).
+    Compute semantic field S_τ(x) = Σᵢ e_τ,ᵢ · φᵢ(x) · e^(iθ_τ,ᵢ).
     
-    CLAUDE.md Compliance: Field theory optimized for DTF semantic field transformation.
     Preserves complex-valued mathematics and phase relationships.
     """
-    # Vectorized DTF field component computation
+    # Vectorized field component computation
     field_components = embedding_components * basis_values * phase_factors
     
     # Sum all components for complete semantic field
@@ -57,23 +50,17 @@ def _optimized_dtf_field_computation(embedding_components: np.ndarray,
     return semantic_field
 
 
-@field_theory_numba_optimize(preserve_complex=False, profile=True)
-def _optimized_field_magnitude_statistics(field_magnitudes: np.ndarray, 
-                                         current_avg: float, 
-                                         total_count: int) -> float:
+def _update_running_average(field_magnitudes: np.ndarray, 
+                           current_avg: float, 
+                           total_count: int) -> float:
     """
-    Optimized running average computation for field magnitude statistics.
-    
-    CLAUDE.md Compliance: Field theory optimized statistical computation.
-    Preserves mathematical accuracy for performance tracking.
+    Update running average for field magnitude statistics.
     """
     if total_count <= 0:
         return 0.0
     
     # Compute new running average efficiently
-    total_magnitude = 0.0
-    for i in range(len(field_magnitudes)):
-        total_magnitude += field_magnitudes[i]
+    total_magnitude = np.sum(field_magnitudes)
     
     # Update running average
     if total_count == 1:
@@ -83,12 +70,10 @@ def _optimized_field_magnitude_statistics(field_magnitudes: np.ndarray,
         return new_avg
 
 
-@field_theory_jax_optimize(preserve_complex=True, profile=True) 
-def _optimized_batch_phase_computation(embedding_components: np.ndarray) -> np.ndarray:
+def _compute_phase_factors(embedding_components: np.ndarray) -> np.ndarray:
     """
-    Optimized batch phase factor computation for multiple embeddings.
+    Compute phase factors for embedding components.
     
-    CLAUDE.md Compliance: Field theory optimized for complex phase relationships.
     Preserves phase information for field theory calculations.
     """
     # Compute phase factors for embedding components
@@ -168,47 +153,20 @@ class SemanticFieldPool:
     def _initialize_transformers(self, 
                                all_embeddings: Optional[np.ndarray],
                                id_to_token: Optional[Dict[int, str]]):
-        """Initialize field transformers and DTF semantic basis functions."""
+        """Initialize field transformers."""
         # Standard vector-to-field transformer
-        self.transformer = VectorToFieldTransformer(
+        self.transformer = VectorTransformation(
+            from_base=True,
             embedding_dimension=self.embedding_dimension,
-            basis_function_type="gaussian"
+            helper=None,
+            phase_computation_method="component_based"
         )
         
-        # DTF semantic basis extractor and functions
-        self.dtf_extractor = None
-        self.semantic_basis_set = None
+        # For now, use simplified approach without DTF until those modules are ready
+        self.use_dtf_basis = False
+        self.stats['dtf_basis_used'] = False
         
-        if self.use_dtf_basis and all_embeddings is not None and id_to_token is not None:
-            try:
-                logger.info("Initializing DTF semantic basis functions from BGE structure...")
-                
-                # Create DTF semantic basis extractor
-                self.dtf_extractor = DTFSemanticBasisExtractor(
-                    embedding_dimension=self.embedding_dimension
-                )
-                
-                # Generate semantic basis set from BGE embeddings
-                num_basis_functions = min(64, len(all_embeddings), self.embedding_dimension // 16)
-                self.semantic_basis_set = self.dtf_extractor.generate_semantic_basis_set(
-                    all_embeddings=all_embeddings,
-                    id_to_token=id_to_token,
-                    num_basis_functions=num_basis_functions
-                )
-                
-                self.stats['semantic_basis_functions'] = self.semantic_basis_set['num_functions']
-                logger.info(f"Generated {self.semantic_basis_set['num_functions']} DTF semantic basis functions")
-                
-            except Exception as e:
-                logger.warning(f"Failed to initialize DTF basis functions: {e}")
-                logger.info("Falling back to standard basis functions")
-                self.use_dtf_basis = False
-                self.stats['dtf_basis_used'] = False
-        else:
-            if self.use_dtf_basis:
-                logger.warning("DTF basis requested but missing embeddings/tokens - using standard basis")
-                self.use_dtf_basis = False
-                self.stats['dtf_basis_used'] = False
+        logger.info("Vector transformation initialized for field pool")
     
     def add_embedding(self, 
                      embedding: np.ndarray,
@@ -289,35 +247,39 @@ class SemanticFieldPool:
             
             context = entry.metadata.get('context', entry.token)
             
-            # Choose processing method based on available DTF basis functions
-            if self.use_dtf_basis and self.semantic_basis_set is not None:
-                entry.semantic_field = self._process_with_dtf_basis(entry)
-            else:
-                # Fallback to standard vector-to-field transformation
-                entry.semantic_field = self.transformer.transform_vector_to_field(
-                    embedding=entry.embedding,
-                    position_x=entry.position,
-                    context=context,
-                    manifold_properties=entry.metadata.get('manifold_properties')
-                )
+            # Create embedding data structure for transformer
+            embedding_data = {
+                'embedding_vector': entry.embedding,
+                'manifold_properties': entry.metadata.get('manifold_properties', {}),
+                'token': entry.token,
+                'similarity': entry.metadata.get('similarity', 1.0)
+            }
+            
+            # Transform using our vector transformation
+            field_result = self.transformer.model_transform_to_field(embedding_data)
+            
+            # Evaluate the field at the position to get actual field value
+            entry.semantic_field = self.transformer.evaluate_semantic_field_at_position(
+                field_result, entry.position
+            )
             
             entry.processed = True
             self.processed_count += 1
             self.stats['total_processed'] += 1
             
-            # Update statistics using optimized computation
+            # Update statistics
             field_magnitude = abs(entry.semantic_field)
             current_avg = self.stats['average_field_magnitude']
             n = self.stats['total_processed']
             
-            # Use optimized statistics computation for performance
-            self.stats['average_field_magnitude'] = _optimized_field_magnitude_statistics(
+            # Update running average
+            self.stats['average_field_magnitude'] = _update_running_average(
                 field_magnitudes=np.array([field_magnitude]),
                 current_avg=current_avg,
                 total_count=n
             )
             
-            processing_method = "DTF" if self.use_dtf_basis else "standard"
+            processing_method = "vector_transformation"
             logger.debug(f"Processed '{entry.token}' ({processing_method}) → field magnitude: {field_magnitude:.4f}")
             return True
             
@@ -326,66 +288,6 @@ class SemanticFieldPool:
             self.stats['processing_errors'] += 1
             return False
     
-    def _process_with_dtf_basis(self, entry: FieldPoolEntry) -> complex:
-        """
-        Process entry using DTF semantic basis functions.
-        
-        This implements the enhanced S_τ(x) transformation using semantic basis
-        functions φᵢ(x) derived from BGE's learned structure via DTF.
-        
-        Args:
-            entry: Pool entry to process
-            
-        Returns:
-            Complex semantic field value
-        """
-        try:
-            basis_functions = self.semantic_basis_set['basis_functions']
-            
-            # Prepare vectorized computation for efficiency
-            num_basis = min(len(basis_functions), len(entry.embedding))
-            embedding_components = np.zeros(num_basis)
-            basis_values = np.zeros(num_basis)
-            
-            # Collect data for vectorized computation
-            basis_indices = list(basis_functions.keys())[:num_basis]
-            for i, basis_idx in enumerate(basis_indices):
-                if basis_idx >= len(entry.embedding):
-                    break
-                    
-                # e_τ,ᵢ: embedding component
-                embedding_components[i] = entry.embedding[basis_idx]
-                
-                # φᵢ(x): DTF semantic basis function value
-                basis_function = basis_functions[basis_idx]['function']
-                basis_values[i] = basis_function(entry.position)
-            
-            # Use optimized batch phase computation
-            phase_factors = _optimized_batch_phase_computation(embedding_components)
-            
-            # Use optimized DTF field computation
-            semantic_field = _optimized_dtf_field_computation(
-                embedding_components=embedding_components,
-                basis_values=basis_values,
-                phase_factors=phase_factors
-            )
-            
-            # Apply semantic field normalization
-            if abs(semantic_field) > 0:
-                # Normalize by number of basis functions used
-                semantic_field = semantic_field / np.sqrt(num_basis)
-            
-            return semantic_field
-            
-        except Exception as e:
-            logger.warning(f"DTF processing failed for '{entry.token}': {e}")
-            # Fallback to standard transformation
-            return self.transformer.transform_vector_to_field(
-                embedding=entry.embedding,
-                position_x=entry.position,
-                context=entry.metadata.get('context', entry.token),
-                manifold_properties=entry.metadata.get('manifold_properties')
-            )
     
     def _generate_default_position(self) -> np.ndarray:
         """Generate a default position for field evaluation."""
