@@ -44,12 +44,11 @@ class SemanticDimensionHelper():
         """
 
         self.helper = helper
-        self.from_base = from_base
-        self.model_info = model_info 
+        self.from_base = from_base 
 
 
     def key_component(self, key: str) -> str:
-        self.vector = VectorTransformation(from_base=self.from_base, embedding_dimension= self.model_info['dimension'] if self.from_base == True else 1024, helper=self.helper, phase_computation_method="component_based")
+        self.vector = VectorTransformation(key, from_base=self.from_base, embedding_dimension= self.model['embedding_dimension'] if self.from_base == True else 0000, helper=self.helper, phase_computation_method="component_based")
         
     
 
@@ -58,36 +57,12 @@ class SemanticDimensionHelper():
         Convert a vector representation into a semantic field representation.
 
         Args:
-            total_embeddings (list): List of embedding dictionaries to be converted.
+            vector (list): The input vector to be converted.
 
         Returns:
-            dict: A dictionary representing the semantic field results.
+            dict: A dictionary representing the semantic field.
         """
-        logger.info(f"Converting {len(total_embeddings)} embeddings to field representation")
-        
-        # Initialize the vector transformation tool
-        self.vector_transformer = VectorTransformation(
-            from_base=self.from_base, 
-            embedding_dimension=self.model_info['dimension'] if self.from_base else 1024, 
-            helper=self.helper, 
-            phase_computation_method="component_based"
-        )
-        
-        field_results = []
-        
-        # We need to create a field representation of our vector, this is the core transformation
-        for i, embedding_data in enumerate(total_embeddings):
-            logger.info(f"Processing embedding {i+1}/{len(total_embeddings)}")
-            
-            # Transform each embedding to field representation
-            field_result = self.vector_transformer.model_transform_to_field(embedding_data)
-            field_results.append(field_result)
-        
-        logger.info(f"Completed field transformation for {len(field_results)} embeddings")
-        
-        return {
-            'field_results': field_results,
-            'total_processed': len(field_results),
-            'transformation_method': 'vector_to_field',
-            'success': True
-        }
+
+       # We need to first create a filed representation of our vector, this is the S_τ(x) = Σᵢ e_τ,ᵢ · φᵢ(x) · e^(iθ_τ,ᵢ), our first step in the transformation
+        for i in total_embeddings:
+            field_representation = self.vector.model_transform_to_field(i)
