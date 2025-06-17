@@ -1020,11 +1020,14 @@ class BGEIngestion():
                 'attention_frequency': temporal_analysis['attention_flow_analysis']['dominant_attention_frequency'],
                 'eigenvalue_frequency': temporal_analysis['mathematical_structure_analysis']['eigenfrequencies'][0] if temporal_analysis['mathematical_structure_analysis']['eigenfrequencies'] else None,
                 'angular_frequency': temporal_analysis['mathematical_structure_analysis']['angular_frequency'],
-                'dimensional_frequency': temporal_analysis['mathematical_structure_analysis']['dimensional_frequency']
+                'dimensional_frequency': temporal_analysis['mathematical_structure_analysis']['dimensional_frequency'],
+                'mean_spectral_entropy': float(np.mean([p['spectral_entropy'] for p in temporal_analysis['positional_encoding_analysis']['positional_frequency_patterns']])),
+                'phase_variance_distribution': np.full(1024, temporal_analysis['positional_encoding_analysis']['frequency_variance']).tolist()
             },
             'trajectory_persistence_patterns': {
                 'temporal_coherence': temporal_analysis['unified_temporal_signature']['temporal_coherence'],
                 'momentum_coherence': temporal_analysis['magnitude_gradient_analysis']['momentum_coherence'],
+                'temporal_persistence': temporal_analysis['magnitude_gradient_analysis']['temporal_persistence'],
                 'attention_locality': temporal_analysis['attention_flow_analysis']['layer_attention_statistics'][0]['average_temporal_locality'] if temporal_analysis['attention_flow_analysis']['layer_attention_statistics'] else 0.5
             },
             'temporal_field_evolution': {

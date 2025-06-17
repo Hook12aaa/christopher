@@ -144,12 +144,22 @@ class TemporalDimensionHelper:
         """
         logger.info(f"🌊 Converting {len(embedding_data)} embeddings to temporal breathing patterns")
         
+        # Extract individual embeddings from BGE search results for biography generation
+        individual_embeddings = []
+        for item in embedding_data:
+            if 'embeddings' in item and isinstance(item['embeddings'], list):
+                # This is a BGE search result with embedded list
+                individual_embeddings.extend(item['embeddings'])
+            else:
+                # This is already an individual embedding dictionary
+                individual_embeddings.append(item)
+        
         # STEP 1: Extract BGE temporal signatures for the entire batch
         bge_temporal_analysis = self._extract_bge_temporal_signatures(embedding_data)
         
-        # STEP 2: Generate temporal biographies for each embedding
+        # STEP 2: Generate temporal biographies for each individual embedding
         temporal_biographies = []
-        for i, embedding in enumerate(embedding_data):
+        for i, embedding in enumerate(individual_embeddings):
             biography = self._generate_temporal_biography(
                 embedding, 
                 bge_temporal_analysis,
@@ -189,8 +199,18 @@ class TemporalDimensionHelper:
         if not self.from_base or not self.bge_model:
             raise ValueError("BGE temporal signature extraction requires from_base=True and BGE model")
         
+        # Extract individual embeddings from BGE search results
+        individual_embeddings = []
+        for item in embedding_data:
+            if 'embeddings' in item and isinstance(item['embeddings'], list):
+                # This is a BGE search result with embedded list
+                individual_embeddings.extend(item['embeddings'])
+            else:
+                # This is already an individual embedding dictionary
+                individual_embeddings.append(item)
+        
         # Extract embeddings for temporal analysis
-        embeddings = [np.array(emb['vector']) for emb in embedding_data]
+        embeddings = [np.array(emb['vector']) for emb in individual_embeddings]
         embeddings_array = np.array(embeddings)
         
 
@@ -198,7 +218,7 @@ class TemporalDimensionHelper:
         
         # Extract actual tokens from embedding data (no defaults)
         actual_tokens = []
-        for emb in embedding_data:
+        for emb in individual_embeddings:
             if 'token' in emb:
                 actual_tokens.append(emb['token'])
             else:

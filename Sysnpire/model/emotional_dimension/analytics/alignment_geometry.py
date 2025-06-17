@@ -162,6 +162,16 @@ class AlignmentGeometryAnalyzer:
         # eps is in terms of angular distance (1-cosine_similarity)
         angular_distances = 1 - cosine_similarity(normalized)
         
+        # Fix floating-point precision issues
+        # 1. Clip negative values to zero
+        angular_distances = np.clip(angular_distances, 0, None)
+        
+        # 2. Ensure matrix is symmetric (distance matrices should be symmetric)
+        angular_distances = (angular_distances + angular_distances.T) / 2
+        
+        # 3. Ensure diagonal is exactly zero (distance from point to itself)
+        np.fill_diagonal(angular_distances, 0)
+        
         clustering = DBSCAN(eps=0.3, min_samples=3, metric='precomputed')
         cluster_labels = clustering.fit_predict(angular_distances)
         

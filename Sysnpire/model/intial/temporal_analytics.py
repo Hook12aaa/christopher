@@ -23,7 +23,7 @@ import logging
 # Real mathematical libraries (no simulation)
 from scipy import signal
 from scipy.fft import fft, fftfreq
-from scipy.stats import entropy
+from scipy.stats import entropy, skew, kurtosis
 from sklearn.decomposition import PCA
 from sklearn.covariance import EmpiricalCovariance
 import torch.nn.functional as F
@@ -281,8 +281,8 @@ class BGETemporalAnalyzer:
         
         # Real statistical analysis
         gradient_variance = float(np.var(magnitude_gradients))
-        gradient_skewness = float(signal.skew(magnitude_gradients) if len(magnitude_gradients) > 3 else 0.0)
-        gradient_kurtosis = float(signal.kurtosis(magnitude_gradients) if len(magnitude_gradients) > 3 else 0.0)
+        gradient_skewness = float(skew(magnitude_gradients) if len(magnitude_gradients) > 3 else 0.0)
+        gradient_kurtosis = float(kurtosis(magnitude_gradients) if len(magnitude_gradients) > 3 else 0.0)
         
         # Real momentum coherence analysis
         if len(embedding_gradients) > 1:
@@ -297,6 +297,9 @@ class BGETemporalAnalyzer:
         else:
             momentum_coherence = 0.0
         
+        # Real temporal persistence calculation from autocorrelation and momentum coherence
+        temporal_persistence = float(np.max(autocorr_normalized[zero_lag+1:]) * momentum_coherence)
+        
         return {
             'magnitude_gradients': magnitude_gradients.tolist(),
             'gradient_magnitudes': gradient_magnitudes.tolist(),
@@ -306,6 +309,7 @@ class BGETemporalAnalyzer:
             'gradient_skewness': gradient_skewness,
             'gradient_kurtosis': gradient_kurtosis,
             'momentum_coherence': momentum_coherence,
+            'temporal_persistence': temporal_persistence,
             'analysis_type': 'real_magnitude_gradients'
         }
     

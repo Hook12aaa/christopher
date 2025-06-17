@@ -105,7 +105,9 @@ class FieldGradientAnalyzer:
         gradient_field = np.zeros_like(embeddings)
         
         # Build nearest neighbor structure
-        nbrs = NearestNeighbors(n_neighbors=self.n_neighbors + 1)
+        # Ensure we don't request more neighbors than available samples
+        n_neighbors_adjusted = min(self.n_neighbors + 1, n_samples)
+        nbrs = NearestNeighbors(n_neighbors=n_neighbors_adjusted)
         nbrs.fit(embeddings)
         
         for i in range(n_samples):
@@ -181,7 +183,9 @@ class FieldGradientAnalyzer:
         curvature = np.zeros(n_samples)
         
         # For each point, estimate how gradient changes in neighborhood
-        nbrs = NearestNeighbors(n_neighbors=self.n_neighbors + 1)
+        # Ensure we don't request more neighbors than available samples
+        n_neighbors_adjusted = min(self.n_neighbors + 1, n_samples)
+        nbrs = NearestNeighbors(n_neighbors=n_neighbors_adjusted)
         nbrs.fit(embeddings)
         
         for i in range(n_samples):
