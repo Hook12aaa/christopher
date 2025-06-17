@@ -36,6 +36,7 @@ project_root = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(project_root))
 
 from Sysnpire.model.semantic_dimension.SemanticDimensionHelper import SemanticDimensionHelper
+from Sysnpire.model.temporal_dimension.TemporalDimensionHelper import TemporalDimensionHelper
 from Sysnpire.utils.logger import get_logger
 logger = get_logger(__name__)
 
@@ -97,6 +98,7 @@ class ChargeFactory:
     
     def __init_factory_helpers(self):
         self.semantic_helper = SemanticDimensionHelper(self.from_base, model_info = self.model_info, helper = self.helper) # This is our handler for semantic field generation (3.1.2)
+        self.temporal_helper = TemporalDimensionHelper(self.from_base, model_info = self.model_info, helper = self.helper) # This is our handler for temporal breathing patterns (3.1.4)
 
 
     def __build_safety_checks(self,all: List[Dict]) -> None:
@@ -145,7 +147,28 @@ class ChargeFactory:
         
         logger.info(f"✅ Generated {len(self.semantic_fields)} semantic fields")
         
-        return semantic_results
+        # STEP 2: Convert embeddings to temporal breathing patterns
+        temporal_results = self.temporal_helper.convert_embedding_to_temporal_field(all)
+        self.temporal_biographies = temporal_results['temporal_biographies']
+        
+        logger.info(f"🌊 Generated {len(self.temporal_biographies)} temporal breathing patterns")
+        
+        # TODO: STEP 3: Integrate with emotional dimension (future)
+        # TODO: STEP 4: Complete Q(τ, C, s) charge assembly (future)
+        
+        # Combine results for now
+        combined_results = {
+            'semantic_results': semantic_results,
+            'temporal_results': temporal_results,
+            'field_components_ready': {
+                'semantic_fields': len(self.semantic_fields),
+                'temporal_biographies': len(self.temporal_biographies),
+                'emotional_fields': None,  # TODO: Future implementation
+                'complete_charges': None   # TODO: Future Q(τ, C, s) assembly
+            }
+        }
+        
+        return combined_results
     
 
     def integrate():
