@@ -22,6 +22,22 @@ from Sysnpire.utils.logger import get_logger
 logger = get_logger(__name__)
 
 
+def _search_embedding_worker(args):
+    """Module-level worker function for multiprocessing BGE search (must be picklable)."""
+    embedding_idx, embedding_data = args
+    try:
+        # Import here to avoid circular imports
+        from Sysnpire.model.intial.bge_ingestion import BGEIngestion
+        
+        # Create a fresh BGE instance for this worker process
+        bge_worker = BGEIngestion(model_name="BAAI/bge-large-en-v1.5", random_seed=42)
+        result = bge_worker.search_embeddings(embedding_data, top_k=1)
+        return (embedding_idx, result, None)
+        
+    except Exception as exc:
+        return (embedding_idx, None, str(exc))
+
+
 
 class FoundationManifoldBuilder():
     """
@@ -100,25 +116,48 @@ class FoundationManifoldBuilder():
 
         model_loaded = self.__load_model_and_check()
         
-        # FOR TESTING: Use embeddings 5000-5009 (meaningful vocabulary words)
-        test_embeddings = model_loaded['embeddings'][5000:5010]  # Use 5000-5009 for meaningful words
-        logger.info(f"🧪 Testing with {len(test_embeddings)} embeddings (indices 5000-5009)")
+        # FOR TESTING: Use embeddings 5000-5099 (100 meaningful vocabulary words)
+        test_embeddings = model_loaded['embeddings'][5000:5100]  # Use 5000-5099 for meaningful words  
+        logger.info(f"🧪 Testing with {len(test_embeddings)} embeddings (indices 5000-5099)")
         
-        enriched_e = [self.model.search_embeddings(e, top_k=1) for e in test_embeddings]
+        # 🚀 OPTIMIZED SEQUENTIAL: Fast sequential processing with progress updates
+        logger.info(f"🚀 Starting optimized BGE search for {len(test_embeddings)} embeddings...")
+        
+        enriched_e = []
+        for i, embedding in enumerate(test_embeddings):
+            try:
+                result = self.model.search_embeddings(embedding, top_k=1)
+                enriched_e.append(result)
+                
+                # Progress updates every 10 completions
+                if (i + 1) % 10 == 0:
+                    progress_pct = ((i + 1) / len(test_embeddings)) * 100
+                    logger.info(f"   ✅ Completed {i + 1}/{len(test_embeddings)} searches ({progress_pct:.1f}%)")
+                    
+            except Exception as exc:
+                logger.error(f"   ❌ BGE search {i} failed: {exc}")
+                # Provide fallback result
+                enriched_e.append([{'embedding': embedding, 'token': f'<ERROR_{i}>'}])
+        
+        logger.info(f"🎉 Sequential BGE search completed: {len(enriched_e)} results processed")
         
         # 🧬 EXTRACT VOCAB MAPPINGS: Get actual vocabulary words for our embeddings
-        id_to_token = model_loaded.get('id_to_token', {})
-        token_to_id = model_loaded.get('token_to_id', {})
-        embedding_indices = list(range(5000, 5010))  # Track which embeddings we're using
+        id_to_token = model_loaded.get('id_to_token')
+        token_to_id = model_loaded.get('token_to_id')
+        embedding_indices = list(range(5000, 5100))  # Track which embeddings we're using
         
-        # 🔍 Extract actual vocabulary words for our embedding indices
-        vocab_words = []
-        for idx in embedding_indices:
-            token = id_to_token.get(idx, f"<UNK_{idx}>")
-            vocab_words.append(token)
+        # 🔍 Extract actual vocabulary words for our embedding indices (optimized)
+        vocab_words = [id_to_token.get(idx, f"<UNK_{idx}>") for idx in embedding_indices]
         
-        logger.info(f"📚 BGE Vocabulary tokens for indices 5000-5009:")
-        for i, (idx, token) in enumerate(zip(embedding_indices, vocab_words)):
+        logger.info(f"📚 BGE Vocabulary tokens for indices 5000-5099:")
+        # Log first 10 and last 10 to avoid spam
+        sample_tokens = [(idx, token) for idx, token in zip(embedding_indices[:10], vocab_words[:10])]
+        sample_tokens += [(idx, token) for idx, token in zip(embedding_indices[-10:], vocab_words[-10:])]
+        
+        for idx, token in sample_tokens[:10]:
+            logger.info(f"   Index {idx}: '{token}'")
+        logger.info(f"   ... [skipped {len(vocab_words)-20} tokens] ...")
+        for idx, token in sample_tokens[10:]:
             logger.info(f"   Index {idx}: '{token}'")
         
         vocab_mappings = {

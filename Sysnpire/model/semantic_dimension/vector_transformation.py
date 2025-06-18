@@ -36,21 +36,47 @@ class SemanticField:
         """
         Evaluate semantic field at position x in manifold.
         
+        PERFORMANCE OPTIMIZATION: Vectorized implementation replaces Python loops
+        with numpy operations for significant speedup.
+        
         Implements: S_τ(x) = Σᵢ e_τ,ᵢ · φᵢ(x) · e^(iθ_τ,ᵢ)
         """
-        field_value = 0j
+        # VECTORIZED: Evaluate all basis functions at once
+        phi_values = self.basis_functions.evaluate_basis_vectorized(position_x)
         
-        for i, (e_i, theta_i) in enumerate(zip(self.embedding_components, self.phase_factors)):
-            # φᵢ(x): basis function at position
-            phi_i_x = self.basis_functions.evaluate_basis(i, position_x)
+        # VECTORIZED: Compute all phase factors at once
+        phase_factors = np.exp(1j * self.phase_factors)
+        
+        # VECTORIZED: Compute field sum in one operation
+        field_value = np.sum(self.embedding_components * phi_values * phase_factors)
+        
+        return complex(field_value)
+    
+    def evaluate_at_batch(self, positions: np.ndarray) -> np.ndarray:
+        """
+        PERFORMANCE OPTIMIZATION: Batch evaluation of semantic field.
+        
+        Evaluates semantic field at multiple positions simultaneously.
+        Provides significant speedup when evaluating many positions.
+        
+        Args:
+            positions: Array of positions [N, D] where N is number of positions
             
-            # e^(iθ_τ,ᵢ): complex phase factor
-            phase_factor = np.exp(1j * theta_i)
-            
-            # Sum component: e_τ,ᵢ · φᵢ(x) · e^(iθ_τ,ᵢ)
-            field_value += e_i * phi_i_x * phase_factor
-            
-        return field_value
+        Returns:
+            Array of complex field values [N] for each position
+        """
+        # VECTORIZED: Compute phase factors once
+        phase_factors = np.exp(1j * self.phase_factors)
+        
+        # Initialize result array
+        field_values = np.zeros(len(positions), dtype=complex)
+        
+        # Evaluate field at each position (can be further optimized if needed)
+        for i, position in enumerate(positions):
+            phi_values = self.basis_functions.evaluate_basis_vectorized(position)
+            field_values[i] = np.sum(self.embedding_components * phi_values * phase_factors)
+        
+        return field_values
     
     def get_field_metadata(self) -> Dict[str, Any]:
         """Get metadata about this semantic field."""
@@ -119,6 +145,40 @@ class BasisFunctionSet:
         self.basis_cache[cache_key] = basis_value
         return basis_value
     
+    def evaluate_basis_vectorized(self, position_x: np.ndarray) -> np.ndarray:
+        """
+        PERFORMANCE OPTIMIZATION: Vectorized evaluation of all basis functions.
+        
+        Evaluates all basis functions φᵢ(x) at position x simultaneously.
+        Provides significant speedup over individual evaluate_basis calls.
+        
+        Args:
+            position_x: Position in semantic manifold
+            
+        Returns:
+            Array of all basis function values [φ₀(x), φ₁(x), ..., φₙ(x)]
+        """
+        # Check if full vectorized result is cached
+        cache_key = tuple(position_x) if len(position_x) <= 10 else hash(position_x.tobytes())
+        full_cache_key = ('vectorized', cache_key)
+        
+        if full_cache_key in self.basis_cache:
+            return self.basis_cache[full_cache_key]
+        
+        # Compute all basis values vectorized
+        if self.basis_type == 'radial_semantic':
+            basis_values = self._radial_semantic_basis_vectorized(position_x)
+        else:
+            raise ValueError(
+                f"Unsupported basis function type: {self.basis_type}. "
+                f"Only 'radial_semantic' is supported (uses BGE cluster analysis). "
+                f"No default basis functions allowed."
+            )
+        
+        # Cache the vectorized result
+        self.basis_cache[full_cache_key] = basis_values
+        return basis_values
+    
     def _radial_semantic_basis(self, i: int, position_x: np.ndarray) -> float:
         """
         Radial basis function based on semantic clustering structure.
@@ -158,6 +218,52 @@ class BasisFunctionSet:
             
         return center / center_norm
     
+    def _radial_semantic_basis_vectorized(self, position_x: np.ndarray) -> np.ndarray:
+        """
+        PERFORMANCE OPTIMIZATION: Vectorized radial basis function computation.
+        
+        Computes all radial basis functions simultaneously using vectorized operations.
+        Much faster than individual _radial_semantic_basis calls.
+        
+        Args:
+            position_x: Position in semantic manifold
+            
+        Returns:
+            Array of all basis function values
+        """
+        # Get all cluster centers at once
+        basis_centers = self.design_params['basis_centers']
+        cluster_centers = np.array(basis_centers['cluster_centers'])
+        
+        if len(cluster_centers) == 0:
+            raise ValueError("No cluster centers available in spatial analysis - BGE analysis required")
+        
+        # Normalize all centers to unit sphere (vectorized)
+        center_norms = np.linalg.norm(cluster_centers, axis=1, keepdims=True)
+        center_norms[center_norms == 0] = 1e-10  # Avoid division by zero
+        normalized_centers = cluster_centers / center_norms
+        
+        # Compute distances from position to all centers (vectorized)
+        distances = np.linalg.norm(normalized_centers - position_x[np.newaxis, :], axis=1)
+        
+        # Apply Gaussian basis function to all distances (vectorized)
+        sigma = self.coverage_radius * 0.5
+        basis_values = np.exp(-distances**2 / (2 * sigma**2))
+        
+        # Handle case where we need more basis functions than cluster centers
+        # Cycle through cluster centers for additional basis functions
+        num_components = len(position_x)  # Use embedding dimension
+        if len(basis_values) < num_components:
+            # Repeat pattern to match embedding dimension
+            repetitions = (num_components // len(basis_values)) + 1
+            extended_values = np.tile(basis_values, repetitions)
+            basis_values = extended_values[:num_components]
+        elif len(basis_values) > num_components:
+            # Truncate to embedding dimension
+            basis_values = basis_values[:num_components]
+        
+        return basis_values
+    
     # REMOVED: _default_gaussian_basis - No default basis functions allowed!
     # All basis functions must use actual BGE spatial cluster analysis
 
@@ -193,7 +299,7 @@ class VectorTransformation():
     
 
 
-    def model_transform_to_field(self, embedding: dict) -> dict:
+    def model_transform_to_field(self, embedding: dict, precomputed_spatial_analysis: dict = None) -> dict:
         """
         Core transformation: Convert embedding vector to semantic field S_τ(x).
         
@@ -209,6 +315,7 @@ class VectorTransformation():
                 - 'manifold_properties': Spatial properties from BGE analysis
                 - 'token': Source token (optional)
                 - 'index': Token index (optional)
+            precomputed_spatial_analysis: Optional pre-computed spatial analysis to avoid redundant computation
             
         Returns:
             Dict containing SemanticField object and metadata
@@ -220,16 +327,20 @@ class VectorTransformation():
         
         logger.info(f"Transforming embedding for token '{token}' to semantic field")
         
-        # Get spatial analysis from helper (BGE ingestion model)
-        if self.from_base and hasattr(self.model, 'extract_spatial_field_analysis'):
-            # Use sampled analysis for efficient field transformation
-            # Set return_full_details=True if you need detailed spatial debugging
+        # Get spatial analysis - use precomputed if available to avoid redundant computation
+        if precomputed_spatial_analysis is not None:
+            # PERFORMANCE: Use pre-computed spatial analysis (saves 6s per embedding!)
+            logger.debug(f"🚀 Using pre-computed spatial analysis for token '{token}'")
+            spatial_analysis = precomputed_spatial_analysis
+            spatial_params = spatial_analysis['spatial_field_parameters']
+        elif self.from_base and hasattr(self.model, 'extract_spatial_field_analysis'):
+            # Fallback: compute spatial analysis if not provided (original behavior)
+            logger.warning(f"⚠️ Computing spatial analysis for token '{token}' (consider pre-computing)")
             spatial_analysis = self.model.extract_spatial_field_analysis(
                 num_samples=500, 
-                return_full_details=False  # Change to True for detailed spatial analysis
+                return_full_details=False
             )
             spatial_params = spatial_analysis['spatial_field_parameters']
-            
             logger.info(f"Using BGE spatial analysis: {spatial_analysis.get('available_full_data', 'sampled data')}")
         else:
             # No fallback - require proper BGE spatial analysis

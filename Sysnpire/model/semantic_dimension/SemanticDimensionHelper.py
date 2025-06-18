@@ -93,13 +93,27 @@ class SemanticDimensionHelper():
         if not hasattr(self, 'vector'):
             self.key_component("default")  # Initialize transformation
         
+        # PERFORMANCE OPTIMIZATION: Compute spatial analysis ONCE for all embeddings
+        spatial_analysis = None
+        if self.from_base and hasattr(self.vector, 'model') and hasattr(self.vector.model, 'extract_spatial_field_analysis'):
+            logger.info("🚀 OPTIMIZATION: Computing spatial field analysis ONCE for all embeddings")
+            spatial_analysis = self.vector.model.extract_spatial_field_analysis(
+                num_samples=500, 
+                return_full_details=False
+            )
+            logger.info("✅ Spatial analysis computed, will reuse for all embeddings")
+        
         field_representations = []
         
         # Transform each embedding to semantic field
         for i, embedding_dict in enumerate(individual_embeddings):
             try:
                 logger.debug(f"Transforming embedding {i+1}/{len(individual_embeddings)}")
-                field_result = self.vector.model_transform_to_field(embedding_dict)
+                # Pass pre-computed spatial analysis to avoid redundant computation
+                field_result = self.vector.model_transform_to_field(
+                    embedding_dict, 
+                    precomputed_spatial_analysis=spatial_analysis
+                )
                 field_representations.append(field_result)
                 
             except Exception as e:

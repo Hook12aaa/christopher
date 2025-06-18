@@ -117,18 +117,28 @@ class BGEIngestion():
         self.random_seed = random_seed
         self.model = self._load_model()
         
-        # Initialize enterprise optimization engines
-        self.similarity_calculator = SimilarityCalculator()
+        # Initialize enterprise optimization engines with hardware detection
+        self.similarity_calculator = SimilarityCalculator()  # Now auto-detects optimal device
         self.geometry_processor = ManifoldGeometryProcessor()
         self.correlation_analyzer = CorrelationAnalyzer()
         self.frequency_analyzer = FrequencyAnalyzer()
         self.heat_kernel_engine = HeatKernelEvolutionEngine()
+        
+        # Log optimization device selection
+        logger.info(f"🚀 Similarity calculations optimized for: {self.similarity_calculator.device}")
+        if self.similarity_calculator.use_gpu:
+            logger.info("✅ GPU acceleration enabled for large matrix operations")
         
         if random_seed is not None:
             torch.manual_seed(random_seed)
             np.random.seed(random_seed)
         
         self.cache = {}
+        
+        # PERFORMANCE OPTIMIZATION: Cache expensive spatial analysis computations
+        self._spatial_analysis_cache = {}
+        self._laplacian_cache = {}
+        self._embedding_data_cache = None
 
     def info(self) -> Dict[str, Any]:
         """
@@ -207,6 +217,9 @@ class BGEIngestion():
         """
         UNCONVENTIONAL: Extract complete token embedding matrix as discrete field samples.
         
+        PERFORMANCE OPTIMIZATION: Caches embedding data to avoid repeated extraction
+        of the same ~30K token matrix.
+        
         FIELD THEORY PERSPECTIVE: Each token embedding represents a discrete sample
         of the underlying continuous semantic field. The full embedding matrix
         (~30K tokens × 1024 dims) provides the initial discrete field data for
@@ -235,8 +248,15 @@ class BGEIngestion():
         Traditional embedding usage accesses individual vectors. Our approach
         requires the complete manifold structure for field theory operations.
         """
+        # PERFORMANCE: Check cache first
+        if self._embedding_data_cache is not None:
+            logger.debug("🚀 Using cached embedding data")
+            return self._embedding_data_cache
+        
         if self.model is None:
             raise RuntimeError("BGE model is not loaded. Call _load_model() first.")
+        
+        logger.info("🔄 Loading total embeddings (caching for reuse)")
         
         try:
             # Access the underlying transformer model
@@ -257,7 +277,7 @@ class BGEIngestion():
             logger.info(f"Extracted {vocab_size} token embeddings of dimension {embedding_dim}")
             logger.info(f"Vocabulary size: {len(vocab)}")
             
-            return {
+            result = {
                 'embeddings': token_embeddings,
                 'vocab_size': vocab_size,
                 'embedding_dim': embedding_dim,
@@ -266,6 +286,11 @@ class BGEIngestion():
                 'id_to_token': id_to_token,
                 'device': str(self.device)
             }
+            
+            # PERFORMANCE: Cache the result
+            self._embedding_data_cache = result
+            logger.info("✅ Cached embedding data")
+            return result
             
         except AttributeError as e:
             logger.error(f"Failed to access BGE model internals: {e}")
@@ -288,7 +313,7 @@ class BGEIngestion():
                 
                 logger.info(f"Successfully extracted {vocab_size} embeddings via alternative method")
                 
-                return {
+                result = {
                     'embeddings': embeddings,
                     'vocab_size': vocab_size,
                     'embedding_dim': embedding_dim,
@@ -297,6 +322,11 @@ class BGEIngestion():
                     'id_to_token': id_to_token,
                     'device': str(self.device)
                 }
+                
+                # PERFORMANCE: Cache the result
+                self._embedding_data_cache = result
+                logger.info("✅ Cached embedding data")
+                return result
                 
             except Exception as alt_error:
                 logger.error(f"Alternative extraction also failed: {alt_error}")
@@ -590,6 +620,9 @@ class BGEIngestion():
         """
         Compute discrete Laplace-Beltrami operator for field evolution equations.
         
+        PERFORMANCE OPTIMIZATION: Caches Laplacian computation based on embedding
+        hash to avoid recomputing for the same embedding sets.
+        
         Essential for field theory applications - converts discrete embeddings into
         operators supporting heat kernel evolution and spectral analysis. Uses
         graph-based approximation with Gaussian kernel weights.
@@ -601,6 +634,14 @@ class BGEIngestion():
         Returns:
             Normalized discrete Laplacian matrix
         """
+        # PERFORMANCE: Check cache first
+        cache_key = (embeddings.shape, k, hash(embeddings.tobytes()))
+        if cache_key in self._laplacian_cache:
+            logger.info(f"🚀 CACHE HIT: Using cached Laplacian for {len(embeddings)} embeddings (avoiding 3-4s computation)")
+            return self._laplacian_cache[cache_key]
+        
+        logger.info(f"🔄 Computing discrete Laplacian for {len(embeddings)} embeddings (caching for reuse)")
+        
         from sklearn.neighbors import kneighbors_graph
         
         # Build k-NN graph with cosine metric (natural for unit sphere)
@@ -623,7 +664,28 @@ class BGEIngestion():
         D_inv_sqrt = np.diag(1.0 / np.sqrt(np.diag(D) + 1e-10))
         L_norm = D_inv_sqrt @ L @ D_inv_sqrt
         
-        logger.info(f"Computed discrete Laplacian for {len(embeddings)} embeddings")
+        # PERFORMANCE OPTIMIZATION: For matrices >10, pre-compute eigendecomposition on GPU if available
+        if self.similarity_calculator.use_gpu and len(embeddings) > 10:
+            try:
+                import torch
+                L_tensor = torch.from_numpy(L_norm).float().to(self.similarity_calculator.device)
+                # Pre-compute eigendecomposition for faster heat kernel operations
+                eigenvals, eigenvecs = torch.linalg.eigh(L_tensor)
+                
+                # Store GPU-computed eigendecomposition in cache for later use
+                eigendecomp_cache_key = (cache_key[0], cache_key[1], 'eigendecomp')
+                self._laplacian_cache[eigendecomp_cache_key] = {
+                    'eigenvals': eigenvals.cpu().numpy(),
+                    'eigenvecs': eigenvecs.cpu().numpy()
+                }
+                logger.info(f"🚀 GPU-accelerated eigendecomposition cached for {len(embeddings)} embeddings")
+            except Exception as e:
+                logger.debug(f"GPU eigendecomposition failed, will compute on demand: {e}")
+        
+        # PERFORMANCE: Cache the result
+        self._laplacian_cache[cache_key] = L_norm
+        
+        logger.info(f"✅ Cached discrete Laplacian for {len(embeddings)} embeddings")
         return L_norm
     
     def field_generator_transform(self, embeddings: np.ndarray, 
@@ -648,9 +710,21 @@ class BGEIngestion():
         # Normalize to unit hypersphere (BGE's natural geometry)
         normalized = embeddings / np.linalg.norm(embeddings, axis=1, keepdims=True)
         
-        # Compute spectral decomposition for field evolution
+        # Compute spectral decomposition for field evolution (with caching optimization)
         laplacian = self.compute_discrete_laplacian(normalized)
-        eigenvals, eigenvecs = np.linalg.eigh(laplacian)
+        
+        # PERFORMANCE: Check if eigendecomposition is cached from GPU computation
+        cache_key = (normalized.shape, 20, hash(normalized.tobytes()))  # k=20 default for discrete_laplacian
+        eigendecomp_cache_key = (cache_key[0], cache_key[1], 'eigendecomp')
+        
+        if eigendecomp_cache_key in self._laplacian_cache:
+            cached_eigendecomp = self._laplacian_cache[eigendecomp_cache_key]
+            eigenvals = cached_eigendecomp['eigenvals']
+            eigenvecs = cached_eigendecomp['eigenvecs']
+            logger.debug("🚀 Using cached GPU eigendecomposition for field evolution")
+        else:
+            # Compute eigendecomposition on demand
+            eigenvals, eigenvecs = np.linalg.eigh(laplacian)
         
         # Use enterprise-grade heat kernel evolution engine
         evolution_result = self.heat_kernel_engine.process_field_evolution(
@@ -724,6 +798,9 @@ class BGEIngestion():
         """
         SPATIAL FIELD ANALYSIS: Extract comprehensive spatial field properties from BGE embeddings.
         
+        PERFORMANCE OPTIMIZATION: Caches spatial analysis results to avoid recomputing
+        expensive calculations for the same parameters.
+        
         This method orchestrates the existing spatial analysis engines to extract
         field-theoretic properties needed for S_τ(x) = Σᵢ e_τ,ᵢ · φᵢ(x) · e^(iθ_τ,ᵢ) transformation.
         
@@ -744,6 +821,14 @@ class BGEIngestion():
             When return_full_details=True: Includes full per-embedding analysis (memory intensive!)
             When return_full_details=False: Includes samples + aggregated field parameters
         """
+        # PERFORMANCE: Check cache first
+        cache_key = (num_samples, return_full_details)
+        if cache_key in self._spatial_analysis_cache:
+            logger.info(f"🚀 CACHE HIT: Using cached spatial analysis for {num_samples} samples (avoiding 6s computation)")
+            return self._spatial_analysis_cache[cache_key]
+        
+        logger.info(f"🔄 Computing spatial field analysis for {num_samples} samples (caching for reuse)")
+        
         if not hasattr(self, '_embedding_data'):
             self._embedding_data = self.load_total_embeddings()
             
@@ -806,9 +891,21 @@ class BGEIngestion():
             manifold_properties.append(manifold_props)
         
         # 4. HEAT KERNEL FIELD EVOLUTION for temporal spatial dynamics
-        # Compute discrete Laplacian for spatial field evolution
+        # Compute discrete Laplacian for spatial field evolution (with caching optimization)
         laplacian = self.compute_discrete_laplacian(sample_embeddings, k=20)
-        eigenvals, eigenvecs = np.linalg.eigh(laplacian)
+        
+        # PERFORMANCE: Check if eigendecomposition is cached from GPU computation
+        cache_key = (sample_embeddings.shape, 20, hash(sample_embeddings.tobytes()))
+        eigendecomp_cache_key = (cache_key[0], cache_key[1], 'eigendecomp')
+        
+        if eigendecomp_cache_key in self._laplacian_cache:
+            cached_eigendecomp = self._laplacian_cache[eigendecomp_cache_key]
+            eigenvals = cached_eigendecomp['eigenvals']
+            eigenvecs = cached_eigendecomp['eigenvecs']
+            logger.debug("🚀 Using cached GPU eigendecomposition for spatial analysis")
+        else:
+            # Compute eigendecomposition on demand
+            eigenvals, eigenvecs = np.linalg.eigh(laplacian)
         
         # Test field evolution with multiple parameter sets
         evolution_params = {'time': 0.5, 'temperature': 0.1, 'frequency_cutoff': 0.2}
@@ -904,7 +1001,7 @@ class BGEIngestion():
         # Configure return data based on return_full_details parameter
         if return_full_details:
             logger.info("Returning FULL spatial analysis details (memory intensive!)")
-            return {
+            result = {
                 'spatial_field_parameters': spatial_field_params,
                 'spatial_correlations': spatial_correlations,          # FULL DATA
                 'manifold_geometry': manifold_properties,              # FULL DATA  
@@ -919,7 +1016,7 @@ class BGEIngestion():
             }
         else:
             logger.info("Returning SAMPLED spatial analysis (memory efficient)")
-            return {
+            result = {
                 'spatial_field_parameters': spatial_field_params,
                 'spatial_correlations': spatial_correlations[:5],     # Sample for inspection
                 'manifold_geometry': manifold_properties[:5],         # Sample for inspection  
@@ -932,6 +1029,12 @@ class BGEIngestion():
                 'full_details_returned': False,
                 'available_full_data': f"{len(spatial_correlations)} correlations, {len(manifold_properties)} manifold analyses, {len(spatial_spectral_analysis)} spectral analyses, {len(spatial_coupling_analysis)} coupling analyses (use return_full_details=True to get all)"
             }
+        
+        # PERFORMANCE: Cache the result for future use
+        self._spatial_analysis_cache[cache_key] = result
+        logger.info(f"✅ Cached spatial analysis for {num_samples} samples")
+        
+        return result
 
     def benchmark_performance(self, embeddings_data: Dict[str, Any] = None) -> Dict[str, Any]:
         """
