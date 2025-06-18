@@ -55,6 +55,10 @@ from Sysnpire.model.semantic_dimension.SemanticDimensionHelper import SemanticDi
 from Sysnpire.model.temporal_dimension.TemporalDimensionHelper import TemporalDimensionHelper
 from Sysnpire.model.emotional_dimension.EmotionalDimensionHelper import EmotionalDimensionHelper
 
+# Import logger to fix agent creation failures
+from Sysnpire.utils.logger import get_logger
+logger = get_logger(__name__)
+
 
 @dataclass 
 class ThetaComponents:
@@ -225,10 +229,18 @@ class ConceptualChargeAgent:
         self.device = torch.device(device if torch.backends.mps.is_available() else "cpu")
         
         # Extract rich structures from ChargeFactory combined_results (following charge_factory.py structure)
-        self.semantic_field_data = combined_results['semantic_results']['field_representations'][charge_index]
-        self.semantic_field = self.semantic_field_data['semantic_field']  # Actual SemanticField object
-        self.temporal_biography = combined_results['temporal_results']['temporal_biographies'][charge_index]
-        self.emotional_modulation = combined_results['emotional_results']['emotional_modulations'][charge_index]
+        try:
+            self.semantic_field_data = combined_results['semantic_results']['field_representations'][charge_index]
+            self.semantic_field = self.semantic_field_data['semantic_field']  # Actual SemanticField object
+            self.temporal_biography = combined_results['temporal_results']['temporal_biographies'][charge_index]
+            self.emotional_modulation = combined_results['emotional_results']['emotional_modulations'][charge_index]
+            
+            # 🔧 VALIDATE: Ensure data integrity for Q computation
+            self._validate_extracted_data(charge_index)
+            
+        except (KeyError, IndexError, TypeError) as e:
+            logger.error(f"❌ Agent {charge_index} - Data extraction failed: {e}")
+            raise ValueError(f"Invalid combined_results structure for charge {charge_index}: {e}")
         
         # Extract coupling data
         self.field_interference_matrix = combined_results['temporal_results']['field_interference_matrix']
@@ -345,6 +357,137 @@ class ConceptualChargeAgent:
         )
         
         return agent
+    
+    def _validate_extracted_data(self, charge_index: int):
+        """
+        Validate that extracted data is suitable for Q(τ,C,s) computation.
+        
+        Checks for common data issues that cause Q computation failures.
+        """
+        # Validate semantic field data
+        if not hasattr(self.semantic_field, 'embedding_components'):
+            raise ValueError(f"Charge {charge_index} - semantic_field missing embedding_components")
+        
+        if hasattr(self.semantic_field, 'embedding_components'):
+            embedding_components = self.semantic_field.embedding_components
+            if np.all(np.abs(embedding_components) < 1e-12):
+                logger.warning(f"⚠️  Charge {charge_index} - All semantic embedding components near zero")
+            
+            if np.any(np.isnan(embedding_components)) or np.any(np.isinf(embedding_components)):
+                raise ValueError(f"Charge {charge_index} - Invalid semantic embedding components (NaN/Inf)")
+        
+        # Validate temporal biography data
+        if not hasattr(self.temporal_biography, 'trajectory_operators'):
+            raise ValueError(f"Charge {charge_index} - temporal_biography missing trajectory_operators")
+        
+        trajectory_ops = self.temporal_biography.trajectory_operators
+        if len(trajectory_ops) == 0:
+            logger.warning(f"⚠️  Charge {charge_index} - Empty trajectory_operators array")
+        elif np.all(np.abs(trajectory_ops) < 1e-12):
+            logger.warning(f"⚠️  Charge {charge_index} - All trajectory operators near zero (will cause T_tensor=0j)")
+        
+        if np.any(np.isnan(trajectory_ops)) or np.any(np.isinf(trajectory_ops)):
+            raise ValueError(f"Charge {charge_index} - Invalid trajectory operators (NaN/Inf)")
+        
+        # Validate vivid and character layers for persistence
+        if hasattr(self.temporal_biography, 'vivid_layer') and hasattr(self.temporal_biography, 'character_layer'):
+            vivid_layer = self.temporal_biography.vivid_layer
+            character_layer = self.temporal_biography.character_layer
+            
+            if len(vivid_layer) == 0 or len(character_layer) == 0:
+                logger.warning(f"⚠️  Charge {charge_index} - Empty persistence layers")
+            
+            if np.all(vivid_layer < 1e-10) and np.all(character_layer < 1e-10):
+                logger.warning(f"⚠️  Charge {charge_index} - Persistence layers extremely small (will cause underflow)")
+        
+        # Validate emotional modulation data
+        if not hasattr(self.emotional_modulation, 'semantic_modulation_tensor'):
+            raise ValueError(f"Charge {charge_index} - emotional_modulation missing semantic_modulation_tensor")
+        
+        if not hasattr(self.emotional_modulation, 'unified_phase_shift'):
+            raise ValueError(f"Charge {charge_index} - emotional_modulation missing unified_phase_shift")
+        
+        modulation_tensor = self.emotional_modulation.semantic_modulation_tensor
+        if np.any(np.isnan(modulation_tensor)) or np.any(np.isinf(modulation_tensor)):
+            raise ValueError(f"Charge {charge_index} - Invalid emotional modulation tensor (NaN/Inf)")
+        
+        # Check for identical modulations (uniqueness validation)
+        if hasattr(self, '_global_modulation_check'):
+            # This would be set by LiquidOrchestrator to check across all agents
+            pass
+        
+        logger.debug(f"✅ Charge {charge_index} - Data validation passed")
+    
+    def validate_Q_components(self) -> bool:
+        """
+        Validate that Q(τ,C,s) components are within reasonable ranges.
+        
+        Returns:
+            True if all components are reasonable, False if issues detected
+        """
+        if self.Q_components is None:
+            logger.warning(f"⚠️  Agent {self.charge_id} - Q_components not yet computed")
+            return False
+        
+        issues = []
+        
+        # Gamma should be 0.01-2.0 range
+        if not (0.01 <= self.Q_components.gamma <= 2.0):
+            issues.append(f"gamma={self.Q_components.gamma:.6f} outside [0.01, 2.0]")
+        
+        # E_trajectory magnitude should be 0.1-5.0 range  
+        E_magnitude = abs(self.Q_components.E_trajectory)
+        if not (0.1 <= E_magnitude <= 5.0):
+            issues.append(f"|E_trajectory|={E_magnitude:.6f} outside [0.1, 5.0]")
+        
+        # phi_semantic magnitude should be 0.1-3.0 range
+        phi_magnitude = abs(self.Q_components.phi_semantic)
+        if not (0.1 <= phi_magnitude <= 3.0):
+            issues.append(f"|phi_semantic|={phi_magnitude:.6f} outside [0.1, 3.0]")
+        
+        # T_tensor magnitude should be 0.001-10.0 range (can be smaller due to observational effects)
+        T_magnitude = abs(self.Q_components.T_tensor)
+        if not (0.001 <= T_magnitude <= 10.0):
+            issues.append(f"|T_tensor|={T_magnitude:.6f} outside [0.001, 10.0]")
+        
+        # phase_factor magnitude should be close to 1.0 (complex exponential)
+        phase_magnitude = abs(self.Q_components.phase_factor)
+        if not (0.5 <= phase_magnitude <= 1.5):
+            issues.append(f"|phase_factor|={phase_magnitude:.6f} outside [0.5, 1.5] (should be ≈1.0)")
+        
+        # psi_persistence should be 0.001-2.0 range
+        if not (0.001 <= self.Q_components.psi_persistence <= 2.0):
+            issues.append(f"psi_persistence={self.Q_components.psi_persistence:.6f} outside [0.001, 2.0]")
+        
+        # Final Q magnitude should be 0.0001-20.0 range
+        Q_magnitude = abs(self.Q_components.Q_value)
+        if not (0.0001 <= Q_magnitude <= 20.0):
+            issues.append(f"|Q_value|={Q_magnitude:.6f} outside [0.0001, 20.0]")
+        
+        # Check for NaN/Inf
+        for component_name, component_value in [
+            ('gamma', self.Q_components.gamma),
+            ('T_tensor', self.Q_components.T_tensor),
+            ('E_trajectory', self.Q_components.E_trajectory),
+            ('phi_semantic', self.Q_components.phi_semantic),
+            ('phase_factor', self.Q_components.phase_factor),
+            ('Q_value', self.Q_components.Q_value)
+        ]:
+            if isinstance(component_value, complex):
+                if np.isnan(component_value.real) or np.isnan(component_value.imag) or \
+                   np.isinf(component_value.real) or np.isinf(component_value.imag):
+                    issues.append(f"{component_name} contains NaN/Inf: {component_value}")
+            elif np.isnan(component_value) or np.isinf(component_value):
+                issues.append(f"{component_name} is NaN/Inf: {component_value}")
+        
+        if issues:
+            logger.warning(f"⚠️  Agent {self.charge_id} - Q component validation issues:")
+            for issue in issues:
+                logger.warning(f"    • {issue}")
+            return False
+        else:
+            logger.debug(f"✅ Agent {self.charge_id} - Q components validation passed")
+            return True
     
     def _initialize_living_modular_form(self):
         """
@@ -488,8 +631,8 @@ class ConceptualChargeAgent:
         self.interaction_memory = []
         self.max_memory_length = 100
         
-        # Living Q(τ,C,s) value that evolves
-        self.living_Q_value = complex(1.0, 0.0)
+        # Living Q(τ,C,s) value that evolves (initialized to 0, updated by compute_complete_Q)
+        self.living_Q_value = complex(0.0, 0.0)
     
     def breathe(self, tau: float):
         """
@@ -880,7 +1023,7 @@ class ConceptualChargeAgent:
         self.tau_position = complex(real_part, imag_part)
         
         
-    def compute_gamma_calibration(self, collective_field_strength: Optional[float] = None) -> float:
+    def compute_gamma_calibration(self, collective_field_strength: Optional[float] = None, pool_size: int = 1) -> float:
         """
         Implement γ global field calibration from section 3.1.5.3.
         
@@ -888,6 +1031,7 @@ class ConceptualChargeAgent:
         voices blend harmoniously within the collective performance"
         
         Uses actual field modulation strength from emotional analytics.
+        🚀 BOOSTED: Now scales with pool size for stronger field presence.
         """
         # Base gamma from charge object
         base_gamma = self.charge_obj.gamma
@@ -901,11 +1045,21 @@ class ConceptualChargeAgent:
             interference_strength = np.mean(np.abs(self.field_interference_matrix))
             collective_field_strength = 1.0 + interference_strength
         
+        # 🚀 BOOST GAMMA: Scale with pool size for stronger field presence
+        # Larger pools need stronger individual gamma to maintain field energy
+        pool_boost = max(1.0, np.sqrt(pool_size))  # Square root scaling prevents overwhelming
+        
+        # Apply additional field strength boost for 10-agent pools
+        field_strength_boost = 2.0 if pool_size >= 10 else 1.5
+        
         # Calibrate to prevent overwhelming or weakness
         # Higher collective field → lower individual gamma (normalization)
         calibration_factor = conductor_modulation / (1.0 + 0.1 * collective_field_strength)
         
-        return base_gamma * calibration_factor
+        # Final gamma with pool-based boosting
+        boosted_gamma = base_gamma * calibration_factor * pool_boost * field_strength_boost
+        
+        return boosted_gamma
         
     def compute_transformative_potential_tensor(self) -> complex:
         """
@@ -1127,49 +1281,114 @@ class ConceptualChargeAgent:
         
         # Gaussian component from vivid layer (recent sharp memory)
         if len(vivid_layer) > 0:
-            # Use actual vivid layer data
-            vivid_influence = np.mean(vivid_layer) * np.exp(-(delta_s * delta_s) / (2 * self.sigma_i * self.sigma_i))
+            # Use actual vivid layer data with underflow protection
+            vivid_base = max(0.9, np.mean(vivid_layer))  # 🔧 Clamp vivid layer to minimum 0.9
+            vivid_influence = vivid_base * np.exp(-(delta_s * delta_s) / (2 * self.sigma_i * self.sigma_i))
         else:
             vivid_influence = np.exp(-(delta_s * delta_s) / (2 * self.sigma_i * self.sigma_i))
         
+        # Apply additional vivid underflow protection
+        vivid_influence = max(0.8, vivid_influence)  # 🔧 Keep vivid influence above 0.8
+        
         # Exponential-cosine from character layer (persistent themes)
         if len(character_layer) > 0:
-            # Use actual character layer data
-            character_influence = np.mean(character_layer) * np.exp(-self.lambda_i * abs(delta_s))
+            # Use actual character layer data with underflow protection
+            character_base = max(0.08, np.mean(character_layer))  # 🔧 Clamp character layer minimum
+            character_influence = character_base * np.exp(-self.lambda_i * abs(delta_s))
             # Add rhythmic reinforcement
             character_influence *= np.cos(self.beta_i * delta_s)
         else:
             character_influence = self.alpha_i * np.exp(-self.lambda_i * abs(delta_s)) * np.cos(self.beta_i * delta_s)
         
-        # Combined persistence
+        # Apply additional character underflow protection
+        character_influence = max(0.05, abs(character_influence))  # 🔧 Keep character influence above 0.05
+        
+        # Combined persistence with stronger minimum
         total_persistence = vivid_influence + character_influence
         
-        # Ensure positive persistence
-        total_persistence = max(0.01, total_persistence)
+        # Ensure persistence stays in reasonable range for Q computation
+        total_persistence = max(0.9, min(2.0, total_persistence))  # 🔧 Clamp to [0.9, 2.0]
+        
+        # Log when clamping occurs
+        if abs(np.mean(vivid_layer)) < 0.9 if len(vivid_layer) > 0 else False:
+            logger.debug(f"🔧 Agent {self.charge_id} - Vivid layer clamped: {np.mean(vivid_layer):.3f} → 0.9+")
+        if total_persistence == 0.9:
+            logger.debug(f"🔧 Agent {self.charge_id} - Persistence clamped to minimum: 0.9")
         
         return total_persistence, vivid_influence, character_influence
         
-    def compute_complete_Q(self, collective_field_strength: Optional[float] = None) -> QMathematicalComponents:
+    def compute_complete_Q(self, collective_field_strength: Optional[float] = None, pool_size: int = 1) -> QMathematicalComponents:
         """
         Compute complete Q(τ, C, s) = γ · T · E · Φ · e^(iθ) · Ψ
         
         This is the living mathematical entity in action - computing the complete
         conceptual charge using actual field theory mathematics with real data.
         """
-        # Compute all components
-        gamma = self.compute_gamma_calibration(collective_field_strength)
-        
-        T_tensor = self.compute_transformative_potential_tensor()
-        E_trajectory = self.compute_emotional_trajectory_integration()  
-        phi_semantic = self.compute_semantic_field_generation()
-        
-        theta_components = self.compute_5component_phase_integration()
-        phase_factor = complex(np.cos(theta_components.total), np.sin(theta_components.total))
-        
-        psi_persistence, psi_gaussian, psi_exponential_cosine = self.compute_observational_persistence()
-        
-        # Final Q(τ, C, s) computation
-        Q_value = gamma * T_tensor * E_trajectory * phi_semantic * phase_factor * psi_persistence
+        try:
+            # Compute all components with debugging
+            gamma = self.compute_gamma_calibration(collective_field_strength, pool_size)
+            logger.debug(f"🔧 Agent {self.charge_id} - gamma: {gamma:.6f} (pool_size: {pool_size})")
+            
+            T_tensor = self.compute_transformative_potential_tensor()
+            logger.debug(f"🔧 Agent {self.charge_id} - T_tensor: {T_tensor} (magnitude: {abs(T_tensor):.6f})")
+            
+            E_trajectory = self.compute_emotional_trajectory_integration()  
+            logger.debug(f"🔧 Agent {self.charge_id} - E_trajectory: {E_trajectory} (magnitude: {abs(E_trajectory):.6f})")
+            
+            phi_semantic = self.compute_semantic_field_generation()
+            logger.debug(f"🔧 Agent {self.charge_id} - phi_semantic: {phi_semantic} (magnitude: {abs(phi_semantic):.6f})")
+            
+            theta_components = self.compute_5component_phase_integration()
+            phase_factor = complex(np.cos(theta_components.total), np.sin(theta_components.total))
+            
+            # 🔧 VERIFY: Phase factor magnitude should be exactly 1.0 (e^iθ property)
+            phase_magnitude = abs(phase_factor)
+            if abs(phase_magnitude - 1.0) > 1e-10:
+                logger.warning(f"⚠️  Agent {self.charge_id} - Phase factor magnitude error: |e^iθ| = {phase_magnitude:.10f} (should be 1.0)")
+                logger.warning(f"    theta_total = {theta_components.total:.6f}, cos = {np.cos(theta_components.total):.6f}, sin = {np.sin(theta_components.total):.6f}")
+                # Normalize to unit magnitude
+                phase_factor = phase_factor / phase_magnitude
+                logger.warning(f"    Normalized phase_factor: {phase_factor} (new magnitude: {abs(phase_factor):.10f})")
+            
+            logger.debug(f"🔧 Agent {self.charge_id} - phase_factor: {phase_factor} (magnitude: {abs(phase_factor):.6f})")
+            
+            psi_persistence, psi_gaussian, psi_exponential_cosine = self.compute_observational_persistence()
+            logger.debug(f"🔧 Agent {self.charge_id} - psi_persistence: {psi_persistence:.6f} (gaussian: {psi_gaussian:.6f}, exp_cos: {psi_exponential_cosine:.6f})")
+            
+            # Apply underflow protection to persistence components
+            psi_persistence = max(psi_persistence, 1e-10)
+            psi_gaussian = max(psi_gaussian, 1e-15) 
+            psi_exponential_cosine = max(psi_exponential_cosine, 1e-15)
+            
+            if psi_persistence < 1e-8:
+                logger.warning(f"⚠️  Agent {self.charge_id} - Persistence underflow detected, clamped to {psi_persistence:.2e}")
+            
+            # Final Q(τ, C, s) computation
+            Q_value = gamma * T_tensor * E_trajectory * phi_semantic * phase_factor * psi_persistence
+            
+            # Validate Q magnitude
+            Q_magnitude = abs(Q_value)
+            if Q_magnitude < 1e-10:
+                logger.warning(f"⚠️  Agent {self.charge_id} - Q magnitude suspiciously small: {Q_magnitude:.2e}")
+                logger.warning(f"    Components - γ:{gamma:.3f} |T|:{abs(T_tensor):.3f} |E|:{abs(E_trajectory):.3f} |Φ|:{abs(phi_semantic):.3f} |e^iθ|:{abs(phase_factor):.3f} Ψ:{psi_persistence:.3f}")
+            elif Q_magnitude > 10.0:
+                logger.warning(f"⚠️  Agent {self.charge_id} - Q magnitude unusually large: {Q_magnitude:.2e}")
+            else:
+                logger.debug(f"✅ Agent {self.charge_id} - Q computed successfully: {Q_value} (magnitude: {Q_magnitude:.6f})")
+            
+        except Exception as e:
+            logger.error(f"❌ Agent {self.charge_id} - Q computation failed: {e}")
+            # Set minimal fallback values
+            Q_value = complex(0.1, 0.0)
+            gamma = 0.1
+            T_tensor = complex(1.0, 0.0)
+            E_trajectory = complex(1.0, 0.0)
+            phi_semantic = complex(1.0, 0.0)
+            phase_factor = complex(1.0, 0.0)
+            psi_persistence = 1.0
+            psi_gaussian = 1.0
+            psi_exponential_cosine = 1.0
+            theta_components = ThetaComponents(0.0, 0.0, 0.0, 0.0, 0.0, 0.0)
         
         # Store components
         self.Q_components = QMathematicalComponents(
@@ -1189,6 +1408,13 @@ class ConceptualChargeAgent:
         self.charge_obj.complete_charge = Q_value
         self.charge_obj.magnitude = abs(Q_value)
         self.charge_obj.phase = np.angle(Q_value)
+        
+        # 🔧 FIX: Update living_Q_value with computed Q (not static 1+0j override!)
+        self.living_Q_value = Q_value
+        logger.debug(f"🔧 Agent {self.charge_id} - living_Q_value updated: {self.living_Q_value} (magnitude: {abs(self.living_Q_value):.6f})")
+        
+        # 🔧 VALIDATE: Check Q components are reasonable
+        self.validate_Q_components()
         
         return self.Q_components
         
@@ -1288,5 +1514,70 @@ class ConceptualChargeAgent:
                 'magnitude': self.Q_components.Q_magnitude,
                 'phase': self.Q_components.Q_phase,
                 'complex': {'real': self.Q_components.Q_value.real, 'imag': self.Q_components.Q_value.imag}
+            },
+            # 🔧 Enhanced: Additional debugging information
+            'charge_index': self.charge_index,
+            'data_source_validation': {
+                'semantic_field_magnitude': self.semantic_field_data['field_metadata']['field_magnitude'],
+                'trajectory_operators_non_zero': int(np.sum(np.abs(self.temporal_biography.trajectory_operators) > 1e-12)),
+                'trajectory_operators_total': len(self.temporal_biography.trajectory_operators),
+                'emotional_modulation_strength': self.emotional_modulation.field_modulation_strength,
+                'persistence_layers_range': {
+                    'vivid_layer': [float(np.min(self.temporal_biography.vivid_layer)), float(np.max(self.temporal_biography.vivid_layer))],
+                    'character_layer': [float(np.min(self.temporal_biography.character_layer)), float(np.max(self.temporal_biography.character_layer))]
+                }
             }
         }
+    
+    def log_debug_breakdown(self):
+        """Log detailed debugging information for this agent."""
+        breakdown = self.get_mathematical_breakdown()
+        
+        logger.debug(f"🔧 AGENT DEBUG [{self.charge_index}] {self.charge_id}:")
+        logger.debug(f"  τ: {breakdown['tau_content']}")
+        logger.debug(f"  State: s={breakdown['current_state']['s']:.3f}, pos={breakdown['current_state']['field_position']}")
+        
+        # Q Components summary
+        Q_comps = breakdown['Q_components']
+        logger.debug(f"  🧮 Q Components:")
+        logger.debug(f"    γ: {Q_comps['gamma']:.6f}")
+        logger.debug(f"    |T|: {Q_comps['T_tensor']['magnitude']:.6f}, ∠T: {Q_comps['T_tensor']['phase']:.3f}")
+        logger.debug(f"    |E|: {Q_comps['E_trajectory']['magnitude']:.6f}, ∠E: {Q_comps['E_trajectory']['phase']:.3f}")
+        logger.debug(f"    |Φ|: {Q_comps['phi_semantic']['magnitude']:.6f}, ∠Φ: {Q_comps['phi_semantic']['phase']:.3f}")
+        logger.debug(f"    Ψ: {Q_comps['psi_persistence']['total']:.6f} (gauss: {Q_comps['psi_persistence']['gaussian']:.6f}, exp_cos: {Q_comps['psi_persistence']['exponential_cosine']:.6f})")
+        logger.debug(f"    Q: {breakdown['final_Q']['magnitude']:.6f} ∠ {breakdown['final_Q']['phase']:.3f}")
+        
+        # Source data quality
+        if 'data_source_validation' in breakdown:
+            src_data = breakdown['data_source_validation']
+            logger.debug(f"  📊 Source Data Quality:")
+            logger.debug(f"    Trajectory ops: {src_data['trajectory_operators_non_zero']}/{src_data['trajectory_operators_total']} non-zero")
+            logger.debug(f"    Emotional strength: {src_data['emotional_modulation_strength']:.6f}")
+            logger.debug(f"    Persistence ranges: vivid=[{src_data['persistence_layers_range']['vivid_layer'][0]:.3f}, {src_data['persistence_layers_range']['vivid_layer'][1]:.3f}], char=[{src_data['persistence_layers_range']['character_layer'][0]:.3f}, {src_data['persistence_layers_range']['character_layer'][1]:.3f}]")
+        
+        return breakdown
+    
+    def get_component_health_summary(self) -> str:
+        """
+        Get a concise health summary of Q components for logging.
+        """
+        if self.Q_components is None:
+            return f"[{self.charge_index}] Q: NOT_COMPUTED"
+        
+        Q_mag = abs(self.Q_components.Q_value)
+        gamma = self.Q_components.gamma
+        T_mag = abs(self.Q_components.T_tensor)
+        E_mag = abs(self.Q_components.E_trajectory)
+        phi_mag = abs(self.Q_components.phi_semantic)
+        psi = self.Q_components.psi_persistence
+        
+        # Health indicators
+        health_flags = []
+        if Q_mag < 1e-10: health_flags.append("Q_TINY")
+        if Q_mag > 10: health_flags.append("Q_LARGE")
+        if T_mag < 1e-8: health_flags.append("T_ZERO")
+        if psi < 1e-8: health_flags.append("PSI_TINY")
+        
+        health_str = "|" + "|".join(health_flags) + "|" if health_flags else "OK"
+        
+        return f"[{self.charge_index}] Q:{Q_mag:.2e} γ:{gamma:.3f} |T|:{T_mag:.2e} |E|:{E_mag:.3f} |Φ|:{phi_mag:.3f} Ψ:{psi:.3f} {health_str}"

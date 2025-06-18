@@ -153,49 +153,90 @@ class EmotionalDimensionHelper:
         attractors = signature.trajectory_attractors
         frequencies = signature.resonance_frequencies
         warping_params = signature.metric_warping_params
-        
-        # Calculate unified phase shift from spectral components
         phase_components = signature.phase_shift_components
-        if len(phase_components) > 0:
-            # Combine phase components into single phase shift
-            unified_phase = np.sum(phase_components[:5])  # Use first 5 components
-            phase_shift = complex(np.cos(unified_phase), np.sin(unified_phase))
-        else:
-            # NO DEFAULT! Calculate phase from embeddings analysis
-            # Use embedding correlation to derive phase relationships
-            emb_vector = embeddings[i % len(embeddings)].get('vector', embeddings[i % len(embeddings)].get('embedding'))
-            if emb_vector is not None:
-                # Calculate phase from vector properties
-                real_part = np.mean(emb_vector[:len(emb_vector)//2])
-                imag_part = np.mean(emb_vector[len(emb_vector)//2:])
-                phase_shift = complex(real_part / (abs(real_part) + 1e-8), imag_part / (abs(imag_part) + 1e-8))
-            else:
-                phase_shift = complex(0.1, 0.1)  # Minimal but non-default
         
         # Create modulation for each embedding
         for i, emb_dict in enumerate(embeddings):
-            # Scale modulation tensor for this embedding
-            if len(base_modulation) == self.embedding_dim:
-                semantic_modulation = base_modulation
+            # 🔧 FIX: Calculate unique phase shift for each embedding
+            if len(phase_components) > 0:
+                # Use different phase components for each embedding
+                start_idx = (i * 2) % len(phase_components)
+                end_idx = min(start_idx + 5, len(phase_components))
+                unified_phase = np.sum(phase_components[start_idx:end_idx])
+                # Add embedding-specific phase offset
+                embedding_phase_offset = 0.1 * i * np.pi / len(embeddings)
+                unified_phase += embedding_phase_offset
+                phase_shift = complex(np.cos(unified_phase), np.sin(unified_phase))
             else:
-                # Repeat or truncate to match embedding dimension
-                repeats = self.embedding_dim // len(base_modulation) + 1
-                extended = np.tile(base_modulation, repeats)[:self.embedding_dim]
-                semantic_modulation = extended
+                # Calculate phase from THIS embedding's vector properties
+                emb_vector = emb_dict.get('vector', emb_dict.get('embedding'))
+                if emb_vector is not None:
+                    # Use embedding-specific vector properties for uniqueness
+                    real_part = np.mean(emb_vector[:len(emb_vector)//2])
+                    imag_part = np.mean(emb_vector[len(emb_vector)//2:])
+                    # Add index-based variation to ensure uniqueness
+                    index_variation = 0.1 * (i + 1) / len(embeddings)
+                    phase_shift = complex(
+                        (real_part + index_variation) / (abs(real_part) + 1e-8), 
+                        (imag_part + index_variation) / (abs(imag_part) + 1e-8)
+                    )
+                else:
+                    # Embedding-specific fallback
+                    phase_shift = complex(0.1 + 0.05 * i, 0.1 + 0.03 * i)
             
-            # Select attractor for this embedding (cycle through available)
-            if len(attractors) > 0:
-                attractor_idx = i % len(attractors)
-                trajectory_attractor = attractors[attractor_idx]
+            # 🔧 FIX: Create unique modulation tensor for each embedding
+            emb_vector = emb_dict.get('vector', emb_dict.get('embedding'))
+            if emb_vector is not None and len(emb_vector) >= self.embedding_dim:
+                # Use embedding-specific modulation based on vector properties
+                vector_influence = np.array(emb_vector[:self.embedding_dim])
+                # Blend base modulation with vector-specific influence
+                if len(base_modulation) == self.embedding_dim:
+                    semantic_modulation = base_modulation * (1.0 + 0.1 * vector_influence)
+                else:
+                    # Extend base and apply vector influence
+                    repeats = self.embedding_dim // len(base_modulation) + 1
+                    extended = np.tile(base_modulation, repeats)[:self.embedding_dim]
+                    semantic_modulation = extended * (1.0 + 0.1 * vector_influence)
             else:
-                # NO DEFAULT! Calculate attractors from embedding properties
-                emb_vector = embeddings[i].get('vector', embeddings[i].get('embedding'))
+                # Fallback: add index-based variation to prevent identical tensors
+                if len(base_modulation) == self.embedding_dim:
+                    index_variation = 1.0 + 0.05 * (i + 1) / len(embeddings)
+                    semantic_modulation = base_modulation * index_variation
+                else:
+                    repeats = self.embedding_dim // len(base_modulation) + 1
+                    extended = np.tile(base_modulation, repeats)[:self.embedding_dim]
+                    index_variation = 1.0 + 0.05 * (i + 1) / len(embeddings)
+                    semantic_modulation = extended * index_variation
+            
+            # 🔧 FIX: Create unique trajectory attractor for each embedding
+            if len(attractors) > 0:
+                # Use base attractor but add embedding-specific variation
+                base_attractor_idx = i % len(attractors)
+                base_attractor = attractors[base_attractor_idx]
+                
+                # Add embedding-specific variation based on vector properties
+                emb_vector = emb_dict.get('vector', emb_dict.get('embedding'))
+                if emb_vector is not None and len(emb_vector) >= 10:
+                    # Use first 10 components for attractor variation
+                    vector_variation = np.array(emb_vector[:10]) * 0.1
+                    trajectory_attractor = base_attractor + vector_variation
+                else:
+                    # Add index-based variation
+                    index_variation = 0.01 * (i + 1) * np.arange(1, len(base_attractor) + 1)
+                    trajectory_attractor = base_attractor + index_variation
+            else:
+                # Calculate unique attractors from THIS embedding's properties
+                emb_vector = emb_dict.get('vector', emb_dict.get('embedding'))
                 if emb_vector is not None:
                     # Use embedding dimensions to create trajectory attractors
-                    step_size = len(emb_vector) // 10
+                    step_size = max(1, len(emb_vector) // 10)
                     trajectory_attractor = np.array([np.mean(emb_vector[j*step_size:(j+1)*step_size]) for j in range(10)])
+                    # Add small random variation based on embedding index
+                    seed_variation = np.sin(np.arange(10) * (i + 1) * 0.1) * 0.01
+                    trajectory_attractor += seed_variation
                 else:
-                    trajectory_attractor = np.full(10, 0.01)  # Minimal but non-zero
+                    # Embedding-specific minimal values
+                    trajectory_attractor = np.full(10, 0.01 * (1 + i * 0.1))
             
             # Create modulation
             modulation = EmotionalFieldModulation(

@@ -554,8 +554,53 @@ class LiquidOrchestrator:
         """TRUE O(log N) field interactions using group-centric processing."""
         total_interaction_strength = 0.0
         
+        # 🔧 VALIDATE: Check Q values before interactions
+        valid_agents = []
+        problematic_agents = []
+        
+        for agent in agents:
+            # Check if agent has computed Q components
+            if hasattr(agent, 'Q_components') and agent.Q_components is not None:
+                Q_magnitude = abs(agent.Q_components.Q_value)
+                if Q_magnitude > 1e-12:  # Meaningful Q value
+                    valid_agents.append(agent)
+                else:
+                    problematic_agents.append((agent, Q_magnitude))
+            else:
+                # Agent hasn't computed Q yet - try to compute it with pool size
+                try:
+                    # 🚀 BOOST: Pass pool size to gamma calibration for stronger field presence
+                    pool_size = len(agents)
+                    agent.compute_complete_Q(pool_size=pool_size)
+                    Q_magnitude = abs(agent.Q_components.Q_value) if agent.Q_components else 0.0
+                    if Q_magnitude > 1e-12:
+                        valid_agents.append(agent)
+                    else:
+                        problematic_agents.append((agent, Q_magnitude))
+                except Exception as e:
+                    logger.warning(f"⚠️  Agent {getattr(agent, 'charge_id', 'unknown')} - Q computation failed during interaction: {e}")
+                    problematic_agents.append((agent, 0.0))
+        
+        # Log validation results
+        if problematic_agents:
+            logger.warning(f"⚠️  Field Interaction Validation: {len(problematic_agents)}/{len(agents)} agents have problematic Q values")
+            for agent, Q_mag in problematic_agents[:3]:  # Show first 3
+                agent_id = getattr(agent, 'charge_id', 'unknown')
+                logger.warning(f"    Agent {agent_id}: |Q| = {Q_mag:.2e} (too small for meaningful interaction)")
+            if len(problematic_agents) > 3:
+                logger.warning(f"    ... and {len(problematic_agents) - 3} more agents with similar issues")
+        
+        if len(valid_agents) < 2:
+            logger.warning(f"⚠️  Insufficient valid agents for field interactions: {len(valid_agents)}/{len(agents)}")
+            return 0.0
+        
+        logger.debug(f"✅ Field Interaction Validation: {len(valid_agents)}/{len(agents)} agents ready for interaction")
+        
+        # Use only valid agents for interactions
+        interaction_agents = valid_agents
+        
         # Get interaction groups from adaptive optimization
-        interaction_groups = self._build_interaction_groups(agents)
+        interaction_groups = self._build_interaction_groups(interaction_agents)
         
         # 🚀 REVOLUTIONARY CHANGE: Process O(log N) groups instead of O(N) agents
         for group_info in interaction_groups:
@@ -569,7 +614,7 @@ class LiquidOrchestrator:
         # Update dynamic field after all group interactions
         self.update_dynamic_field()
         
-        return total_interaction_strength / len(agents) if agents else 0.0
+        return total_interaction_strength / len(interaction_agents) if interaction_agents else 0.0
     
     def _apply_precomputed_interactions(self, agent, nearby_agents_with_strengths: List[Tuple]):
         """
@@ -1228,14 +1273,35 @@ class LiquidOrchestrator:
         
     def get_field_statistics(self) -> Dict[str, Any]:
         """Get current field statistics and health metrics."""
-        q_magnitude = torch.abs(self.q_field_values)
+        # 🚀 FIX: Use living_Q_value from agents instead of empty q_field_values tensor
+        if self.charge_agents:
+            # Calculate field statistics from actual agent Q values
+            agent_q_values = [abs(agent.living_Q_value) for agent in self.charge_agents.values()]
+            if agent_q_values:
+                q_magnitude_list = agent_q_values
+                field_energy = sum(q ** 2 for q in q_magnitude_list)
+                max_field_strength = max(q_magnitude_list)
+                mean_field_strength = sum(q_magnitude_list) / len(q_magnitude_list)
+                field_coverage = sum(1 for q in q_magnitude_list if q > 0.01) / len(q_magnitude_list)
+            else:
+                field_energy = 0.0
+                max_field_strength = 0.0 
+                mean_field_strength = 0.0
+                field_coverage = 0.0
+        else:
+            # Fallback to tensor calculation if no agents
+            q_magnitude = torch.abs(self.q_field_values)
+            field_energy = float(torch.sum(q_magnitude ** 2))
+            max_field_strength = float(torch.max(q_magnitude))
+            mean_field_strength = float(torch.mean(q_magnitude))
+            field_coverage = float(torch.mean((q_magnitude > 0.01).float()))
         
         return {
             'active_charges': len(self.active_charges),
-            'field_energy': float(torch.sum(q_magnitude ** 2)),
-            'max_field_strength': float(torch.max(q_magnitude)),
-            'mean_field_strength': float(torch.mean(q_magnitude)),
-            'field_coverage': float(torch.mean((q_magnitude > 0.01).float())),
+            'field_energy': field_energy,
+            'max_field_strength': max_field_strength,
+            'mean_field_strength': mean_field_strength,
+            'field_coverage': field_coverage,
             'emotional_conductor_strength': float(self.emotional_conductor.s_t_coupling_strength),
             'mean_s_value': float(torch.mean(self.observational_state.current_s_values)),
             'current_tau': self.current_tau,

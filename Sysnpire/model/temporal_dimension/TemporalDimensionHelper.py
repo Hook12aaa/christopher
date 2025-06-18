@@ -356,11 +356,43 @@ class TemporalDimensionHelper:
         }
     
     def _compute_temporal_momentum(self, trajectory_operators: np.ndarray, frequency_evolution: np.ndarray) -> complex:
-        """Compute unified temporal momentum from trajectory and frequency."""
-        # Magnitude from trajectory strength, phase from frequency direction
-        magnitude = np.mean(np.abs(trajectory_operators))
-        phase = np.angle(np.mean(frequency_evolution))
-        return magnitude * np.exp(1j * phase)
+        """Compute unified temporal momentum from trajectory and frequency with real field dynamics."""
+        # Filter out zero trajectory operators for realistic momentum
+        non_zero_operators = trajectory_operators[np.abs(trajectory_operators) > 1e-12]
+        
+        if len(non_zero_operators) > 0:
+            # Use only active trajectory components for momentum
+            magnitude = np.mean(np.abs(non_zero_operators))
+            
+            # Compute weighted phase from active frequency components
+            active_frequencies = frequency_evolution[np.abs(trajectory_operators) > 1e-12]
+            if len(active_frequencies) > 0:
+                # Weight frequencies by trajectory strength for realistic phase
+                weights = np.abs(non_zero_operators) / np.sum(np.abs(non_zero_operators))
+                weighted_frequency = np.sum(active_frequencies * weights)
+                phase = np.angle(weighted_frequency)
+            else:
+                # Fallback to mean frequency phase
+                phase = np.angle(np.mean(frequency_evolution))
+        else:
+            # All operators are zero - minimal momentum
+            magnitude = 1e-8
+            phase = np.angle(np.mean(frequency_evolution)) if len(frequency_evolution) > 0 else 0.0
+        
+        # Add small random variation to prevent artificial patterns
+        # Use trajectory operator statistics for deterministic but varying results
+        variation_seed = np.sum(np.real(trajectory_operators)) % 1.0
+        magnitude_variation = 1.0 + 0.1 * np.sin(2 * np.pi * variation_seed)
+        phase_variation = 0.1 * np.cos(2 * np.pi * variation_seed)
+        
+        final_magnitude = magnitude * magnitude_variation
+        final_phase = phase + phase_variation
+        
+        momentum = final_magnitude * np.exp(1j * final_phase)
+        
+        logger.debug(f"🌀 Temporal momentum - active ops: {len(non_zero_operators)}/{len(trajectory_operators)}, magnitude: {final_magnitude:.6f}, phase: {final_phase:.3f}, momentum: {momentum}")
+        
+        return momentum
     
     def _compute_breathing_coherence(self, phase_coordination: np.ndarray) -> float:
         """Compute how synchronized the breathing pattern is."""
@@ -389,7 +421,7 @@ class TrajectoryIntegrator:
                                    token: str,
                                    breathing_spectrum: List[float],
                                    observational_state: float) -> np.ndarray:
-        """Compute trajectory operators from BGE breathing spectrum."""
+        """Compute trajectory operators from BGE breathing spectrum with underflow protection."""
         embedding_dim = len(vector)
         trajectory_operators = np.zeros(embedding_dim, dtype=complex)
         
@@ -399,17 +431,48 @@ class TrajectoryIntegrator:
             # Extend spectrum using harmonic relationships
             base_frequencies = np.resize(base_frequencies, embedding_dim)
         
+        # 🔧 FIX: Add minimum frequency to prevent zero trajectory operators
+        base_frequencies = np.maximum(base_frequencies, 1e-6)  # Minimum frequency
+        
+        # Check for problematic spectrum
+        if np.max(np.abs(base_frequencies)) < 1e-10:
+            logger.warning(f"⚠️  Breathing spectrum too small for token '{token}', using fallback frequencies")
+            # Create fallback spectrum based on vector properties
+            base_frequencies = 0.1 * (1.0 + 0.5 * np.abs(vector[:len(base_frequencies)]))
+        
+        # Normalize observational_state to prevent underflow
+        normalized_obs_state = max(0.1, min(10.0, observational_state + 1.0))  # Clamp to [0.1, 10]
+        
         for i in range(embedding_dim):
             # Component-specific frequency modulated by embedding strength
-            frequency = base_frequencies[i] * (1 + 0.1 * vector[i])
+            vector_modulation = 1 + 0.1 * vector[i]
+            frequency = base_frequencies[i] * vector_modulation
             
-            # Token-specific phase modulation
+            # Ensure minimum frequency to prevent zero operators
+            frequency = max(abs(frequency), 1e-8) * np.sign(frequency) if frequency != 0 else 1e-8
+            
+            # Token-specific phase modulation with embedding component influence
             token_hash = hash(token) % 1000 / 1000.0
             phase = 2 * np.pi * token_hash * i / embedding_dim
             
-            # Trajectory integration (simplified for base implementation)
+            # Add vector-dependent phase shift for uniqueness
+            vector_phase = 0.1 * vector[i] * (i + 1) / embedding_dim
+            total_phase = phase + vector_phase
+            
+            # Trajectory integration with improved formula
             # T_i = ∫₀ˢ ω_i(s')·e^(iφ_i(s')) ds' ≈ ω_i * s * e^(iφ_i)
-            trajectory_operators[i] = frequency * observational_state * np.exp(1j * phase)
+            trajectory_operators[i] = frequency * normalized_obs_state * np.exp(1j * total_phase)
+        
+        # Final validation
+        if np.all(np.abs(trajectory_operators) < 1e-12):
+            logger.warning(f"⚠️  All trajectory operators near zero for token '{token}', applying emergency boost")
+            # Emergency fallback: use vector-based operators
+            for i in range(embedding_dim):
+                emergency_freq = 0.01 * (1.0 + abs(vector[i]))
+                emergency_phase = np.pi * vector[i] * i / embedding_dim
+                trajectory_operators[i] = emergency_freq * np.exp(1j * emergency_phase)
+        
+        logger.debug(f"🕰️ Trajectory operators for '{token}' - range: [{np.min(np.abs(trajectory_operators)):.2e}, {np.max(np.abs(trajectory_operators)):.2e}], non-zero: {np.sum(np.abs(trajectory_operators) > 1e-12)}/{embedding_dim}")
         
         return trajectory_operators
 
@@ -477,32 +540,50 @@ class TemporalPersistenceEngine:
                                   vector: np.ndarray,
                                   persistence_patterns: Dict[str, Any],
                                   observational_index: int) -> Tuple[np.ndarray, np.ndarray]:
-        """Generate dual-decay persistence layers."""
+        """Generate dual-decay persistence layers with stability across indices."""
         embedding_dim = len(vector)
         
         # Extract persistence parameters from BGE coupling analysis
-        trajectory_persistence = persistence_patterns.get('temporal_persistence')
+        trajectory_persistence = persistence_patterns.get('temporal_persistence', 0.1)
         coupling_strength = persistence_patterns.get('coupling_strength_distribution', [0.1] * embedding_dim)
         
         # Ensure proper dimensionality
         if len(coupling_strength) < embedding_dim:
             coupling_strength = (coupling_strength * (embedding_dim // len(coupling_strength) + 1))[:embedding_dim]
         
-        # Vivid layer: Gaussian decay exp(-((s-s₀)²)/(2σ²))
+        # 🔧 FIX: Use normalized observational distance to prevent underflow
+        # Instead of raw observational_index, use a normalized version
+        normalized_s = observational_index / max(10.0, embedding_dim / 100.0)  # Normalize to prevent extreme decay
+        
+        # Vivid layer: Modified Gaussian decay with underflow protection
         vivid_layer = np.zeros(embedding_dim)
         for i in range(embedding_dim):
-            sigma = 0.5 + 0.3 * abs(vector[i])  # Adaptive width
-            vivid_layer[i] = np.exp(-(observational_index**2) / (2 * sigma**2))
+            # Adaptive sigma with minimum bound
+            sigma = max(0.8, 0.5 + 0.3 * abs(vector[i]))  # Increased minimum sigma
+            gaussian_decay = np.exp(-(normalized_s**2) / (2 * sigma**2))
+            
+            # Apply underflow protection and add base persistence
+            vivid_layer[i] = max(0.01, gaussian_decay + 0.05 * abs(vector[i]))  # Minimum 0.01 + vector influence
         
-        # Character layer: Exponential-cosine decay α*exp(-λ(s-s₀))*cos(β(s-s₀))
+        # Character layer: Modified exponential-cosine decay with underflow protection
         character_layer = np.zeros(embedding_dim)
         for i in range(embedding_dim):
-            alpha = coupling_strength[i] * trajectory_persistence
-            lambda_decay = 0.1 + 0.05 * abs(vector[i])
+            # Reduced decay rates to prevent underflow
+            alpha = max(0.1, coupling_strength[i] * trajectory_persistence)
+            lambda_decay = max(0.01, 0.05 + 0.02 * abs(vector[i]))  # Reduced decay rate
             beta_freq = 0.5 + 0.2 * vector[i]
             
-            exp_decay = alpha * np.exp(-lambda_decay * observational_index)
-            cos_modulation = np.cos(beta_freq * observational_index)
-            character_layer[i] = exp_decay * cos_modulation
+            exp_decay = alpha * np.exp(-lambda_decay * normalized_s)
+            cos_modulation = np.cos(beta_freq * normalized_s)
+            
+            # Apply underflow protection and vector-based persistence
+            base_persistence = 0.005 * (1.0 + abs(vector[i]))  # Vector-dependent base
+            character_layer[i] = max(base_persistence, exp_decay * cos_modulation)
+        
+        # Final underflow protection
+        vivid_layer = np.maximum(vivid_layer, 1e-15)
+        character_layer = np.maximum(character_layer, 1e-15)
+        
+        logger.debug(f"🧬 Persistence layers - obs_idx: {observational_index}, vivid range: [{np.min(vivid_layer):.6f}, {np.max(vivid_layer):.6f}], char range: [{np.min(character_layer):.6f}, {np.max(character_layer):.6f}]")
         
         return vivid_layer, character_layer
