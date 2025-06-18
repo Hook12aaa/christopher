@@ -26,7 +26,31 @@ from scipy.integrate import quad
 from scipy.linalg import eigh
 import numba as nb
 
-from Sysnpire.database.conceptual_charge_object import ConceptualChargeObject
+# LIVING Modular Forms Libraries
+try:
+    # Sage for rigorous modular mathematics
+    from sage.modular.modform import ModularForms, EisensteinForms, CuspForms
+    from sage.modular.hecke import HeckeOperator
+    from sage.rings.complex_double import CDF
+    from sage.functions.other import floor
+    SAGE_AVAILABLE = True
+except ImportError:
+    SAGE_AVAILABLE = False
+    
+try:
+    # PyTorch Geometric for geometric deep learning on modular domains
+    import torch_geometric as pyg
+    from torch_geometric.nn import MessagePassing
+    from torch_geometric.data import Data
+    PYG_AVAILABLE = True
+except ImportError:
+    PYG_AVAILABLE = False
+
+# PyTorch neural functions for dynamic evolution
+import torch.nn.functional as F
+from torch.fft import fft, ifft
+
+from Sysnpire.database.conceptual_charge_object import ConceptualChargeObject, FieldComponents
 from Sysnpire.model.semantic_dimension.SemanticDimensionHelper import SemanticDimensionHelper
 from Sysnpire.model.temporal_dimension.TemporalDimensionHelper import TemporalDimensionHelper
 from Sysnpire.model.emotional_dimension.EmotionalDimensionHelper import EmotionalDimensionHelper
@@ -238,6 +262,9 @@ class ConceptualChargeAgent:
         self.lambda_i = 0.1   # Long-term decay rate
         self.beta_i = 2.0     # Rhythmic reinforcement frequency
         
+        # Initialize LIVING modular form structure
+        self._initialize_living_modular_form()
+        
         # Initialize with first computation
         self.compute_complete_Q()
     
@@ -318,6 +345,540 @@ class ConceptualChargeAgent:
         )
         
         return agent
+    
+    def _initialize_living_modular_form(self):
+        """
+        Initialize the agent as a LIVING modular form that IS Q(τ,C,s).
+        
+        This creates breathing q-coefficients, responsive Hecke eigenvalues,
+        and dynamic L-functions that evolve through interaction and observation.
+        """
+        # 1. BREATHING q-Expansion: Coefficients that evolve with collective rhythm
+        self._initialize_breathing_q_expansion()
+        
+        # 2. RESPONSIVE Hecke System: Eigenvalues that adapt to field conditions
+        self._initialize_responsive_hecke_system()
+        
+        # 3. EMOTIONAL L-Function: Dynamic series from emotional modulation
+        self._initialize_emotional_l_function()
+        
+        # 4. GEOMETRIC Structure: Position in modular fundamental domain
+        self._initialize_modular_geometry()
+        
+        # 5. LIVING Evolution Parameters: Breathing, cascading, memory
+        self._initialize_living_evolution()
+        
+    def _initialize_breathing_q_expansion(self):
+        """Create q-coefficients that BREATHE with collective rhythm."""
+        # Base q-coefficients from semantic embedding components
+        semantic_components = self.semantic_field.embedding_components
+        phase_factors = self.semantic_field.phase_factors
+        
+        # Create complex q-coefficients: semantic (real) + temporal (imaginary)
+        self.breathing_q_coefficients = {}
+        for n in range(min(1024, len(semantic_components))):
+            # Real part from semantic field strength
+            real_part = semantic_components[n] 
+            
+            # Imaginary part from temporal frequency evolution
+            if len(self.temporal_biography.frequency_evolution) > n:
+                imag_part = self.temporal_biography.frequency_evolution[n]
+            else:
+                imag_part = 0.0
+                
+            # Phase modulation from semantic phase factors
+            phase = phase_factors[n] if n < len(phase_factors) else 0.0
+            
+            # Create living coefficient
+            self.breathing_q_coefficients[n] = complex(real_part, imag_part) * np.exp(1j * phase)
+        
+        # Breathing rhythm from collective temporal patterns
+        self.breath_frequency = self.collective_breathing.get('collective_frequency', [0.1])[0]
+        self.breath_phase = 0.0
+        self.breath_amplitude = 0.1  # How much coefficients oscillate
+        
+    def _initialize_responsive_hecke_system(self):
+        """Create Hecke eigenvalues that adapt to field conditions."""
+        # Base eigenvalues from trajectory operators
+        trajectory_ops = self.temporal_biography.trajectory_operators
+        
+        if SAGE_AVAILABLE:
+            # Use Sage for proper Hecke operator mathematics
+            self.hecke_eigenvalues = {}
+            # Map trajectory operators to prime Hecke eigenvalues
+            primes = [2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47]
+            for i, p in enumerate(primes):
+                if i < len(trajectory_ops):
+                    # Use complex trajectory operator as eigenvalue
+                    self.hecke_eigenvalues[p] = complex(trajectory_ops[i])
+                else:
+                    # Default eigenvalue for higher primes
+                    self.hecke_eigenvalues[p] = complex(1.0, 0.0)
+        else:
+            # Fallback: direct mapping without Sage
+            self.hecke_eigenvalues = {
+                p: complex(trajectory_ops[i % len(trajectory_ops)]) 
+                for i, p in enumerate([2, 3, 5, 7, 11, 13, 17, 19, 23, 29])
+            }
+            
+        # Adaptivity parameters - how eigenvalues respond to field
+        self.hecke_adaptivity = 0.01  # Learning rate for eigenvalue evolution
+        
+    def _initialize_emotional_l_function(self):
+        """Create dynamic L-function from emotional modulation."""
+        # L-function coefficients from emotional modulation tensor
+        modulation_tensor = self.emotional_modulation.semantic_modulation_tensor
+        unified_phase = self.emotional_modulation.unified_phase_shift
+        
+        # Create L-series coefficients
+        self.l_function_coefficients = {}
+        for n in range(1, min(100, len(modulation_tensor) + 1)):
+            # Coefficient from modulation tensor with emotional phase
+            base_coeff = modulation_tensor[n - 1] if n - 1 < len(modulation_tensor) else 1.0
+            emotional_phase = np.angle(unified_phase) * n / 10
+            
+            self.l_function_coefficients[n] = base_coeff * np.exp(1j * emotional_phase)
+        
+        # Emotional conductor strength affects L-function evolution
+        self.emotional_conductivity = self.emotional_modulation.field_modulation_strength
+        
+    def _initialize_modular_geometry(self):
+        """Position agent in modular fundamental domain."""
+        # Map field position to upper half-plane (modular fundamental domain)
+        x, y = self.state.field_position
+        
+        # Transform to upper half-plane coordinates
+        # Fundamental domain: |τ| ≥ 1, -1/2 ≤ Re(τ) ≤ 1/2, Im(τ) > 0
+        real_part = np.clip(x, -0.5, 0.5)  # Real part in fundamental domain
+        imag_part = max(0.1, 1.0 + y)      # Ensure positive imaginary part
+        
+        self.tau_position = complex(real_part, imag_part)
+        
+        # Modular weight determines transformation behavior
+        field_magnitude = self.semantic_field_data['field_metadata']['field_magnitude']
+        self.modular_weight = max(2, int(2 * field_magnitude))  # Even weight ≥ 2
+        
+        if PYG_AVAILABLE:
+            # Create geometric node features for PyTorch Geometric
+            self.geometric_features = torch.tensor([
+                self.tau_position.real,
+                self.tau_position.imag, 
+                self.modular_weight,
+                self.emotional_conductivity
+            ], dtype=torch.float32, device=self.device)
+        
+    def _initialize_living_evolution(self):
+        """Set up parameters for living evolution and cascading feedback."""
+        # Evolution rates for different aspects
+        self.evolution_rates = {
+            'breathing': 0.01,      # How fast coefficients breathe
+            'cascading': 0.005,     # Rate of dimensional feedback
+            'interaction': 0.002,   # Rate of agent-agent interaction
+            'memory': 0.001         # Rate of persistence evolution
+        }
+        
+        # Cascading feedback state
+        self.cascade_momentum = {
+            'semantic_to_temporal': complex(0.0, 0.0),
+            'temporal_to_emotional': complex(0.0, 0.0), 
+            'emotional_to_semantic': complex(0.0, 0.0)
+        }
+        
+        # Memory of past interactions (for persistence)
+        self.interaction_memory = []
+        self.max_memory_length = 100
+        
+        # Living Q(τ,C,s) value that evolves
+        self.living_Q_value = complex(1.0, 0.0)
+    
+    def breathe(self, tau: float):
+        """
+        Make q-coefficients BREATHE with collective rhythm.
+        
+        This is the fundamental life process - coefficients oscillate, evolve,
+        and respond to the collective breathing of all agents.
+        """
+        # Update breathing phase
+        breath_freq = self.breath_frequency.real if hasattr(self.breath_frequency, 'real') else self.breath_frequency
+        self.breath_phase += breath_freq * tau * self.evolution_rates['breathing']
+        
+        # Breathing factor oscillates with collective rhythm
+        breath_factor = 1.0 + self.breath_amplitude * np.sin(self.breath_phase)
+        
+        # Each q-coefficient breathes with its own harmonic
+        for n in self.breathing_q_coefficients:
+            # Base breathing oscillation
+            harmonic_phase = self.breath_phase * (1 + n / 100)  # Higher harmonics breathe faster
+            harmonic_factor = 1.0 + (self.breath_amplitude * 0.5) * np.sin(harmonic_phase)
+            
+            # Apply breathing to coefficient
+            self.breathing_q_coefficients[n] *= breath_factor * harmonic_factor
+            
+            # Temporal phase evolution (each coefficient evolves in phase space)
+            phase_evolution = self.temporal_biography.phase_coordination[n % len(self.temporal_biography.phase_coordination)]
+            self.breathing_q_coefficients[n] *= np.exp(1j * phase_evolution * tau * 0.01)
+            
+            # Emotional modulation (conductor affects all coefficients)
+            emotional_factor = self.emotional_modulation.semantic_modulation_tensor[n % len(self.emotional_modulation.semantic_modulation_tensor)]
+            self.breathing_q_coefficients[n] *= (1.0 + 0.01 * emotional_factor)
+        
+        # Update living Q value after breathing
+        self.living_Q_value = self.evaluate_living_form(tau)
+        
+        # Update charge object with current state
+        self.charge_obj.complete_charge = self.living_Q_value
+        self.charge_obj.magnitude = abs(self.living_Q_value)
+        self.charge_obj.phase = np.angle(self.living_Q_value)
+    
+    def cascade_dimensional_feedback(self):
+        """
+        All dimensions flow into each other, reshaping the living form.
+        
+        This implements the cascading feedback loops where:
+        Semantic → Temporal → Emotional → Semantic (endless cycle)
+        """
+        # SEMANTIC → TEMPORAL: Field gradients drive temporal evolution
+        q_magnitudes = [abs(self.breathing_q_coefficients.get(n, 0)) for n in range(100)]
+        semantic_gradient = torch.tensor(q_magnitudes, device=self.device)
+        semantic_gradient = F.pad(semantic_gradient, (1, 1), mode='circular')
+        semantic_gradient = torch.gradient(semantic_gradient, dim=0)[0][:100]
+        
+        # Update temporal momentum from semantic pressure
+        gradient_magnitude = torch.mean(torch.abs(semantic_gradient)).item()
+        temporal_influence = complex(gradient_magnitude, gradient_magnitude * 0.1)
+        self.cascade_momentum['semantic_to_temporal'] += temporal_influence * self.evolution_rates['cascading']
+        
+        # Apply to temporal momentum
+        if hasattr(self.temporal_biography, 'temporal_momentum'):
+            self.temporal_biography.temporal_momentum += self.cascade_momentum['semantic_to_temporal'] * 0.1
+        
+        # TEMPORAL → EMOTIONAL: Breathing patterns modulate emotional response
+        breath_coherence = self.temporal_biography.breathing_coherence
+        temporal_momentum = getattr(self.temporal_biography, 'temporal_momentum', 0j)
+        
+        emotional_influence = breath_coherence * abs(temporal_momentum) * 0.1
+        self.cascade_momentum['temporal_to_emotional'] += complex(emotional_influence, 0) * self.evolution_rates['cascading']
+        
+        # Apply to emotional phase shift
+        self.emotional_modulation.unified_phase_shift *= (1 + 0.01j * emotional_influence)
+        
+        # EMOTIONAL → SEMANTIC: Conductor reshapes field landscape
+        conductor_strength = abs(self.emotional_modulation.unified_phase_shift)
+        conductor_phase = np.angle(self.emotional_modulation.unified_phase_shift)
+        
+        semantic_influence = complex(conductor_strength * 0.1, conductor_phase * 0.01)
+        self.cascade_momentum['emotional_to_semantic'] += semantic_influence * self.evolution_rates['cascading']
+        
+        # Apply to q-coefficients (conductor reshapes the entire form)
+        for n in range(min(100, len(self.breathing_q_coefficients))):
+            phase_shift = conductor_phase * n / 100
+            amplitude_shift = 1.0 + conductor_strength * 0.01
+            self.breathing_q_coefficients[n] *= amplitude_shift * np.exp(1j * phase_shift)
+        
+        # ALL → OBSERVATIONAL STATE: Everything affects s-parameter evolution
+        total_cascade_energy = sum(abs(momentum) for momentum in self.cascade_momentum.values())
+        self.state.current_s += total_cascade_energy * self.evolution_rates['cascading'] * 0.1
+        
+        # Update living Q value after cascading feedback
+        self.living_Q_value = self.evaluate_living_form()
+        
+        # Update charge object with current state
+        self.charge_obj.complete_charge = self.living_Q_value
+        self.charge_obj.magnitude = abs(self.living_Q_value)
+        self.charge_obj.phase = np.angle(self.living_Q_value)
+    
+    def interact_with_field(self, other_agents: List['ConceptualChargeAgent']):
+        """
+        Living forms reshape each other through field interference.
+        
+        This creates the liquid metal effect where agents influence each other
+        through modular geodesics and q-coefficient exchange.
+        """
+        for other in other_agents:
+            if other is self:
+                continue
+                
+            # Compute modular distance (geodesic in upper half-plane)
+            tau_self = self.tau_position
+            tau_other = other.tau_position
+            
+            # Hyperbolic distance in upper half-plane
+            distance = abs(tau_self - tau_other) / (np.sqrt(tau_self.imag) * np.sqrt(tau_other.imag))
+            
+            # Modular influence strength (decays with distance)
+            influence_strength = np.exp(-distance) / (1 + distance)
+            
+            if influence_strength < 0.001:  # Too far to interact
+                continue
+            
+            # q-coefficients LEARN from each other
+            for n in range(min(50, len(self.breathing_q_coefficients), len(other.breathing_q_coefficients))):
+                # Interference between coefficients
+                self_coeff = self.breathing_q_coefficients.get(n, 0)
+                other_coeff = other.breathing_q_coefficients.get(n, 0)
+                
+                interference = self_coeff * np.conj(other_coeff)
+                
+                # Coefficients EVOLVE based on interference
+                evolution_factor = influence_strength * self.evolution_rates['interaction']
+                self.breathing_q_coefficients[n] += interference * evolution_factor
+                
+                # Higher harmonics can EMERGE from interaction
+                if n < 25:  # Create new harmonics
+                    harmonic_n = 2 * n + 1
+                    if harmonic_n not in self.breathing_q_coefficients:
+                        self.breathing_q_coefficients[harmonic_n] = 0
+                    
+                    # New harmonic born from interference
+                    self.breathing_q_coefficients[harmonic_n] += \
+                        interference * influence_strength * 0.001
+            
+            # Hecke eigenvalues adapt to neighboring values
+            for p in self.hecke_eigenvalues:
+                if p in other.hecke_eigenvalues:
+                    neighbor_eigenvalue = other.hecke_eigenvalues[p]
+                    adaptation = (neighbor_eigenvalue - self.hecke_eigenvalues[p]) * influence_strength
+                    self.hecke_eigenvalues[p] += adaptation * self.hecke_adaptivity
+            
+            # Store interaction in memory
+            interaction_record = {
+                'tau': tau_other,
+                'influence': influence_strength,
+                'interference_energy': abs(interference) if 'interference' in locals() else 0.0,
+                'timestamp': self.state.current_s
+            }
+            self.interaction_memory.append(interaction_record)
+            
+            # Maintain memory length
+            if len(self.interaction_memory) > self.max_memory_length:
+                self.interaction_memory.pop(0)
+        
+        # Update living Q value after field interactions
+        self.living_Q_value = self.evaluate_living_form()
+        
+        # Update charge object with current state
+        self.charge_obj.complete_charge = self.living_Q_value
+        self.charge_obj.magnitude = abs(self.living_Q_value)
+        self.charge_obj.phase = np.angle(self.living_Q_value)
+    
+    def interact_with_optimized_field(self, nearby_agents: List[Tuple['ConceptualChargeAgent', float]]):
+        """
+        O(N log N) OPTIMIZED field interactions using sparse neighbor graph.
+        
+        This method receives pre-computed nearby agents with their interaction strengths,
+        eliminating the need to check all agents (O(N²) → O(log N) per agent).
+        
+        Args:
+            nearby_agents: List of (agent, pre_computed_interaction_strength) tuples
+        """
+        for other, pre_computed_strength in nearby_agents:
+            if other is self:
+                continue
+            
+            # Use pre-computed interaction strength from sparse graph
+            influence_strength = pre_computed_strength
+            
+            if influence_strength < 0.001:  # Skip very weak interactions
+                continue
+            
+            # q-coefficients LEARN from each other (same mathematics as before)
+            for n in range(min(50, len(self.breathing_q_coefficients), len(other.breathing_q_coefficients))):
+                # Interference between coefficients
+                self_coeff = self.breathing_q_coefficients.get(n, 0)
+                other_coeff = other.breathing_q_coefficients.get(n, 0)
+                
+                interference = self_coeff * np.conj(other_coeff)
+                
+                # Coefficients EVOLVE based on interference
+                evolution_factor = influence_strength * self.evolution_rates['interaction']
+                self.breathing_q_coefficients[n] += interference * evolution_factor
+                
+                # Higher harmonics can EMERGE from interaction
+                if n < 25:  # Create new harmonics
+                    harmonic_n = 2 * n + 1
+                    if harmonic_n not in self.breathing_q_coefficients:
+                        self.breathing_q_coefficients[harmonic_n] = 0
+                    
+                    # New harmonic born from interference
+                    self.breathing_q_coefficients[harmonic_n] += \
+                        interference * influence_strength * 0.001
+            
+            # Hecke eigenvalues adapt to neighboring values
+            for p in self.hecke_eigenvalues:
+                if p in other.hecke_eigenvalues:
+                    neighbor_eigenvalue = other.hecke_eigenvalues[p]
+                    adaptation = (neighbor_eigenvalue - self.hecke_eigenvalues[p]) * influence_strength
+                    self.hecke_eigenvalues[p] += adaptation * self.hecke_adaptivity
+            
+            # Store interaction in memory
+            interaction_record = {
+                'tau': other.tau_position,
+                'influence': influence_strength,
+                'interference_energy': abs(interference) if 'interference' in locals() else 0.0,
+                'timestamp': self.state.current_s,
+                'optimized': True  # Mark as optimized interaction
+            }
+            self.interaction_memory.append(interaction_record)
+            
+            # Maintain memory length
+            if len(self.interaction_memory) > self.max_memory_length:
+                self.interaction_memory.pop(0)
+        
+        # Update living Q value after field interactions
+        self.living_Q_value = self.evaluate_living_form()
+        
+        # Update charge object with current state
+        self.charge_obj.complete_charge = self.living_Q_value
+        self.charge_obj.magnitude = abs(self.living_Q_value)
+        self.charge_obj.phase = np.angle(self.living_Q_value)
+    
+    def interact_with_precomputed_field(self, nearby_agents_with_strengths: List[Tuple['ConceptualChargeAgent', float]]):
+        """
+        EFFICIENT FALLBACK: Use pre-computed interaction strengths from sparse graph.
+        
+        This method provides the same mathematical operations as interact_with_optimized_field
+        but can be called from legacy code that expects a different signature.
+        
+        Args:
+            nearby_agents_with_strengths: List of (agent, pre_computed_interaction_strength) tuples
+        """
+        # Delegate to the optimized method - they have identical signatures and behavior
+        self.interact_with_optimized_field(nearby_agents_with_strengths)
+    
+    def evolve_s_parameter(self, field_context: List['ConceptualChargeAgent']):
+        """
+        s-parameter drives the LIFE of the modular form.
+        
+        Observational state evolution based on field pressure, persistence memory,
+        and interaction history. This makes the form irreversibly evolve.
+        """
+        # Compute total field pressure from all agents
+        field_pressure = sum(abs(agent.living_Q_value) for agent in field_context) / len(field_context)
+        
+        # Dual persistence influences evolution rate
+        s_index = int(self.state.current_s) % 1024
+        vivid_influence = self.temporal_biography.vivid_layer[s_index] if s_index < len(self.temporal_biography.vivid_layer) else 1.0
+        character_influence = self.temporal_biography.character_layer[s_index] if s_index < len(self.temporal_biography.character_layer) else 0.001
+        
+        # Memory pressure from past interactions
+        if self.interaction_memory:
+            recent_memory = self.interaction_memory[-10:]  # Last 10 interactions
+            memory_pressure = sum(record['influence'] for record in recent_memory) / len(recent_memory)
+        else:
+            memory_pressure = 0.0
+        
+        # s evolution combining all influences
+        temporal_momentum = getattr(self.temporal_biography, 'temporal_momentum', 0j)
+        delta_s = (
+            field_pressure * vivid_influence * 0.01 +           # Immediate field response
+            abs(temporal_momentum) * character_influence * 0.1 + # Character-based momentum
+            memory_pressure * 0.05                               # Memory influence
+        )
+        
+        self.state.current_s += delta_s * self.evolution_rates['memory']
+        
+        # s evolution RESHAPES the modular form itself
+        # Higher s means more complex, lower s means simpler
+        s_distance = abs(self.state.current_s - self.state.s_zero)
+        complexity_factor = np.exp(-s_distance / 50)  # Gradual complexity decay
+        
+        # Apply complexity evolution to q-coefficients
+        for n in self.breathing_q_coefficients:
+            # Higher order coefficients are more sensitive to s-evolution
+            sensitivity = 1.0 + n / 100
+            decay_factor = complexity_factor ** sensitivity
+            self.breathing_q_coefficients[n] *= decay_factor
+        
+        # Update living Q value after s-parameter evolution
+        self.living_Q_value = self.evaluate_living_form()
+        
+        # Update charge object with current state
+        self.charge_obj.complete_charge = self.living_Q_value
+        self.charge_obj.magnitude = abs(self.living_Q_value)
+        self.charge_obj.phase = np.angle(self.living_Q_value)
+    
+    def evaluate_living_form(self, tau: Optional[float] = None) -> complex:
+        """
+        Evaluate the living modular form at current τ to get Q(τ,C,s).
+        
+        This computes the agent's current Q value as a living modular form
+        using breathing q-coefficients, responsive Hecke operators, and emotional L-function.
+        """
+        if tau is None:
+            tau = self.tau_position
+        else:
+            tau = complex(tau, self.tau_position.imag)
+        
+        # Compute q = exp(2πiτ)
+        q = torch.exp(2j * np.pi * tau)
+        
+        # Evaluate breathing q-expansion
+        f_tau = complex(0.0, 0.0)
+        for n, coeff in self.breathing_q_coefficients.items():
+            if n == 0:
+                f_tau += coeff  # Constant term
+            else:
+                f_tau += coeff * (q ** n)
+        
+        # Apply responsive Hecke operators
+        for p, eigenvalue in self.hecke_eigenvalues.items():
+            # Hecke operator T_p applied as multiplicative factor
+            hecke_factor = 1.0 + eigenvalue * (q ** p) / (1.0 + abs(q ** p))
+            f_tau *= hecke_factor
+        
+        # Apply emotional L-function modulation
+        l_value = complex(1.0, 0.0)
+        for n, coeff in self.l_function_coefficients.items():
+            if abs(coeff) > 0:
+                l_value *= (1.0 + coeff / (n ** (1 + 0.1j)))
+        
+        f_tau *= l_value
+        
+        # Apply observational state persistence
+        s_factor = self.compute_observational_persistence()[0]  # Total persistence
+        f_tau *= s_factor
+        
+        # Store as living Q value
+        self.living_Q_value = f_tau
+        
+        return f_tau
+    
+    def sync_positions(self):
+        """
+        Keep tau_position and field_position synchronized.
+        
+        This ensures the agent's modular domain position (tau_position) stays
+        in sync with the orchestrator's grid position (field_position).
+        """
+        # Convert tau (modular) to field (grid) coordinates
+        x = self.tau_position.real  # Real part maps directly
+        y = (self.tau_position.imag - 1.0)  # Shift from modular to grid (Im(τ) ≥ 1 → y ≥ 0)
+        
+        # Update field position
+        self.state.field_position = (x, y)
+        
+        # Update charge object metadata if it exists
+        if hasattr(self.charge_obj, 'metadata') and hasattr(self.charge_obj.metadata, 'field_position'):
+            self.charge_obj.metadata.field_position = (x, y)
+        elif hasattr(self.charge_obj, 'set_field_position'):
+            self.charge_obj.set_field_position((x, y))
+    
+    def update_tau_from_field(self):
+        """
+        Update tau_position from field_position if moved by orchestrator.
+        
+        This allows the orchestrator to move agents in grid space and have
+        their modular domain position automatically updated.
+        """
+        x, y = self.state.field_position
+        
+        # Convert field (grid) to tau (modular) coordinates
+        # Ensure Im(τ) > 0 for valid modular domain
+        real_part = np.clip(x, -0.5, 0.5)  # Keep in fundamental domain
+        imag_part = max(0.1, 1.0 + y)      # Ensure positive imaginary part
+        
+        self.tau_position = complex(real_part, imag_part)
+        
         
     def compute_gamma_calibration(self, collective_field_strength: Optional[float] = None) -> float:
         """

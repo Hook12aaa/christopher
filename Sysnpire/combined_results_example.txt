@@ -1,4 +1,4 @@
-=== FIELD THEORY RESULTS DUMP ===
+=== combined_results RESULTS DUMP ===
 
 {
 semantic_results: {

@@ -253,7 +253,7 @@ if __name__ == "__main__":
     project_root = Path(__file__).resolve().parent.parent.parent.parent
     sys.path.insert(0, str(project_root))
     
-    from Sysnpire.model.initial.bge_ingestion import BGEIngestion
+    from Sysnpire.model.intial.bge_ingestion import BGEIngestion
     
     # Follow the same pattern as FoundationManifoldBuilder
     bge_model = BGEIngestion(model_name="BAAI/bge-large-en-v1.5", random_seed=42)
