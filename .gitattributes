@@ -1,0 +1,2 @@
+*.h5 filter=lfs diff=lfs merge=lfs -text
+liquid_universes/**/*.h5 filter=lfs diff=lfs merge=lfs -text
