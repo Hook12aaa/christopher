@@ -140,12 +140,10 @@ class FoundationManifoldBuilder:
 
         model_loaded = self.__load_model_and_check()
 
-        # FOR TESTING: Use embeddings 5000-5099 (100 meaningful vocabulary words)
-        test_embeddings = model_loaded["embeddings"][
-            5000:5100
-        ]  # Use 5000-5099 for meaningful words
+        # STEP 1: LOAD MODEL AND EMBEDDINGS, Smaller Embeddings for Testing
+        test_embeddings = model_loaded["embeddings"][:10000]  # First 10000 embeddings
         logger.info(
-            f"🧪 Testing with {len(test_embeddings)} embeddings (indices 5000-5099)"
+            f"🧪 Testing with {len(test_embeddings)} embeddings"
         )
 
         # 🚀 OPTIMIZED SEQUENTIAL: Fast sequential processing with progress updates
@@ -163,7 +161,7 @@ class FoundationManifoldBuilder:
         for i, embedding in enumerate(test_embeddings):
             try:
                 # ⚡ DIRECT LOOKUP: Skip expensive search since we know the index
-                actual_index = 5000 + i  # We're using embeddings 5000-5099
+                actual_index = i  # We're using embeddings in order, so index matches
                 token = model_loaded['id_to_token'].get(actual_index, f"<UNK_{actual_index}>")
                 
                 # Create result structure directly without search
@@ -200,9 +198,7 @@ class FoundationManifoldBuilder:
         # 🧬 EXTRACT VOCAB MAPPINGS: Get actual vocabulary words for our embeddings
         id_to_token = model_loaded.get("id_to_token")
         token_to_id = model_loaded.get("token_to_id")
-        embedding_indices = list(
-            range(5000, 5100)
-        )  # Track which embeddings we're using
+        embedding_indices = list(range(len(test_embeddings)))
 
         # 🔍 Extract actual vocabulary words for our embedding indices (optimized)
         vocab_words = [
@@ -288,7 +284,7 @@ class FoundationManifoldBuilder:
 
         # 📄 DUMP combined_results
         combined_path = os.path.join(
-            project_root, "Sysnpire", "combined_results_example.txt"
+            project_root, "Sysnpire", "combined_results_example_all.txt"
         )
         with open(combined_path, "w") as f:
             f.write("=== combined_results RESULTS DUMP ===\n\n")
@@ -298,7 +294,7 @@ class FoundationManifoldBuilder:
 
         # 🌊 DUMP liquid_results
         liquid_path = os.path.join(
-            project_root, "Sysnpire", "liquid_results_example.txt"
+            project_root, "Sysnpire", "liquid_results_example_all.txt"
         )
         with open(liquid_path, "w") as f:
             f.write("=== LIQUID RESULTS DUMP ===\n\n")
