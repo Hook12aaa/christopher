@@ -22,6 +22,9 @@ from dataclasses import dataclass
 import time
 
 from Sysnpire.database.conceptual_charge_object import ConceptualChargeObject, FieldComponents
+from Sysnpire.utils.logger import get_logger
+
+logger = get_logger(__name__)
 
 
 @dataclass
@@ -73,6 +76,10 @@ class LiquidOrchestrator:
         
         # Active charge agents (living Q(τ, C, s) entities)
         self.active_charges: Dict[str, ConceptualChargeObject] = {}
+        self.charge_agents: Dict[str, 'ConceptualChargeAgent'] = {}  # Store actual agents
+        
+        # ChargeFactory data storage
+        self.combined_results: Optional[Dict[str, Any]] = None
         
         # Field state tensors
         self.field_grid = self._initialize_field_grid()
@@ -105,6 +112,207 @@ class LiquidOrchestrator:
         y = torch.linspace(-1, 1, self.field_resolution, device=self.device)
         grid_x, grid_y = torch.meshgrid(x, y, indexing='ij')
         return torch.stack([grid_x, grid_y], dim=-1)
+    
+    def load_charge_factory_results(self, combined_results: Dict[str, Any]) -> int:
+        """
+        Load ChargeFactory combined_results directly into orchestrator.
+        
+        RUNS THE SHOW: Main entry point for liquid simulation from ChargeFactory data.
+        
+        Args:
+            combined_results: Dictionary from ChargeFactory.build() containing:
+                - semantic_results with field_representations
+                - temporal_results with temporal_biographies  
+                - emotional_results with emotional_modulations
+                - field_components_ready status
+                
+        Returns:
+            Number of charges loaded
+        """
+        logger.info("LiquidOrchestrator loading ChargeFactory results")
+        
+        # Store the results
+        self.combined_results = combined_results
+        
+        # Validate structure
+        required_keys = ['semantic_results', 'temporal_results', 'emotional_results', 'field_components_ready']
+        for key in required_keys:
+            if key not in combined_results:
+                raise ValueError(f"Missing required key '{key}' in combined_results")
+        
+        # Check readiness
+        if not combined_results['field_components_ready'].get('ready_for_unified_assembly', False):
+            logger.warning("ChargeFactory indicates components not ready for unified assembly")
+        
+        # Get charge counts
+        semantic_count = combined_results['field_components_ready']['semantic_fields']
+        temporal_count = combined_results['field_components_ready']['temporal_biographies']
+        emotional_count = combined_results['field_components_ready']['emotional_modulations']
+        
+        logger.info(f"Factory data loaded: {semantic_count} semantic fields, {temporal_count} temporal biographies, {emotional_count} emotional modulations")
+        
+        if not (semantic_count == temporal_count == emotional_count):
+            logger.warning(f"Mismatched component counts: semantic={semantic_count}, temporal={temporal_count}, emotional={emotional_count}")
+        
+        return min(semantic_count, temporal_count, emotional_count)
+    
+    def create_agents_from_factory_data(self, max_agents: Optional[int] = None) -> int:
+        """
+        Create ConceptualChargeAgent entities from loaded ChargeFactory data.
+        
+        Args:
+            max_agents: Maximum number of agents to create (None for all)
+            
+        Returns:
+            Number of agents created
+        """
+        if self.combined_results is None:
+            raise ValueError("No ChargeFactory results loaded. Call load_charge_factory_results() first.")
+        
+        logger.info("Creating ConceptualChargeAgent entities from factory data")
+        
+        # Import here to avoid circular imports
+        from Sysnpire.model.liquid.conceptual_charge_agent import ConceptualChargeAgent
+        
+        # Determine number of agents to create
+        max_available = min(
+            len(self.combined_results['semantic_results']['field_representations']),
+            len(self.combined_results['temporal_results']['temporal_biographies']),
+            len(self.combined_results['emotional_results']['emotional_modulations'])
+        )
+        
+        num_agents = min(max_available, max_agents) if max_agents else max_available
+        
+        logger.info(f"Creating {num_agents} agents from {max_available} available charge sets")
+        
+        agents_created = 0
+        for i in range(num_agents):
+            try:
+                logger.info(f"Creating agent {i}")
+                
+                # Create agent using factory method
+                agent = ConceptualChargeAgent.from_charge_factory_results(
+                    combined_results=self.combined_results,
+                    charge_index=i,
+                    device=str(self.device)
+                )
+                
+                # Store both agent and charge object
+                agent_id = agent.charge_id
+                self.charge_agents[agent_id] = agent
+                self.active_charges[agent_id] = agent.charge_obj
+                
+                # Update Q-field with new charge contribution
+                self._update_q_field_contribution(agent.charge_obj)
+                
+                agents_created += 1
+                logger.info(f"Agent {i} created successfully: {agent_id}")
+                
+            except Exception as e:
+                logger.error(f"Failed to create agent {i}: {e}")
+        
+        logger.info(f"Successfully created {agents_created} ConceptualChargeAgent entities")
+        return agents_created
+    
+    def create_liquid_universe(self, combined_results: Dict[str, Any], max_agents: Optional[int] = None) -> Dict[str, Any]:
+        """
+        Create the liquid universe from ChargeFactory combined results.
+        
+        This is the main entry point called by ChargeFactory after stages 1, 2, 3.
+        
+        Args:
+            combined_results: Dictionary from ChargeFactory containing:
+                - semantic_results with field_representations
+                - temporal_results with temporal_biographies  
+                - emotional_results with emotional_modulations (conductor)
+                - field_components_ready status
+            max_agents: Maximum number of agents to create (None for all)
+            
+        Returns:
+            liquid_results: Dictionary containing:
+                - agent_pool: Dict of ConceptualChargeAgent instances
+                - active_charges: Dict of ConceptualChargeObject instances
+                - num_agents: Number of agents created
+                - field_statistics: Initial field state
+                - orchestrator: Reference to self for simulation control
+                - ready_for_simulation: Boolean readiness flag
+        """
+        logger.info("="*60)
+        logger.info("CREATING LIQUID UNIVERSE")
+        logger.info("LiquidOrchestrator taking control from ChargeFactory")
+        logger.info("="*60)
+        
+        # Step 1: Load factory data
+        num_charges = self.load_charge_factory_results(combined_results)
+        
+        # Step 2: Create agents
+        num_agents = self.create_agents_from_factory_data(max_agents)
+        
+        # Step 3: Get initial field statistics
+        field_stats = self.get_field_statistics()
+        
+        # Step 4: Build liquid results structure
+        liquid_results = {
+            'agent_pool': self.charge_agents,  # Living Q(τ,C,s) entities
+            'active_charges': self.active_charges,  # ConceptualChargeObject instances
+            'num_agents': num_agents,
+            'field_statistics': field_stats,
+            'orchestrator': self,  # Reference for simulation control
+            'ready_for_simulation': num_agents > 0
+        }
+        
+        logger.info("Liquid universe creation complete:")
+        logger.info(f"  Agents created: {num_agents}")
+        logger.info(f"  Field energy: {field_stats['field_energy']:.6f}")
+        logger.info(f"  Ready for simulation: {liquid_results['ready_for_simulation']}")
+        
+        return liquid_results
+    
+    def initialize_liquid_simulation(self, combined_results: Dict[str, Any], max_agents: Optional[int] = None) -> Dict[str, Any]:
+        """
+        Complete initialization of liquid simulation from ChargeFactory data.
+        
+        MAIN ENTRY POINT: This method coordinates everything from factory data to live simulation.
+        
+        Args:
+            combined_results: ChargeFactory output dictionary
+            max_agents: Maximum number of agents to create
+            
+        Returns:
+            Initialization summary
+        """
+        logger.info("="*60)
+        logger.info("INITIALIZING LIQUID SIMULATION")
+        logger.info("LiquidOrchestrator RUNS THE SHOW")
+        logger.info("="*60)
+        
+        # Step 1: Load factory data
+        num_charges = self.load_charge_factory_results(combined_results)
+        
+        # Step 2: Create agents
+        num_agents = self.create_agents_from_factory_data(max_agents)
+        
+        # Step 3: Initialize field dynamics
+        initial_stats = self.get_field_statistics()
+        
+        summary = {
+            'charges_loaded': num_charges,
+            'agents_created': num_agents,
+            'field_resolution': self.field_resolution,
+            'device': str(self.device),
+            'initial_field_energy': initial_stats['field_energy'],
+            'ready_for_simulation': num_agents > 0
+        }
+        
+        logger.info("Liquid simulation initialization complete:")
+        logger.info(f"  Charges loaded: {num_charges}")
+        logger.info(f"  Agents created: {num_agents}")
+        logger.info(f"  Field resolution: {self.field_resolution}x{self.field_resolution}")
+        logger.info(f"  Device: {str(self.device)}")
+        logger.info(f"  Initial field energy: {initial_stats['field_energy']:.6f}")
+        logger.info(f"  Ready for simulation: {summary['ready_for_simulation']}")
+        
+        return summary
         
     def add_conceptual_charge(self, charge_obj: ConceptualChargeObject, 
                             field_position: Optional[Tuple[float, float]] = None):
