@@ -15,3 +15,5 @@ foundation_manifold/
 # System files
 .DS_Store
 wisdom.md
+liquid_universes/**/*.h5
+*.h5
