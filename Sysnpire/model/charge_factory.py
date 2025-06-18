@@ -35,26 +35,31 @@ from dataclasses import dataclass
 project_root = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(project_root))
 
-from Sysnpire.model.semantic_dimension.SemanticDimensionHelper import SemanticDimensionHelper
-from Sysnpire.model.temporal_dimension.TemporalDimensionHelper import TemporalDimensionHelper
-from Sysnpire.model.emotional_dimension.EmotionalDimensionHelper import EmotionalDimensionHelper
+from Sysnpire.model.semantic_dimension.SemanticDimensionHelper import (
+    SemanticDimensionHelper,
+)
+from Sysnpire.model.temporal_dimension.TemporalDimensionHelper import (
+    TemporalDimensionHelper,
+)
+from Sysnpire.model.emotional_dimension.EmotionalDimensionHelper import (
+    EmotionalDimensionHelper,
+)
 from Sysnpire.utils.logger import get_logger
+
 logger = get_logger(__name__)
 
 
-# Liqued Universe this is universe stage one 
+# Liqued Universe this is universe stage one
 from Sysnpire.model.liquid.liquid_orchestrator import LiquidOrchestrator
-
-
 
 
 class ChargeFactory:
     """
     Focused Field Theory Charge Generator
-    
+
     SINGLE RESPONSIBILITY: Transforms embeddings + mathematical properties
     into dynamic conceptual charges using Q(τ, C, s) field theory mathematics.
-    
+
     AGNOSTIC DESIGN: Works with embeddings from any source - BGE models, MPNet models,
     scraped data, user text, or external systems. Only requires embedding vector
     and mathematical properties of either living universe or the base model.
@@ -63,17 +68,17 @@ class ChargeFactory:
     This is usually the BGE or MPNet model. This allows us to create the universe
 
     """
-    
-    def __init__(self, from_base: bool = True, model_info: dict = None, model = None):
+
+    def __init__(self, from_base: bool = True, model_info: dict = None, model=None):
         """
 
-        Args: 
+        Args:
         - from_base (bool): Whether to initialize with base model support from BGE or MPNet. This is usually at ground zero of creating the universe
         - model (Optional[Any]): If we are starting from base model, we need to understand what model we are using. This is usually the BGE or MPNet model.
 
 
         TODO: Initialize charge factory for Q(τ, C, s) transformations
-        
+
         Implementation tasks:
         - Set up minimal initialization (no model loading, no data dependencies)
         - Initialize charge counter for tracking
@@ -81,7 +86,7 @@ class ChargeFactory:
         - Initialize temporal orchestrator for cross-dimensional integration
         - Integrate temporal orchestrator with charge factory
         """
-        self.from_base = from_base 
+        self.from_base = from_base
         self.model_info = model_info
 
         # Set helper first before initializing factory helpers
@@ -94,18 +99,21 @@ class ChargeFactory:
             self.helper = None
             logger.info("ChargeFactory initialized without base model support.")
 
-        #initialize  our factory helpers (after self.helper is set)
+        # initialize  our factory helpers (after self.helper is set)
         self.__init_factory_helpers()
 
-
-    
     def __init_factory_helpers(self):
-        self.semantic_helper = SemanticDimensionHelper(self.from_base, model_info = self.model_info, helper = self.helper) # This is our handler for semantic field generation (3.1.2)
-        self.temporal_helper = TemporalDimensionHelper(self.from_base, model_info = self.model_info, helper = self.helper) # This is our handler for temporal breathing patterns (3.1.4)
-        self.emotional_helper = EmotionalDimensionHelper(self.from_base, model_info = self.model_info, helper = self.helper) # This is our conductor for emotional field modulation (3.1.3)
+        self.semantic_helper = SemanticDimensionHelper(
+            self.from_base, model_info=self.model_info, helper=self.helper
+        )  # This is our handler for semantic field generation (3.1.2)
+        self.temporal_helper = TemporalDimensionHelper(
+            self.from_base, model_info=self.model_info, helper=self.helper
+        )  # This is our handler for temporal breathing patterns (3.1.4)
+        self.emotional_helper = EmotionalDimensionHelper(
+            self.from_base, model_info=self.model_info, helper=self.helper
+        )  # This is our conductor for emotional field modulation (3.1.3)
 
-
-    def __build_safety_checks(self,all: List[Dict]) -> None:
+    def __build_safety_checks(self, all: List[Dict]) -> None:
         """
         Perform safety checks on the input list of embedding vectors.
         This method ensures that the input list is not empty, is a list of dictionaries,
@@ -118,77 +126,107 @@ class ChargeFactory:
         """
 
         if not all:
-            raise ValueError("The input list 'all' cannot be empty. Please provide a list of embedding vectors.")
+            raise ValueError(
+                "The input list 'all' cannot be empty. Please provide a list of embedding vectors."
+            )
         if not isinstance(all, list):
-            raise TypeError("The input 'all' must be a list of embedding vectors. Please provide a valid list.")
+            raise TypeError(
+                "The input 'all' must be a list of embedding vectors. Please provide a valid list."
+            )
         if not self.from_base:
-            raise ValueError("ChargeFactory must be initialized with from_base=True to build the universe. Please check your initialization parameters.")
+            raise ValueError(
+                "ChargeFactory must be initialized with from_base=True to build the universe. Please check your initialization parameters."
+            )
 
-
-
-    def build(self, all: List[Dict], total_info: Dict[str, Any], vocab_mappings: Dict[str, Any] = None) -> Any:
+    def build(
+        self,
+        all: List[Dict],
+        total_info: Dict[str, Any],
+        vocab_mappings: Dict[str, Any] = None,
+    ) -> Any:
         """
         Build the initial universe from a list of embedding vectors with vocabulary context.
         This method will take a list of embedding vectors and transform them into
         dynamic conceptual charges using the Q(τ, C, s) field theory mathematics.
 
-        And then upload them into our Universe as found in /Sysnpire/database/felid_universe.py
-        
+        And then upload them into our Universe as found in /Sysnpire/database/field_universe.py
+
         Args:
             all (List[Dict]): List of embedding vectors to be transformed.
             total_info (Dict[str, Any]): Complete model information
             vocab_mappings (Dict[str, Any]): Vocabulary mappings (id_to_token, token_to_id)
-    
+
         Returns:
             Any: The transformed dynamic conceptual charges with vocab context
-        
+
         """
         # Perform safety checks on the input list
         self.__build_safety_checks(all)
-        
+
         # 📚 VOCAB CONTEXT: Prepare vocabulary mappings for dimensional helpers
         if vocab_mappings is None:
-            vocab_mappings = {'id_to_token': {}, 'token_to_id': {}, 'embedding_indices': []}
-        logger.info(f"📚 Threading vocab context: {len(vocab_mappings.get('id_to_token', {}))} tokens available")
+            vocab_mappings = {
+                "id_to_token": {},
+                "token_to_id": {},
+                "embedding_indices": [],
+            }
+        logger.info(
+            f"📚 Threading vocab context: {len(vocab_mappings.get('id_to_token', {}))} tokens available"
+        )
 
         # STEP 1: Convert embeddings to semantic fields with vocab context
-        semantic_results = self.semantic_helper.convert_vector_to_field_respentation(all, vocab_mappings)
-        self.semantic_fields = semantic_results['field_representations']
-        
-        logger.info(f"✅ Generated {len(self.semantic_fields)} semantic fields with vocab context")
-        
+        semantic_results = self.semantic_helper.convert_vector_to_field_respentation(
+            all, vocab_mappings
+        )
+        self.semantic_fields = semantic_results["field_representations"]
+
+        logger.info(
+            f"✅ Generated {len(self.semantic_fields)} semantic fields with vocab context"
+        )
+
         # STEP 2: Convert embeddings to temporal breathing patterns with vocab context
-        temporal_results = self.temporal_helper.convert_embedding_to_temporal_field(all, vocab_mappings)
-        self.temporal_biographies = temporal_results['temporal_biographies']
-        
-        logger.info(f"🌊 Generated {len(self.temporal_biographies)} temporal breathing patterns with vocab context")
-        
+        temporal_results = self.temporal_helper.convert_embedding_to_temporal_field(
+            all, vocab_mappings
+        )
+        self.temporal_biographies = temporal_results["temporal_biographies"]
+
+        logger.info(
+            f"🌊 Generated {len(self.temporal_biographies)} temporal breathing patterns with vocab context"
+        )
+
         # STEP 3: Emotional conductor with vocab context - coordinate field modulation parameters
-        emotional_results = self.emotional_helper.convert_embeddings_to_emotional_modulation(all, vocab_mappings)
-        self.emotional_modulations = emotional_results['emotional_modulations']
-        
-        logger.info(f"🎭 Generated emotional field conductor with {len(self.emotional_modulations)} modulations")
-        
+        emotional_results = (
+            self.emotional_helper.convert_embeddings_to_emotional_modulation(
+                all, vocab_mappings
+            )
+        )
+        self.emotional_modulations = emotional_results["emotional_modulations"]
+
+        logger.info(
+            f"🎭 Generated emotional field conductor with {len(self.emotional_modulations)} modulations"
+        )
+
         # Log field strength from signature
-        field_signature = emotional_results['field_signature']
-        logger.info(f"   Field strength: {field_signature.field_modulation_strength:.3f}")
+        field_signature = emotional_results["field_signature"]
+        logger.info(
+            f"   Field strength: {field_signature.field_modulation_strength:.3f}"
+        )
         logger.info(f"   Pattern confidence: {field_signature.pattern_confidence:.3f}")
-        
 
         # Combine results with emotional coordination ready AND vocab context
         combined_results = {
-            'semantic_results': semantic_results,
-            'temporal_results': temporal_results,
-            'emotional_results': emotional_results,
-            'field_components_ready': {
-                'semantic_fields': len(self.semantic_fields),
-                'temporal_biographies': len(self.temporal_biographies),
-                'emotional_modulations': len(self.emotional_modulations),
-                'emotional_conductor_active': True,
-                'ready_for_unified_assembly': True
+            "semantic_results": semantic_results,
+            "temporal_results": temporal_results,
+            "emotional_results": emotional_results,
+            "field_components_ready": {
+                "semantic_fields": len(self.semantic_fields),
+                "temporal_biographies": len(self.temporal_biographies),
+                "emotional_modulations": len(self.emotional_modulations),
+                "emotional_conductor_active": True,
+                "ready_for_unified_assembly": True,
             },
             # 📚 VOCAB THREADING: Include vocab mappings for LiquidOrchestrator
-            'vocab_mappings': vocab_mappings
+            "vocab_mappings": vocab_mappings,
         }
 
         # STEP 4: Hand off to LiquidOrchestrator for liquid universe creation
@@ -198,30 +236,32 @@ class ChargeFactory:
         # - Temporal trajectories reshape semantic landscapes
         # - Everything flows together like liquid metal forming Q(τ,C,s)
         logger.info("🎭 STEP 4: All dimensions ready to clash in liquid stage...")
-        
+
         # Create LiquidOrchestrator and pass combined results for agent creation
-        liquid_orchestrator = LiquidOrchestrator(device="mps")  # Use MPS for Apple Silicon
+        liquid_orchestrator = LiquidOrchestrator(
+            device="mps"
+        )  # Use MPS for Apple Silicon
         liquid_results = liquid_orchestrator.create_liquid_universe(combined_results)
-        
-        logger.info(f"🌊 Liquid universe created with {liquid_results['num_agents']} living Q(τ,C,s) entities")
-        
+
+        logger.info(
+            f"🌊 Liquid universe created with {liquid_results['num_agents']} living Q(τ,C,s) entities"
+        )
+
         # Return complete results
         return {
             **combined_results,  # Includes semantic, temporal, emotional results
-            'liquid_results': liquid_results  # The liquid universe with agent pool
+            "liquid_results": liquid_results,  # The liquid universe with agent pool
         }
 
     def integrate():
         """
         Integrate new data into the charge factory.
-        
+
         This method will handle the integration of new data, transforming it into
         dynamic conceptual charges using the Q(τ, C, s) field theory mathematics.
         """
-        #TODO: This is a later stage, we are focusing on the initial charge generation.
+        # TODO: This is a later stage, we are focusing on the initial charge generation.
         pass
-
-
 
 
 # TODO: Add example usage section showing source-agnostic design
