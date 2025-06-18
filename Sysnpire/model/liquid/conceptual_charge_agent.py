@@ -228,6 +228,11 @@ class ConceptualChargeAgent:
         self.charge_index = charge_index
         self.device = torch.device(device if torch.backends.mps.is_available() else "cpu")
         
+        # 📚 VOCAB CONTEXT: Store vocabulary information for agent identity
+        self.vocab_token_string = charge_obj.text_source  # Human-readable token string
+        self.vocab_token_id = None  # Will be set if available
+        self.vocab_context = {}  # Will store full vocab mappings if available
+        
         # Extract rich structures from ChargeFactory combined_results (following charge_factory.py structure)
         try:
             self.semantic_field_data = combined_results['semantic_results']['field_representations'][charge_index]
@@ -285,7 +290,8 @@ class ConceptualChargeAgent:
                                   combined_results: Dict[str, Any], 
                                   charge_index: int,
                                   initial_context: Dict[str, Any] = None,
-                                  device: str = "mps") -> 'ConceptualChargeAgent':
+                                  device: str = "mps",
+                                  vocab_mappings: Dict[str, Any] = None) -> 'ConceptualChargeAgent':
         """
         Direct creation from ChargeFactory output following paper mathematics.
         
@@ -297,9 +303,10 @@ class ConceptualChargeAgent:
             charge_index: Index of the charge to create (0-based)
             initial_context: Optional initial contextual environment C
             device: PyTorch device for tensor operations
+            vocab_mappings: Vocabulary mappings (id_to_token, token_to_id) for token resolution
             
         Returns:
-            ConceptualChargeAgent instance with proper field theory mathematics
+            ConceptualChargeAgent instance with proper field theory mathematics and vocab context
         """
         # Extract semantic field data
         semantic_data = combined_results['semantic_results']['field_representations'][charge_index]
@@ -313,6 +320,21 @@ class ConceptualChargeAgent:
         
         # Extract source token (BGE vocabulary token, not text)
         source_token = semantic_data['field_metadata']['source_token']
+        
+        # 📚 VOCAB RESOLUTION: Convert token ID to human-readable string
+        if vocab_mappings and 'id_to_token' in vocab_mappings:
+            id_to_token = vocab_mappings['id_to_token']
+            # Try to convert source_token to readable string
+            if isinstance(source_token, (int, str)):
+                # Handle both numeric IDs and string tokens
+                token_id = int(source_token) if str(source_token).isdigit() else source_token
+                vocab_token_string = id_to_token.get(token_id, source_token)
+            else:
+                vocab_token_string = str(source_token)
+        else:
+            vocab_token_string = str(source_token)
+        
+        logger.debug(f"🧬 Agent {charge_index} vocab resolution: {source_token} → {vocab_token_string}")
         
         # Create field components for ConceptualChargeObject using ACTUAL data from combined_results
         field_components = FieldComponents(
@@ -337,10 +359,10 @@ class ConceptualChargeAgent:
         # Create complete charge with paper mathematics: magnitude * emotional_conductor * temporal_persistence * e^(i*phase)
         complete_charge = field_magnitude * emotional_amplification * temporal_persistence * np.exp(1j * mean_phase)
         
-        # Create ConceptualChargeObject with proper complete charge initialization
+        # Create ConceptualChargeObject with proper complete charge initialization AND vocab string
         charge_obj = ConceptualChargeObject(
             charge_id=f"charge_{charge_index}",
-            text_source=semantic_data['field_metadata']['source_token'],
+            text_source=vocab_token_string,  # 📚 Use human-readable vocab string instead of token ID
             complete_charge=complete_charge,  # Actual field-based complete charge
             field_components=field_components,
             observational_state=1.0,
@@ -355,6 +377,13 @@ class ConceptualChargeAgent:
             initial_context=initial_context,
             device=device
         )
+        
+        # 📚 ENHANCE AGENT WITH VOCAB CONTEXT: Set vocab fields
+        if vocab_mappings:
+            agent.vocab_context = vocab_mappings
+            agent.vocab_token_id = source_token  # Original token ID
+            # vocab_token_string already set via charge_obj.text_source
+            logger.debug(f"🧬 Agent {charge_index} enhanced with vocab context: ID={source_token}, String='{vocab_token_string}'")
         
         return agent
     

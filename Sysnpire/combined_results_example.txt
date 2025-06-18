@@ -3,15 +3,15 @@
 {
 semantic_results: {
   field_representations: [10 items: {
-      semantic_field: SemanticField(embedding_components=[-0.03488159 -0.01809692 -0.00969696 ... -0.02850342 -0.04702759
- -0.09698486], phase_factors=[-0.09644166 -0.09731151 -0.0997844  ... -0.10473581 -0.10268691
- -0.09899123], basis_functions=BasisFunctionSet(design_params=<dict len=6>, embedding_dimension=1024, basis_cache=<dict len=4096>, basis_type=radial_semantic, num_centers=25, coverage_radius=0.5108068623075083), source_token=[unused575], manifold_dimension=1024)
+      semantic_field: SemanticField(embedding_components=[-0.05944824  0.0138855  -0.00396347 ... -0.02328491 -0.00774002
+ -0.01387024], phase_factors=[-0.09109507  0.10491457 -0.10200937 ... -0.11008158 -0.10565447
+ -0.09685222], basis_functions=BasisFunctionSet(design_params=<dict len=6>, embedding_dimension=1024, basis_cache=<dict len=4096>, basis_type=radial_semantic, num_centers=25, coverage_radius=0.5108068623075083), source_token=knight, manifold_dimension=1024)
       field_metadata: {
-        source_token: [unused575]
+        source_token: knight
         manifold_dimension: 1024
         num_components: 1024
-        field_magnitude: 1.1512225563243823
-        phase_range: [-0.2027344887090054, 0.20275699974971115]
+        field_magnitude: 1.2919444835999667
+        phase_range: [-0.20794889088097573, 0.2077395914465877]
         }
       spatial_parameters: {
         basis_centers: {
@@ -56,8 +56,8 @@ semantic_results: {
         }
       phase_computation: {
         method: component_based
-        phase_range: [-0.2027344887090054, 0.20275699974971115]
-        phase_variance: 0.012000536392441908
+        phase_range: [-0.20794889088097573, 0.2077395914465877]
+        phase_variance: 0.013520173226596304
         }
       basis_function_info: {
         type: radial_semantic
@@ -67,84 +67,84 @@ semantic_results: {
       field_validation: {
         field_evaluates: True
         field_at_origin: {
-          magnitude: 0.006740462698440448
-          phase: 2.941641350616255
-          real_part: -0.006606167413412754
-          imag_part: 0.0013388015144264397
+          magnitude: 0.007360117868748876
+          phase: 2.9462578837173523
+          real_part: -0.007220148647919757
+          imag_part: 0.0014285617045892698
           }
         field_finite: True
         components_finite: True
         phases_finite: True
         field_responses: [{
             position_norm: 3.1312802108453504
-            field_magnitude: 7.091181353520874e-36
+            field_magnitude: 7.727730465668599e-36
             field_finite: True
             }, {
             position_norm: 3.2094134312664795
-            field_magnitude: 3.223505634666263e-37
+            field_magnitude: 3.8548522118333355e-37
             field_finite: True
             }, {
             position_norm: 3.1457799522769614
-            field_magnitude: 1.0120859094704041e-35
+            field_magnitude: 1.224206724468062e-35
             field_finite: True
             }]
         validation_passed: True
         }
       transformation_complete: True
       original_embedding: {
-        vector: [1024 items: -0.034881591796875, -0.018096923828125, -0.00969696044921875, ...]
-        token: [unused575]
+        vector: [1024 items: -0.0594482421875, 0.013885498046875, -0.003963470458984375, ...]
+        token: knight
         manifold_properties: {
-          magnitude: 1.1512221097946167
-          vector: [1024 items: -0.034881591796875, -0.018096923828125, -0.00969696044921875, ...]
-          local_density: 2.8531332468595827
-          local_curvature: 0.06453976171906112
-          metric_eigenvalues: [20 items: 0.0044502440870249765, 0.0043062586514551575, 0.00419206631674622, ...]
-          gradient: [1024 items: 0.0, 5.820766091346741e-11, -1.8626451769865326e-10, ...]
-          gradient_magnitude: 2.8418336128765986e-08
-          gradient_structure_eigenvalues: [20 items: 2.8418339681479665e-08, 5.0662417830999604e-18, 2.06461137606908e-18, ...]
-          persistence_radius: 0.3721100687980652
-          persistence_score: 1.0616796087789664
-          boundary_score: 0.25451356172561646
-          principal_components: [49 items: 0.06215323507785797, -0.011462362483143806, 0.06519141048192978, ...]
-          coupling_mean: 0.9426016062170783
-          coupling_variance: 0.00017429444353031677
-          correlation_strength: 0.9426016062170783
-          correlation_consistency: 0.9998257359297288
-          cross_correlations: [5 items: 0.9511406971069083, 0.9495840841539739, 0.9490778960872894, ...]
-          temporal_decay: -0.000602034140211205
-          emotional_coupling_factor: 0.9424373446245348
-          trajectory_persistence: 0.9993979658597888
-          dominant_frequencies: [10 items: 0.923828125, 0.0029296875, 0.9970703125, ...]
-          frequency_magnitudes: [10 items: 5.06211593048604, 5.290941907656497, 5.2909419076564985, ...]
-          phase_angles: [512 items: -2.278867244720459, 3.0977232456207275, 3.0128824710845947, ...]
-          spectral_entropy: 5.987901866232415
-          spectral_centroid: 436.07846561767843
+          magnitude: 1.2919445037841797
+          vector: [1024 items: -0.0594482421875, 0.013885498046875, -0.003963470458984375, ...]
+          local_density: 0.685193983939603
+          local_curvature: 0.1714716067624978
+          metric_eigenvalues: [20 items: 0.11472420369822779, 0.004722891489059974, 0.004540801005625097, ...]
+          gradient: [1024 items: -7.450580707946131e-10, 0.0, -3.7252903539730653e-10, ...]
+          gradient_magnitude: 2.7238968414167175e-08
+          gradient_structure_eigenvalues: [20 items: 2.7238971966880854e-08, 1.0748683326279051e-16, 2.6411413737675144e-17, ...]
+          persistence_radius: 1.5409703254699707
+          persistence_score: 1.0558635964414758
+          boundary_score: 1.4389605522155762
+          principal_components: [49 items: -0.8975738883018494, 0.0002683736092876643, 0.003080527065321803, ...]
+          coupling_mean: 0.12298260887535087
+          coupling_variance: 0.04049668296981696
+          correlation_strength: 0.12298260887535087
+          correlation_consistency: 0.9610794694181723
+          cross_correlations: [5 items: 0.21719037239558905, 0.2151913572241066, 0.21459255760411483, ...]
+          temporal_decay: -0.0007687558009043596
+          emotional_coupling_factor: 0.11819606048558483
+          trajectory_persistence: 0.9992312441990956
+          dominant_frequencies: [10 items: 0.7490234375, 0.4560546875, 0.5439453125, ...]
+          frequency_magnitudes: [10 items: 5.435036670337695, 5.654625862110877, 5.654625862110879, ...]
+          phase_angles: [512 items: -2.797983407974243, -1.3411096334457397, -1.7952032089233398, ...]
+          spectral_entropy: 6.028220127851101
+          spectral_centroid: 439.8422084416902
           peak_frequency: 0.0
-          frequency_bandwidth: 0.3581883750882206
-          phase_variance: 3.309147596359253
-          phase_mean: -1.2032510042190552
-          phase_complexity: 19.81485106787808
-          phase_integration_factor: 0.03654731437563896
-          spectral_field_strength: 201.2396498117551
-          frequency_distribution_width: 0.3581883750882206
+          frequency_bandwidth: 0.32972719938797185
+          phase_variance: 4.03526496887207
+          phase_mean: -0.5475126504898071
+          phase_complexity: 24.325465506567063
+          phase_integration_factor: 0.017680995166301727
+          spectral_field_strength: 240.88010527811946
+          frequency_distribution_width: 0.32972719938797185
           has_loops: False
           topological_complexity: 0.0
           }
-        vector_norm: 1.1512225563243823
+        vector_norm: 1.2919444835999667
         vector_dimension: 1024
-        index: 580
+        index: 5000
         }
       }, {
-      semantic_field: SemanticField(embedding_components=[-0.03695679  0.00596237 -0.01741028 ... -0.02178955 -0.04827881
- -0.09344482], phase_factors=[-0.0964345   0.10202966 -0.09978738 ... -0.10474297 -0.10269088
- -0.09898836], basis_functions=BasisFunctionSet(design_params=<dict len=6>, embedding_dimension=1024, basis_cache=<dict len=4096>, basis_type=radial_semantic, num_centers=25, coverage_radius=0.5108068623075083), source_token=[unused576], manifold_dimension=1024)
+      semantic_field: SemanticField(embedding_components=[ 0.00639725  0.01248932 -0.06854248 ... -0.01218414 -0.13256836
+ -0.01225281], phase_factors=[ 0.1092553   0.10546193 -0.10243095 ... -0.11109449 -0.10621676
+ -0.09644693], basis_functions=BasisFunctionSet(design_params=<dict len=6>, embedding_dimension=1024, basis_cache=<dict len=4096>, basis_type=radial_semantic, num_centers=25, coverage_radius=0.5108068623075083), source_token=lap, manifold_dimension=1024)
       field_metadata: {
-        source_token: [unused576]
+        source_token: lap
         manifold_dimension: 1024
         num_components: 1024
-        field_magnitude: 1.1525499640485921
-        phase_range: [-0.20278120354325269, 0.20248355337769428]
+        field_magnitude: 1.519297167060836
+        phase_range: [-0.2091314528299566, 0.20908082009673437]
         }
       spatial_parameters: {
         basis_centers: {
@@ -189,8 +189,8 @@ semantic_results: {
         }
       phase_computation: {
         method: component_based
-        phase_range: [-0.20278120354325269, 0.20248355337769428]
-        phase_variance: 0.012357975953616299
+        phase_range: [-0.2091314528299566, 0.20908082009673437]
+        phase_variance: 0.015043110167136367
         }
       basis_function_info: {
         type: radial_semantic
@@ -200,84 +200,84 @@ semantic_results: {
       field_validation: {
         field_evaluates: True
         field_at_origin: {
-          magnitude: 0.006607760975789943
-          phase: 2.9352508558032917
-          real_part: -0.006467590259899939
-          imag_part: 0.0013538025495691372
+          magnitude: 0.00795390006507451
+          phase: 2.9067173004899485
+          real_part: -0.007735512670005366
+          imag_part: 0.0018510456443261315
           }
         field_finite: True
         components_finite: True
         phases_finite: True
         field_responses: [{
             position_norm: 3.2743004358719556
-            field_magnitude: 3.1087331556560867e-38
+            field_magnitude: 3.524134785597128e-38
             field_finite: True
             }, {
             position_norm: 3.181217353355948
-            field_magnitude: 6.189688668469356e-36
+            field_magnitude: 1.0127976885299282e-35
             field_finite: True
             }, {
             position_norm: 3.213760832945861
-            field_magnitude: 2.872736254188262e-36
+            field_magnitude: 2.983296461906734e-36
             field_finite: True
             }]
         validation_passed: True
         }
       transformation_complete: True
       original_embedding: {
-        vector: [1024 items: -0.036956787109375, 0.005962371826171875, -0.0174102783203125, ...]
-        token: [unused576]
+        vector: [1024 items: 0.006397247314453125, 0.01248931884765625, -0.06854248046875, ...]
+        token: lap
         manifold_properties: {
-          magnitude: 1.1525501012802124
-          vector: [1024 items: -0.036956787109375, 0.005962371826171875, -0.0174102783203125, ...]
-          local_density: 2.869338191142113
-          local_curvature: 0.06468301590066404
-          metric_eigenvalues: [20 items: 0.004559927816255205, 0.004372795883784818, 0.004253587083609972, ...]
-          gradient: [1024 items: -1.4901161415892261e-09, 0.0, -1.8626451769865326e-10, ...]
-          gradient_magnitude: 2.7932532731256288e-08
-          gradient_structure_eigenvalues: [20 items: 2.793252917854261e-08, 9.13974771712808e-18, 1.2407120856084737e-18, ...]
-          persistence_radius: 0.3725072741508484
-          persistence_score: 1.0688493481992747
-          boundary_score: 0.25137943029403687
-          principal_components: [49 items: -0.02309759519994259, 0.01710672862827778, 0.09487511217594147, ...]
-          coupling_mean: 0.9436206131843111
-          coupling_variance: 0.0001693721117113888
-          correlation_strength: 0.9436206131843111
-          correlation_consistency: 0.999830656570343
-          cross_correlations: [5 items: 0.9519063722221621, 0.9517987974333965, 0.9517171474161313, ...]
-          temporal_decay: -0.0005977402974251533
-          emotional_coupling_factor: 0.9434608172333794
-          trajectory_persistence: 0.9994022597025749
-          dominant_frequencies: [10 items: 0.5380859375, 0.796875, 0.203125, ...]
-          frequency_magnitudes: [10 items: 4.565836710352285, 4.838474623249119, 4.838474623249122, ...]
-          phase_angles: [512 items: -2.2874832153320312, -1.3360674381256104, -2.830594301223755, ...]
-          spectral_entropy: 6.026203570749622
-          spectral_centroid: 439.367564009074
+          magnitude: 1.5192975997924805
+          vector: [1024 items: 0.006397247314453125, 0.01248931884765625, -0.06854248046875, ...]
+          local_density: 0.6320464109493446
+          local_curvature: 0.1917329959513154
+          metric_eigenvalues: [20 items: 0.13537591866614504, 0.0047182226645632016, 0.00447982711677198, ...]
+          gradient: [1024 items: -7.450580707946131e-10, -7.450580707946131e-10, 7.450580707946131e-10, ...]
+          gradient_magnitude: 2.7879309527634177e-08
+          gradient_structure_eigenvalues: [20 items: 2.7879309527634177e-08, 2.68974253609419e-16, 3.299364721378421e-17, ...]
+          persistence_radius: 1.6730681657791138
+          persistence_score: 1.0574567294542918
+          boundary_score: 1.5630964040756226
+          principal_components: [49 items: -1.1459769010543823, 0.008379960432648659, -0.003532661823555827, ...]
+          coupling_mean: 0.17252001486528842
+          coupling_variance: 0.036049697292631994
+          correlation_strength: 0.17252001486528842
+          correlation_consistency: 0.9652046640360633
+          cross_correlations: [5 items: 0.25310149503435064, 0.2494802828869059, 0.2478084572320961, ...]
+          temporal_decay: -0.0016752775458371214
+          emotional_coupling_factor: 0.16651712298754737
+          trajectory_persistence: 0.9983247224541629
+          dominant_frequencies: [10 items: 0.0087890625, 0.9912109375, 0.080078125, ...]
+          frequency_magnitudes: [10 items: 11.466374332403864, 11.466374332403866, 11.801003648955229, ...]
+          phase_angles: [512 items: -0.3212137818336487, -0.6297762989997864, -2.706477642059326, ...]
+          spectral_entropy: 6.127256570391969
+          spectral_centroid: 452.1847030929013
           peak_frequency: 0.0
-          frequency_bandwidth: 0.27679683434434676
-          phase_variance: 3.1757824420928955
-          phase_mean: -1.202301263809204
-          phase_complexity: 19.137911492464163
-          phase_integration_factor: 0.04176141694188118
-          spectral_field_strength: 192.96570421658635
-          frequency_distribution_width: 0.27679683434434676
+          frequency_bandwidth: 0.35565403395732376
+          phase_variance: 3.462925672531128
+          phase_mean: -0.5695909261703491
+          phase_complexity: 21.218234079795383
+          phase_integration_factor: 0.03133794292807579
+          spectral_field_strength: 276.1389788641855
+          frequency_distribution_width: 0.35565403395732376
           has_loops: False
           topological_complexity: 0.0
           }
-        vector_norm: 1.1525499640485921
+        vector_norm: 1.519297167060836
         vector_dimension: 1024
-        index: 581
+        index: 5001
         }
       }, {
-      semantic_field: SemanticField(embedding_components=[-0.04830933  0.00150299 -0.02748108 ... -0.02708435 -0.05706787
- -0.090271  ], phase_factors=[-0.09640608  0.10204502 -0.09979921 ... -0.10477139 -0.10270666
- -0.09897699], basis_functions=BasisFunctionSet(design_params=<dict len=6>, embedding_dimension=1024, basis_cache=<dict len=4096>, basis_type=radial_semantic, num_centers=25, coverage_radius=0.5108068623075083), source_token=[unused577], manifold_dimension=1024)
+      semantic_field: SemanticField(embedding_components=[-0.03704834 -0.06976318 -0.00338745 ...  0.02737427  0.02053833
+ -0.06414795], phase_factors=[-0.0916575  -0.09472662 -0.10177531 ...  0.08981807  0.09399501
+ -0.09707724], basis_functions=BasisFunctionSet(design_params=<dict len=6>, embedding_dimension=1024, basis_cache=<dict len=4096>, basis_type=radial_semantic, num_centers=25, coverage_radius=0.5108068623075083), source_token=survey, manifold_dimension=1024)
       field_metadata: {
-        source_token: [unused577]
+        source_token: survey
         manifold_dimension: 1024
         num_components: 1024
-        field_magnitude: 1.147900295515903
-        phase_range: [-0.20276837686381935, 0.20219055623268486]
+        field_magnitude: 1.2844800629091424
+        phase_range: [-0.20739076550982202, 0.20744427380533115]
         }
       spatial_parameters: {
         basis_centers: {
@@ -322,8 +322,8 @@ semantic_results: {
         }
       phase_computation: {
         method: component_based
-        phase_range: [-0.20276837686381935, 0.20219055623268486]
-        phase_variance: 0.012095873091891135
+        phase_range: [-0.20739076550982202, 0.20744427380533115]
+        phase_variance: 0.013708895745082529
         }
       basis_function_info: {
         type: radial_semantic
@@ -333,73 +333,73 @@ semantic_results: {
       field_validation: {
         field_evaluates: True
         field_at_origin: {
-          magnitude: 0.0069107972434024
-          phase: 2.9459265589723893
-          real_part: -0.006778928071589704
-          imag_part: 0.0013435969409131983
+          magnitude: 0.007020337161598931
+          phase: 2.9257189198263727
+          real_part: -0.006857392415431129
+          imag_part: 0.001503762987745931
           }
         field_finite: True
         components_finite: True
         phases_finite: True
         field_responses: [{
             position_norm: 3.3215708235762196
-            field_magnitude: 3.69195092918986e-39
+            field_magnitude: 4.485845128388278e-39
             field_finite: True
             }, {
             position_norm: 3.319429724881421
-            field_magnitude: 1.1840438703858948e-39
+            field_magnitude: 1.2635067317524982e-39
             field_finite: True
             }, {
             position_norm: 3.1894337490976414
-            field_magnitude: 4.278004264381601e-37
+            field_magnitude: 4.2669712260924185e-37
             field_finite: True
             }]
         validation_passed: True
         }
       transformation_complete: True
       original_embedding: {
-        vector: [1024 items: -0.048309326171875, 0.00150299072265625, -0.0274810791015625, ...]
-        token: [unused577]
+        vector: [1024 items: -0.03704833984375, -0.06976318359375, -0.003387451171875, ...]
+        token: survey
         manifold_properties: {
-          magnitude: 1.147899866104126
-          vector: [1024 items: -0.048309326171875, 0.00150299072265625, -0.0274810791015625, ...]
-          local_density: 2.853499719851767
-          local_curvature: 0.06525140277080939
-          metric_eigenvalues: [20 items: 0.004562774066054785, 0.0044503460830929735, 0.00436942553222317, ...]
-          gradient: [1024 items: 7.450580707946131e-10, 9.313225884932663e-11, 0.0, ...]
-          gradient_magnitude: 2.7962457238572824e-08
-          gradient_structure_eigenvalues: [20 items: 2.7962460791286503e-08, 1.2932329466653084e-17, 3.4356016164200882e-18, ...]
-          persistence_radius: 0.3733232617378235
-          persistence_score: 1.065277822783027
-          boundary_score: 0.2530653774738312
-          principal_components: [49 items: -0.06642606109380722, 0.024434832856059074, 0.08443793654441833, ...]
-          coupling_mean: 0.9421117131589829
-          coupling_variance: 0.0001781646587319916
-          correlation_strength: 0.9421117131589829
-          correlation_consistency: 0.9998218670782593
-          cross_correlations: [5 items: 0.9515192795477226, 0.9498817935293628, 0.949551822742155, ...]
-          temporal_decay: -0.0005938732811089087
-          emotional_coupling_factor: 0.9419438920469118
-          trajectory_persistence: 0.9994061267188911
-          dominant_frequencies: [10 items: 0.923828125, 0.50390625, 0.49609375, ...]
-          frequency_magnitudes: [10 items: 5.15678529691461, 5.438690863853191, 5.438690863853191, ...]
-          phase_angles: [512 items: -2.6050374507904053, -1.4479076862335205, 2.6846301555633545, ...]
-          spectral_entropy: 5.945410775254751
-          spectral_centroid: 431.58738376419586
+          magnitude: 1.2844804525375366
+          vector: [1024 items: -0.03704833984375, -0.06976318359375, -0.003387451171875, ...]
+          local_density: 0.7237458844282463
+          local_curvature: 0.1602229675801937
+          metric_eigenvalues: [20 items: 0.10246339993596429, 0.004768614621621649, 0.004556444111058852, ...]
+          gradient: [1024 items: 0.0, 3.7252903539730653e-10, 3.7252903539730653e-10, ...]
+          gradient_magnitude: 2.7858977347250402e-08
+          gradient_structure_eigenvalues: [20 items: 2.7858977347250402e-08, 1.1050278009827315e-16, 2.0420202463596443e-17, ...]
+          persistence_radius: 1.4590164422988892
+          persistence_score: 1.055957145426963
+          boundary_score: 1.3599107265472412
+          principal_components: [49 items: -0.8578794598579407, 0.0040341997519135475, 0.006181074306368828, ...]
+          coupling_mean: 0.21539349706308691
+          coupling_variance: 0.03240835538461523
+          correlation_strength: 0.21539349706308691
+          correlation_consistency: 0.9686089760746446
+          cross_correlations: [5 items: 0.2959418920164145, 0.29207049116945705, 0.29189081434503933, ...]
+          temporal_decay: -0.0014255530992555165
+          emotional_coupling_factor: 0.20863207464341357
+          trajectory_persistence: 0.9985744469007445
+          dominant_frequencies: [10 items: 0.1943359375, 0.353515625, 0.646484375, ...]
+          frequency_magnitudes: [10 items: 6.858207870799188, 7.06654053034688, 7.06654053034688, ...]
+          phase_angles: [512 items: 2.3819596767425537, -2.5140981674194336, -1.6951513290405273, ...]
+          spectral_entropy: 6.047816061697744
+          spectral_centroid: 446.2173421218853
           peak_frequency: 0.0
-          frequency_bandwidth: 0.2808668451284039
-          phase_variance: 3.4424617290496826
-          phase_mean: -1.1062871217727661
-          phase_complexity: 20.466849057294084
-          phase_integration_factor: 0.031985849142074585
-          spectral_field_strength: 211.9154024212096
-          frequency_distribution_width: 0.2808668451284039
+          frequency_bandwidth: 0.2609711402634687
+          phase_variance: 3.857971668243408
+          phase_mean: -0.4958172142505646
+          phase_complexity: 23.332303020777324
+          phase_integration_factor: 0.021110774949193
+          spectral_field_strength: 217.0681714591899
+          frequency_distribution_width: 0.2609711402634687
           has_loops: False
           topological_complexity: 0.0
           }
-        vector_norm: 1.147900295515903
+        vector_norm: 1.2844800629091424
         vector_dimension: 1024
-        index: 582
+        index: 5002
         }
       }, ...]
   total_converted: 10
@@ -407,41 +407,41 @@ semantic_results: {
   conversion_complete: True
   }
 temporal_results: {
-  temporal_biographies: [10 items: TemporalBiography(trajectory_operators=<ndarray len=1024>, vivid_layer=[1.00174408 1.00090485 1.00048485 ... 1.00142517 1.00235138 1.00484924], character_layer=[0.1 0.1 0.1 ... 0.1 0.1 0.1], frequency_evolution=<ndarray len=1024>, phase_coordination=[0.50492444 0.50492444 0.50492444 ... 0.50492444 0.50492444 0.50492444], temporal_momentum=(0.0015957575488536435+9.303680440217248e-05j), breathing_coherence=0.9999999999999999, field_interference_signature=<ndarray len=1024>, bge_temporal_signature=<dict len=5>), TemporalBiography(trajectory_operators=<ndarray len=1024>, vivid_layer=[0.99442495 0.99287522 0.99344762 ... 0.99366658 0.99499105 0.99724935], character_layer=[0.09939061 0.09939258 0.09939257 ... 0.09939213 0.09938947 0.09938486], frequency_evolution=<ndarray len=1024>, phase_coordination=[0.50493876 0.50493876 0.50493876 ... 0.50493876 0.50493876 0.50493876], temporal_momentum=(0.003207040606391266+0.00026831073900836265j), breathing_coherence=1.0000000000000002, field_interference_signature=<ndarray len=1024>, bge_temporal_signature=<dict len=5>), TemporalBiography(trajectory_operators=<ndarray len=1024>, vivid_layer=[0.97305285 0.97071254 0.97201144 ... 0.97199161 0.97349078 0.97515094], character_layer=[0.09855581 0.09855522 0.09855609 ... 0.09855609 0.09855567 0.09855504], frequency_evolution=<ndarray len=1024>, phase_coordination=[0.5049956 0.5049956 0.5049956 ... 0.5049956 0.5049956 0.5049956], temporal_momentum=(0.004229514601682251+2.9080726709459728e-05j), breathing_coherence=0.9999999999999998, field_interference_signature=<ndarray len=1024>, bge_temporal_signature=<dict len=5>), ...]
+  temporal_biographies: [10 items: TemporalBiography(trajectory_operators=<ndarray len=1024>, vivid_layer=[1.00297241 1.00069427 1.00019817 ... 1.00116425 1.000387   1.00069351], character_layer=[0.1 0.1 0.1 ... 0.1 0.1 0.1], frequency_evolution=<ndarray len=1024>, phase_coordination=[0.52407671 0.52407671 0.52407671 ... 0.52407671 0.52407671 0.52407671], temporal_momentum=(0.006870587161335647+0.0013876205388266962j), breathing_coherence=0.9999999999999999, field_interference_signature=<ndarray len=1024>, bge_temporal_signature=<dict len=5>), TemporalBiography(trajectory_operators=<ndarray len=1024>, vivid_layer=[0.99289697 0.99320157 0.99600423 ... 0.99318631 0.99920552 0.99318975], character_layer=[0.09939245 0.09939069 0.09938741 ... 0.09939309 0.09938081 0.09939308], frequency_evolution=<ndarray len=1024>, phase_coordination=[0.52610285 0.52610285 0.52610285 ... 0.52610285 0.52610285 0.52610285], temporal_momentum=(0.014313293650532593+6.675686394269703e-05j), breathing_coherence=1.0, field_interference_signature=<ndarray len=1024>, bge_temporal_signature=<dict len=5>), TemporalBiography(trajectory_operators=<ndarray len=1024>, vivid_layer=[0.9724898  0.97412555 0.97080676 ... 0.9720061  0.9716643  0.97384479], character_layer=[0.09855597 0.09855545 0.09855633 ... 0.09853544 0.09854068 0.09855555], frequency_evolution=<ndarray len=1024>, phase_coordination=[0.52295185 0.52295185 0.52295185 ... 0.52295185 0.52295185 0.52295185], temporal_momentum=(0.01874262419203242+0.0025376021284307013j), breathing_coherence=0.9999999999999998, field_interference_signature=<ndarray len=1024>, bge_temporal_signature=<dict len=5>), ...]
   bge_temporal_analysis: {
-    breathing_rhythm_spectrum: [497 items: 1.1103172298212611e-11, 1.56107898256984e-11, 1.6136005386341206e-11, ...]
-    active_breathing_modes: 497
+    breathing_rhythm_spectrum: [485 items: 1.4101051535499102e-11, 4.755827033268885e-11, 5.3314827619114925e-11, ...]
+    active_breathing_modes: 485
     natural_frequency_patterns: {
-      positional_frequency: 0.24631696428571428
-      attention_frequency: 0.14285714285714285
-      eigenvalue_frequency: 1.1103172298212611e-11
-      angular_frequency: 3.047564979125206
+      positional_frequency: 0.25107421875
+      attention_frequency: 0.5
+      eigenvalue_frequency: 1.4101051535499102e-11
+      angular_frequency: 0.7129500738279355
       dimensional_frequency: 0.1111111111111111
-      mean_spectral_entropy: 6.801304340362549
-      phase_variance_distribution: [1024 items: 0.07933403793646365, 0.07933403793646365, 0.07933403793646365, ...]
+      mean_spectral_entropy: 6.800114870071411
+      phase_variance_distribution: [1024 items: 0.08068034383985732, 0.08068034383985732, 0.08068034383985732, ...]
       }
     trajectory_persistence_patterns: {
-      temporal_coherence: 0.008432390562279051
-      momentum_coherence: 0.10628969332220692
-      temporal_persistence: 0.04134970213659915
-      attention_locality: 0.5930251140065392
+      temporal_coherence: 0.007931274727873429
+      momentum_coherence: 0.09830491976603671
+      temporal_persistence: 0.05841036029253685
+      attention_locality: 0.6340028706718004
       }
     temporal_field_evolution: {
-      eigenvalue_spectrum: [1024 items: -6.101666138467542e-18, -2.8571891818757436e-18, -2.3951325013523945e-18, ...]
-      gradient_dynamics: 0.1
-      spectral_dimensionality: 5.0
+      eigenvalue_spectrum: [1024 items: -1.5543521378791967e-16, -1.1598970785913991e-16, -1.0253607136385377e-16, ...]
+      gradient_dynamics: 0.30000000000000004
+      spectral_dimensionality: 4.0
       }
     }
   field_interference_matrix: <ndarray len=10>
   collective_breathing_rhythm: {
-    collective_frequency: [6.61212698e-03+6.61212698e-04j 1.32790917e-02+1.32790917e-03j
- 1.98990330e-02+1.98990330e-03j ... 6.77296356e+00+6.77296356e-01j
- 6.76316600e+00+6.76316600e-01j 6.73867954e+00+6.73867954e-01j]
-    collective_phase: [0.50493979 0.50493979 0.50493979 ... 0.50493979 0.50493979 0.50493979]
+    collective_frequency: [6.62369075e-03+6.62369075e-04j 1.32583205e-02+1.32583205e-03j
+ 1.99066997e-02+1.99066997e-03j ... 6.77174694e+00+6.77174694e-01j
+ 6.77634092e+00+6.77634092e-01j 6.77508253e+00+6.77508253e-01j]
+    collective_phase: [0.52465536 0.52465536 0.52465536 ... 0.52465536 0.52465536 0.52465536]
     collective_coherence: 1.0
-    collective_momentum: (0.007598374281331671+0.0005070483665970904j)
-    synchronization_strength: 0.007615273453085671
-    breathing_pattern_diversity: 1.970018165630553
+    collective_momentum: (0.03897294526023137+0.003259088401096235j)
+    synchronization_strength: 0.03910897747913069
+    breathing_pattern_diversity: 1.9697180668171024
     }
   temporal_field_ready: True
   coupling_readiness: {
@@ -451,9 +451,9 @@ temporal_results: {
     }
   }
 emotional_results: {
-  emotional_modulations: [10 items: EmotionalFieldModulation(semantic_modulation_tensor=[1.36443423 1.36673241 1.36788254 ... 1.36530754 1.36277119 1.35593099], unified_phase_shift=(0.4138171083720484-0.9103600391156218j), trajectory_attractors=<ndarray len=10>, resonance_frequencies=<ndarray len=50>, field_modulation_strength=0.261811652681261, pattern_confidence=0.8552455673045355, coupling_strength=0.28201709357735666, gradient_magnitude=0.27836591218887785, n_embeddings_analyzed=10, analysis_complete=True), EmotionalFieldModulation(semantic_modulation_tensor=[1.36415009 1.37002663 1.36682642 ... 1.36622681 1.36259987 1.35641569], unified_phase_shift=(-0.891220226308441+0.45357084145558924j), trajectory_attractors=<ndarray len=10>, resonance_frequencies=<ndarray len=50>, field_modulation_strength=0.261811652681261, pattern_confidence=0.8552455673045355, coupling_strength=0.28201709357735666, gradient_magnitude=0.27836591218887785, n_embeddings_analyzed=10, analysis_complete=True), EmotionalFieldModulation(semantic_modulation_tensor=[1.36259569 1.36941605 1.36544752 ... 1.36550184 1.36139646 1.35685026], unified_phase_shift=(-0.13892544065101123-0.9903028435483372j), trajectory_attractors=<ndarray len=10>, resonance_frequencies=<ndarray len=50>, field_modulation_strength=0.261811652681261, pattern_confidence=0.8552455673045355, coupling_strength=0.28201709357735666, gradient_magnitude=0.27836591218887785, n_embeddings_analyzed=10, analysis_complete=True), ...]
+  emotional_modulations: [10 items: EmotionalFieldModulation(semantic_modulation_tensor=[1.38017859 1.39036048 1.38788227 ... 1.38519962 1.38735793 1.38650679], unified_phase_shift=(-0.9975114812607503+0.07050421798008857j), trajectory_attractors=<ndarray len=10>, resonance_frequencies=<ndarray len=50>, field_modulation_strength=0.2840376499148878, pattern_confidence=0.8615110266951594, coupling_strength=0.30136161424583113, gradient_magnitude=1.3208604539112403, n_embeddings_analyzed=10, analysis_complete=True), EmotionalFieldModulation(semantic_modulation_tensor=[1.38932079 1.39016663 1.37891591 ... 1.38674089 1.37002635 1.38673136], unified_phase_shift=(0.6992679404602431-0.7148596697565823j), trajectory_attractors=<ndarray len=10>, resonance_frequencies=<ndarray len=50>, field_modulation_strength=0.2840376499148878, pattern_confidence=0.8615110266951594, coupling_strength=0.30136161424583113, gradient_magnitude=1.3208604539112403, n_embeddings_analyzed=10, analysis_complete=True), EmotionalFieldModulation(semantic_modulation_tensor=[1.38328866 1.37874643 1.38796225 ... 1.39223331 1.39128418 1.37952607], unified_phase_shift=(0.5853494529214668+0.8107811159397704j), trajectory_attractors=<ndarray len=10>, resonance_frequencies=<ndarray len=50>, field_modulation_strength=0.2840376499148878, pattern_confidence=0.8615110266951594, coupling_strength=0.30136161424583113, gradient_magnitude=1.3208604539112403, n_embeddings_analyzed=10, analysis_complete=True), ...]
   total_modulated: 10
-  field_signature: EmotionalFieldSignature(geometric_patterns=<list len=1>, spectral_patterns=<list len=10>, flow_patterns=<list len=1>, field_modulation_strength=0.261811652681261, resonance_coherence=0.41917951610256293, geometric_coherence=0.9759273246135596, flow_coherence=0.4450549446045823, modulation_tensor=[1.36921026 1.36921026 1.36921026 ... 1.36921026 1.36921026 1.36921026], phase_shift_components=<ndarray len=10>, trajectory_attractors=<ndarray len=1>, resonance_frequencies=<ndarray len=50>, metric_warping_params=<dict len=3>, n_embeddings_analyzed=10, pattern_confidence=0.8552455673045355)
+  field_signature: EmotionalFieldSignature(geometric_patterns=<list len=10>, spectral_patterns=<list len=10>, flow_patterns=<list len=1>, field_modulation_strength=0.2840376499148878, resonance_coherence=0.25980264633091626, geometric_coherence=1.0000000000000002, flow_coherence=0.4460441067806378, modulation_tensor=[1.38843258 1.38843258 1.38843258 ... 1.38843258 1.38843258 1.38843258], phase_shift_components=<ndarray len=10>, trajectory_attractors=<ndarray len=1>, resonance_frequencies=<ndarray len=50>, metric_warping_params=<dict len=3>, n_embeddings_analyzed=10, pattern_confidence=0.8615110266951594)
   modulation_method: BGE analytics field discovery
   analysis_complete: True
   }

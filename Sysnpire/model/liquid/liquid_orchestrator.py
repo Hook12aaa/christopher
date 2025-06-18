@@ -155,6 +155,11 @@ class LiquidOrchestrator:
         
         logger.info(f"Factory data loaded: {semantic_count} semantic fields, {temporal_count} temporal biographies, {emotional_count} emotional modulations")
         
+        # 📚 EXTRACT VOCAB MAPPINGS: Get vocabulary context for agent creation
+        vocab_mappings = combined_results.get('vocab_mappings', {})
+        vocab_count = len(vocab_mappings.get('id_to_token', {}))
+        logger.info(f"📚 Vocab context loaded: {vocab_count} tokens available for agent identification")
+        
         if not (semantic_count == temporal_count == emotional_count):
             logger.warning(f"Mismatched component counts: semantic={semantic_count}, temporal={temporal_count}, emotional={emotional_count}")
         
@@ -194,11 +199,13 @@ class LiquidOrchestrator:
             try:
                 logger.info(f"Creating agent {i}")
                 
-                # Create agent using factory method
+                # Create agent using factory method WITH VOCAB CONTEXT
+                vocab_mappings = self.combined_results.get('vocab_mappings', {})
                 agent = ConceptualChargeAgent.from_charge_factory_results(
                     combined_results=self.combined_results,
                     charge_index=i,
-                    device=str(self.device)
+                    device=str(self.device),
+                    vocab_mappings=vocab_mappings  # 📚 Pass vocab context for agent identification
                 )
                 
                 # Store both agent and charge object
@@ -276,7 +283,24 @@ class LiquidOrchestrator:
         # Step 4: Get optimization statistics
         optimization_stats = self._get_optimization_statistics(num_agents)
         
-        # Step 5: Build liquid results structure
+        # 📚 STEP 4.5: Generate agent summaries with vocab context
+        agent_summaries = []
+        vocab_mappings = self.combined_results.get('vocab_mappings', {})
+        
+        for agent_id, agent in self.charge_agents.items():
+            summary = {
+                'agent_id': agent_id,
+                'charge_index': agent.charge_index,
+                'vocab_token_string': getattr(agent, 'vocab_token_string', 'unknown'),
+                'vocab_token_id': getattr(agent, 'vocab_token_id', None),
+                'Q_value': agent.Q_components.Q_value if agent.Q_components else complex(0),
+                'living_Q_value': getattr(agent, 'living_Q_value', complex(0)),
+                'gamma': agent.Q_components.gamma if agent.Q_components else 0.0,
+                'field_magnitude': abs(agent.Q_components.Q_value) if agent.Q_components else 0.0
+            }
+            agent_summaries.append(summary)
+        
+        # Step 5: Build liquid results structure with vocab-enhanced summaries
         liquid_results = {
             'agent_pool': self.charge_agents,  # Living Q(τ,C,s) entities
             'active_charges': self.active_charges,  # ConceptualChargeObject instances
@@ -284,7 +308,10 @@ class LiquidOrchestrator:
             'field_statistics': field_stats,
             'optimization_stats': optimization_stats,  # Performance metrics
             'orchestrator': self,  # Reference for simulation control
-            'ready_for_simulation': num_agents > 0
+            'ready_for_simulation': num_agents > 0,
+            # 📚 VOCAB-ENHANCED RESULTS: Include agent summaries with readable vocab
+            'agent_summaries': agent_summaries,
+            'vocab_context': vocab_mappings
         }
         
         logger.info("Liquid universe creation complete:")

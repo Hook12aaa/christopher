@@ -80,7 +80,7 @@ class EmotionalDimensionHelper:
         logger.info(f"🎭 EmotionalDimensionHelper initialized with clean analytics (dim={self.embedding_dim})")
     
     
-    def convert_embeddings_to_emotional_modulation(self, all_embeddings: List[Dict]) -> Dict[str, Any]:
+    def convert_embeddings_to_emotional_modulation(self, all_embeddings: List[Dict], vocab_mappings: dict = None) -> Dict[str, Any]:
         """
         Convert embeddings to emotional field modulation using clean analytics.
         

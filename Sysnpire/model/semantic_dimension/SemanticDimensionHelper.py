@@ -64,7 +64,7 @@ class SemanticDimensionHelper():
         
     
 
-    def convert_vector_to_field_respentation(self, total_embeddings) -> dict:
+    def convert_vector_to_field_respentation(self, total_embeddings, vocab_mappings: dict = None) -> dict:
         """
         Convert embedding vectors to semantic field representations.
 

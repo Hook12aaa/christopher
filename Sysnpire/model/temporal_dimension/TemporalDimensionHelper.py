@@ -124,7 +124,7 @@ class TemporalDimensionHelper:
         
         logger.info("🔗 Prepared coupling hooks for future field integration")
     
-    def convert_embedding_to_temporal_field(self, embedding_data: List[Dict]) -> Dict[str, Any]:
+    def convert_embedding_to_temporal_field(self, embedding_data: List[Dict], vocab_mappings: dict = None) -> Dict[str, Any]:
         """
         Core transformation: Convert embedding vectors to temporal field representations.
         

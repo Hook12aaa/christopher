@@ -126,9 +126,9 @@ class ChargeFactory:
 
 
 
-    def build(self,all:List[Dict],total_info:Dict[str,Any]) -> Any:
+    def build(self, all: List[Dict], total_info: Dict[str, Any], vocab_mappings: Dict[str, Any] = None) -> Any:
         """
-        Build the initial universe from a list of embedding vectors.
+        Build the initial universe from a list of embedding vectors with vocabulary context.
         This method will take a list of embedding vectors and transform them into
         dynamic conceptual charges using the Q(τ, C, s) field theory mathematics.
 
@@ -136,29 +136,35 @@ class ChargeFactory:
         
         Args:
             all (List[Dict]): List of embedding vectors to be transformed.
+            total_info (Dict[str, Any]): Complete model information
+            vocab_mappings (Dict[str, Any]): Vocabulary mappings (id_to_token, token_to_id)
     
         Returns:
-            Any: The transformed dynamic conceptual charges
+            Any: The transformed dynamic conceptual charges with vocab context
         
         """
         # Perform safety checks on the input list
         self.__build_safety_checks(all)
         
+        # 📚 VOCAB CONTEXT: Prepare vocabulary mappings for dimensional helpers
+        if vocab_mappings is None:
+            vocab_mappings = {'id_to_token': {}, 'token_to_id': {}, 'embedding_indices': []}
+        logger.info(f"📚 Threading vocab context: {len(vocab_mappings.get('id_to_token', {}))} tokens available")
 
-        # STEP 1: Convert embeddings to semantic fields and store results
-        semantic_results = self.semantic_helper.convert_vector_to_field_respentation(all)
+        # STEP 1: Convert embeddings to semantic fields with vocab context
+        semantic_results = self.semantic_helper.convert_vector_to_field_respentation(all, vocab_mappings)
         self.semantic_fields = semantic_results['field_representations']
         
-        logger.info(f"✅ Generated {len(self.semantic_fields)} semantic fields")
+        logger.info(f"✅ Generated {len(self.semantic_fields)} semantic fields with vocab context")
         
-        # STEP 2: Convert embeddings to temporal breathing patterns
-        temporal_results = self.temporal_helper.convert_embedding_to_temporal_field(all)
+        # STEP 2: Convert embeddings to temporal breathing patterns with vocab context
+        temporal_results = self.temporal_helper.convert_embedding_to_temporal_field(all, vocab_mappings)
         self.temporal_biographies = temporal_results['temporal_biographies']
         
-        logger.info(f"🌊 Generated {len(self.temporal_biographies)} temporal breathing patterns")
+        logger.info(f"🌊 Generated {len(self.temporal_biographies)} temporal breathing patterns with vocab context")
         
-        # STEP 3: Emotional conductor - coordinate field modulation parameters
-        emotional_results = self.emotional_helper.convert_embeddings_to_emotional_modulation(all)
+        # STEP 3: Emotional conductor with vocab context - coordinate field modulation parameters
+        emotional_results = self.emotional_helper.convert_embeddings_to_emotional_modulation(all, vocab_mappings)
         self.emotional_modulations = emotional_results['emotional_modulations']
         
         logger.info(f"🎭 Generated emotional field conductor with {len(self.emotional_modulations)} modulations")
@@ -169,7 +175,7 @@ class ChargeFactory:
         logger.info(f"   Pattern confidence: {field_signature.pattern_confidence:.3f}")
         
 
-        # Combine results with emotional coordination ready
+        # Combine results with emotional coordination ready AND vocab context
         combined_results = {
             'semantic_results': semantic_results,
             'temporal_results': temporal_results,
@@ -180,8 +186,9 @@ class ChargeFactory:
                 'emotional_modulations': len(self.emotional_modulations),
                 'emotional_conductor_active': True,
                 'ready_for_unified_assembly': True
-            }
-            
+            },
+            # 📚 VOCAB THREADING: Include vocab mappings for LiquidOrchestrator
+            'vocab_mappings': vocab_mappings
         }
 
         # STEP 4: Hand off to LiquidOrchestrator for liquid universe creation

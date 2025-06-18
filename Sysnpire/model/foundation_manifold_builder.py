@@ -100,14 +100,37 @@ class FoundationManifoldBuilder():
 
         model_loaded = self.__load_model_and_check()
         
-        # FOR TESTING: Use only embeddings 550-560 (10 embeddings)
-        test_embeddings = model_loaded['embeddings'][580:590]  # Adjusted to use 580-590 for 10 embeddings
-        logger.info(f"🧪 Testing with {len(test_embeddings)} embeddings (indices 550-560)")
+        # FOR TESTING: Use embeddings 5000-5009 (meaningful vocabulary words)
+        test_embeddings = model_loaded['embeddings'][5000:5010]  # Use 5000-5009 for meaningful words
+        logger.info(f"🧪 Testing with {len(test_embeddings)} embeddings (indices 5000-5009)")
         
         enriched_e = [self.model.search_embeddings(e, top_k=1) for e in test_embeddings]
         
-        # 🚀 BUILD THE COMPLETE PIPELINE WITH LIQUID RESULTS!
-        complete_results = self.charge_factory.build(enriched_e, model_loaded)
+        # 🧬 EXTRACT VOCAB MAPPINGS: Get actual vocabulary words for our embeddings
+        id_to_token = model_loaded.get('id_to_token', {})
+        token_to_id = model_loaded.get('token_to_id', {})
+        embedding_indices = list(range(5000, 5010))  # Track which embeddings we're using
+        
+        # 🔍 Extract actual vocabulary words for our embedding indices
+        vocab_words = []
+        for idx in embedding_indices:
+            token = id_to_token.get(idx, f"<UNK_{idx}>")
+            vocab_words.append(token)
+        
+        logger.info(f"📚 BGE Vocabulary tokens for indices 5000-5009:")
+        for i, (idx, token) in enumerate(zip(embedding_indices, vocab_words)):
+            logger.info(f"   Index {idx}: '{token}'")
+        
+        vocab_mappings = {
+            'id_to_token': id_to_token,
+            'token_to_id': token_to_id,
+            'embedding_indices': embedding_indices,
+            'vocab_words': vocab_words  # Actual tokens for our embeddings
+        }
+        logger.info(f"📚 Extracted vocab mappings: {len(vocab_mappings['id_to_token'])} tokens available")
+        
+        # 🚀 BUILD THE COMPLETE PIPELINE WITH LIQUID RESULTS AND VOCAB!
+        complete_results = self.charge_factory.build(enriched_e, model_loaded, vocab_mappings)
         
         # 🎉 WE NOW HAVE BOTH combined_results AND liquid_results!
         combined_results = {
