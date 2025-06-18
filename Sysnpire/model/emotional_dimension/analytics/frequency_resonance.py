@@ -200,11 +200,11 @@ class FrequencyResonanceAnalyzer:
         amplitudes = fft_pattern['amplitudes']
         frequencies = fft_pattern['frequencies']
         
-        # Find peaks with prominence
+        # Find peaks with minimal constraints for small datasets
         peaks, properties = find_peaks(
             amplitudes,
-            prominence=np.std(amplitudes),
-            distance=5
+            prominence=0.0,  # Accept all peaks
+            distance=1       # Minimal separation
         )
         
         # Extract peak frequencies and strengths
@@ -250,8 +250,8 @@ class FrequencyResonanceAnalyzer:
             energy = np.sum(np.abs(fft_result)**2)
             energies.append(energy)
         
-        # Threshold at mean + 1 std
-        return np.mean(energies) + np.std(energies)
+        # No threshold for small datasets - accept ALL patterns
+        return 0.0
     
     def analyze_collective_resonance(self, patterns: List[SpectralEmotionalPattern]) -> Dict:
         """

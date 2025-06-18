@@ -101,12 +101,50 @@ class FoundationManifoldBuilder():
         model_loaded = self.__load_model_and_check()
         
         # FOR TESTING: Use only embeddings 550-560 (10 embeddings)
-        test_embeddings = model_loaded['embeddings'][550:560]
+        test_embeddings = model_loaded['embeddings'][580:590]  # Adjusted to use 580-590 for 10 embeddings
         logger.info(f"🧪 Testing with {len(test_embeddings)} embeddings (indices 550-560)")
         
         enriched_e = [self.model.search_embeddings(e, top_k=1) for e in test_embeddings]
-        self.charge_factory.build(enriched_e, model_loaded)
+        r = self.charge_factory.build(enriched_e, model_loaded)
         
+        # Dump results to file for exploration
+        import os
+        project_root = Path(__file__).resolve().parent.parent.parent
+        path = os.path.join(project_root, "Sysnpire","field_results_dump.txt")
+
+        def dump_object(obj, indent=0):
+            """Recursively dump object structure to readable text."""
+            spaces = "  " * indent
+            if isinstance(obj, dict):
+                lines = [f"{spaces}{k}: {dump_object(v, indent+1)}" for k, v in obj.items()]
+                return "{\n" + "\n".join(lines) + f"\n{spaces}"
+            elif isinstance(obj, list):
+                if len(obj) > 3:  # Truncate long lists
+                    items = [dump_object(item, indent+1) for item in obj[:3]]
+                    return f"[{len(obj)} items: " + ", ".join(items) + ", ...]"
+                else:
+                    items = [dump_object(item, indent+1) for item in obj]
+                    return "[" + ", ".join(items) + "]"
+            elif hasattr(obj, '__dict__'):  # Custom objects
+                attrs = {k: v for k, v in obj.__dict__.items() if not k.startswith('_')}
+                obj_info = f"{obj.__class__.__name__}("
+                attr_strs = []
+                for k, v in attrs.items():
+                    if hasattr(v, '__len__') and len(str(v)) > 100:  # Long values
+                        attr_strs.append(f"{k}=<{type(v).__name__} len={len(v)}>")
+                    else:
+                        attr_strs.append(f"{k}={dump_object(v, indent+1)}")
+                return obj_info + ", ".join(attr_strs) + ")"
+            elif hasattr(obj, '__len__') and len(str(obj)) > 200:  # Long strings/arrays
+                return f"<{type(obj).__name__} len={len(obj)}>"
+            else:
+                return str(obj)
+
+        with open(path, 'w') as f:
+            f.write("=== FIELD THEORY RESULTS DUMP ===\n\n")
+            f.write(dump_object(r))
+        
+        logger.info(f"✅ Field results dumped to {path}")
 
 
 

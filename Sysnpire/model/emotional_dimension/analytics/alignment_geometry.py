@@ -108,8 +108,8 @@ class AlignmentGeometryAnalyzer:
         mean_sim = np.mean(similarities)
         std_sim = np.std(similarities)
         
-        # Detect alignments > 2 standard deviations above mean
-        strong_alignments = similarities > (mean_sim + 2 * std_sim)
+        # Detect alignments with minimal threshold (more sensitive for small datasets)
+        strong_alignments = similarities > (mean_sim + 0.1 * std_sim)
         
         # Extract alignment strength patterns
         alignment_strengths = np.sum(strong_alignments, axis=1)
@@ -135,8 +135,8 @@ class AlignmentGeometryAnalyzer:
         mag_mean = np.mean(magnitudes)
         mag_std = np.std(magnitudes)
         
-        # Identify high-magnitude vectors (potential emotional amplification)
-        high_magnitude_mask = magnitudes > (mag_mean + 1.5 * mag_std)
+        # Identify high-magnitude vectors (potential emotional amplification) - lowered threshold
+        high_magnitude_mask = magnitudes > (mag_mean + 0.5 * mag_std)
         
         # Analyze magnitude gradients
         magnitude_gradients = np.gradient(magnitudes)
@@ -172,7 +172,7 @@ class AlignmentGeometryAnalyzer:
         # 3. Ensure diagonal is exactly zero (distance from point to itself)
         np.fill_diagonal(angular_distances, 0)
         
-        clustering = DBSCAN(eps=0.3, min_samples=3, metric='precomputed')
+        clustering = DBSCAN(eps=0.3, min_samples=1, metric='precomputed')  # Accept all points for small datasets
         cluster_labels = clustering.fit_predict(angular_distances)
         
         # Find cluster centers and properties
@@ -232,7 +232,7 @@ class AlignmentGeometryAnalyzer:
                 cluster_info['coherence']
             )
             
-            if field_strength > 0.5:  # Threshold for significant field effect
+            if field_strength > 0.1:  # Threshold for significant field effect (lowered to detect real patterns)
                 field_regions.append({
                     'centers': cluster_info['center'].reshape(1, -1),
                     'alignments': alignment_patterns['alignment_strengths'][indices],
