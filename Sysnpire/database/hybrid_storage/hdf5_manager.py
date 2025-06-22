@@ -22,6 +22,7 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 
 import h5py
 import numpy as np
+import pandas as pd
 
 logger = logging.getLogger(__name__)
 
@@ -216,9 +217,9 @@ class HDF5Manager:
         vocab_group = metadata_group.create_group("vocabulary_context")
 
         # Store vocabulary mappings with efficient encoding
-        id_to_token = vocab_mappings.get("id_to_token", {})
-        token_to_id = vocab_mappings.get("token_to_id", {})
-        embedding_indices = vocab_mappings.get("embedding_indices", [])
+        id_to_token = vocab_mappings.get("id_to_token")
+        token_to_id = vocab_mappings.get("token_to_id")
+        embedding_indices = vocab_mappings.get("embedding_indices")
 
         if id_to_token:
             logger.info(f"   📚 Storing {len(id_to_token)} id_to_token mappings")
@@ -288,19 +289,19 @@ class HDF5Manager:
             agent_group = charges_group.create_group(agent_id)
 
             # Store each component type
-            self._store_q_components(agent_group, agent_data.get("Q_components", {}))
+            self._store_q_components(agent_group, agent_data.get("Q_components"))
             self._store_field_components(
-                agent_group, agent_data.get("field_components", {})
+                agent_group, agent_data.get("field_components")
             )
             self._store_temporal_components(
-                agent_group, agent_data.get("temporal_components", {})
+                agent_group, agent_data.get("temporal_components")
             )
             self._store_emotional_components(
-                agent_group, agent_data.get("emotional_components", {})
+                agent_group, agent_data.get("emotional_components")
             )
-            self._store_agent_state(agent_group, agent_data.get("agent_state", {}))
+            self._store_agent_state(agent_group, agent_data.get("agent_state"))
             self._store_agent_metadata(
-                agent_group, agent_data.get("agent_metadata", {})
+                agent_group, agent_data.get("agent_metadata")
             )
 
             # Store enhanced evolution data with temporal tracking
@@ -582,9 +583,9 @@ class HDF5Manager:
         evolution_group = agent_group.create_group("evolution_data")
 
         # Extract evolution-related data from different components
-        agent_state = agent_data.get("agent_state", {})
-        temporal_components = agent_data.get("temporal_components", {})
-        emotional_components = agent_data.get("emotional_components", {})
+        agent_state = agent_data.get("agent_state")
+        temporal_components = agent_data.get("temporal_components")
+        emotional_components = agent_data.get("emotional_components")
 
         # Store mathematical evolution parameters
         math_evolution_group = evolution_group.create_group("mathematical_evolution")
@@ -1042,6 +1043,259 @@ class HDF5Manager:
         logger.info(f"   ✅ Vocabulary context loaded successfully")
 
         return vocab_context
+
+    def _load_arrow_metadata(self, universe_id: str) -> Dict[str, Dict[str, Any]]:
+        """
+        Load Arrow metadata for all agents to merge with HDF5 data.
+        
+        Args:
+            universe_id: Universe identifier to find corresponding Arrow file
+            
+        Returns:
+            Dictionary mapping agent_id -> metadata from Arrow parquet
+        """
+        # Find corresponding Arrow file in the liquid_universes directory structure
+        arrow_metadata = {}
+        
+        try:
+            # Look for Arrow files in parent directories
+            base_path = self.storage_path.parent  # Go up from hdf5/ to universe dir
+            if base_path.name == "hdf5":
+                base_path = base_path.parent  # Go up to liquid_universes/timestamp/
+            
+            # Look for arrow directory
+            arrow_path = base_path / "arrow"
+            if not arrow_path.exists():
+                logger.warning(f"Arrow metadata directory not found: {arrow_path}")
+                return arrow_metadata
+            
+            # Find parquet file matching universe_id
+            parquet_files = list(arrow_path.glob(f"{universe_id}_agents.parquet"))
+            if not parquet_files:
+                # Try pattern match for similar universe IDs
+                parquet_files = list(arrow_path.glob("*_agents.parquet"))
+                if parquet_files:
+                    logger.info(f"Using first available Arrow file: {parquet_files[0]}")
+                else:
+                    logger.warning(f"No Arrow metadata files found in {arrow_path}")
+                    return arrow_metadata
+            
+            parquet_file = parquet_files[0]
+            logger.info(f"📋 Loading Arrow metadata from: {parquet_file}")
+            
+            # Load parquet data
+            df = pd.read_parquet(parquet_file)
+            
+            # Convert to dictionary mapping agent_id -> metadata
+            for _, row in df.iterrows():
+                agent_id = row.get('agent_id', row.get('charge_id', 'unknown'))
+                arrow_metadata[agent_id] = {
+                    'text_source': row.get('text_source', f'agent_{agent_id}'),
+                    'charge_id': row.get('charge_id', agent_id),
+                    'vocab_token_string': row.get('vocab_token_string', ''),
+                    'vocab_token_id': row.get('vocab_token_id', ''),
+                    'Q_magnitude': row.get('Q_magnitude', 0.0),
+                    'Q_phase': row.get('Q_phase', 0.0),
+                    'creation_timestamp': row.get('creation_timestamp', 0.0),
+                    'last_updated': row.get('last_updated', 0.0)
+                }
+            
+            logger.info(f"✅ Loaded Arrow metadata for {len(arrow_metadata)} agents")
+            
+        except Exception as e:
+            logger.warning(f"Failed to load Arrow metadata: {e}")
+            logger.info("Continuing without Arrow metadata - will use fallbacks")
+        
+        return arrow_metadata
+
+    def load_universe_agents(self, universe_id: str) -> Dict[str, Any]:
+        """
+        Load all agent data from a stored universe with hybrid Arrow+HDF5 integration.
+        
+        This method retrieves stored agent data in the format that AgentFactory
+        expects, including proper complex number reconstruction and metadata
+        merging from both Arrow (text_source, etc.) and HDF5 (mathematical components).
+        
+        Args:
+            universe_id: Universe identifier to load agents from
+            
+        Returns:
+            Dictionary containing agent data and metadata
+            
+        Raises:
+            FileNotFoundError: If universe file doesn't exist
+            ValueError: If universe data is corrupted or invalid
+        """
+        logger.info(f"📦 Loading agents from universe: {universe_id}")
+        start_time = time.time()
+        
+        # Handle both formats: just the ID or full filename
+        if not universe_id.endswith('.h5'):
+            universe_file = self.storage_path / f"{universe_id}.h5"
+        else:
+            universe_file = self.storage_path / universe_id
+            universe_id = universe_id.replace('.h5', '')
+        
+        if not universe_file.exists():
+            raise FileNotFoundError(f"Universe file not found: {universe_file}")
+        
+        # Load Arrow metadata first (if available)
+        arrow_metadata = self._load_arrow_metadata(universe_id)
+        
+        try:
+            with h5py.File(universe_file, "r") as f:
+                # Find the universe group (handle different naming patterns)
+                universe_group_name = None
+                for key in f.keys():
+                    if key.startswith("liquid_universe_"):
+                        universe_group_name = key
+                        break
+                
+                if not universe_group_name:
+                    raise ValueError(f"No universe group found in {universe_file}")
+                
+                universe_group = f[universe_group_name]
+                
+                # Load universe metadata
+                universe_metadata = {}
+                if "metadata" in universe_group:
+                    metadata_group = universe_group["metadata"]
+                    
+                    # Load basic metadata attributes
+                    universe_metadata.update(dict(metadata_group.attrs))
+                    
+                    # Load field statistics if present
+                    if "field_statistics" in metadata_group:
+                        field_stats = dict(metadata_group["field_statistics"].attrs)
+                        universe_metadata["field_statistics"] = field_stats
+                    
+                    # Load model info if present
+                    if "model_info" in metadata_group:
+                        model_info = dict(metadata_group["model_info"].attrs)
+                        universe_metadata["model_info"] = model_info
+                    
+                    # Load vocabulary context if present  
+                    if "vocabulary_context" in metadata_group:
+                        vocab_context = self._load_vocabulary_context(metadata_group["vocabulary_context"])
+                        universe_metadata["vocabulary_context"] = vocab_context
+                
+                # Load agent data
+                agents_data = {}
+                if "charges" in universe_group:
+                    charges_group = universe_group["charges"]
+                    
+                    for agent_id in charges_group.keys():
+                        agent_group = charges_group[agent_id]
+                        agent_data = {}
+                        
+                        # Load each component group
+                        component_groups = [
+                            "Q_components", 
+                            "field_components", 
+                            "temporal_biography", 
+                            "emotional_modulation", 
+                            "agent_state"
+                        ]
+                        
+                        for component_name in component_groups:
+                            if component_name in agent_group:
+                                component_data = self._load_group_data(agent_group, component_name)
+                                
+                                # Map temporal_biography back to temporal_components for compatibility
+                                if component_name == "temporal_biography":
+                                    agent_data["temporal_components"] = component_data
+                                # Map emotional_modulation back to emotional_components
+                                elif component_name == "emotional_modulation":
+                                    agent_data["emotional_components"] = component_data
+                                else:
+                                    agent_data[component_name] = component_data
+                        
+                        # Load agent metadata (stored as attributes or in a separate group)
+                        agent_metadata = {}
+                        if "agent_metadata" in agent_group:
+                            if isinstance(agent_group["agent_metadata"], h5py.Group):
+                                agent_metadata = self._load_group_data(agent_group, "agent_metadata")
+                            else:
+                                # Handle case where metadata is stored as dataset
+                                agent_metadata = dict(agent_group["agent_metadata"].attrs)
+                        else:
+                            # Load any attributes directly on the agent group
+                            agent_metadata.update(dict(agent_group.attrs))
+                        
+                        # Ensure charge_id is set
+                        if "charge_id" not in agent_metadata:
+                            agent_metadata["charge_id"] = agent_id
+                        
+                        # HYBRID INTEGRATION: Merge Arrow metadata with HDF5 metadata
+                        if agent_id in arrow_metadata:
+                            arrow_agent_metadata = arrow_metadata[agent_id]
+                            # Add text_source from Arrow (key missing field)
+                            agent_metadata["text_source"] = arrow_agent_metadata["text_source"]
+                            # Add other Arrow metadata
+                            agent_metadata.update({
+                                "vocab_token_string": arrow_agent_metadata["vocab_token_string"],
+                                "vocab_token_id": arrow_agent_metadata["vocab_token_id"],
+                                "arrow_Q_magnitude": arrow_agent_metadata["Q_magnitude"],
+                                "arrow_Q_phase": arrow_agent_metadata["Q_phase"]
+                            })
+                            logger.debug(f"✅ Merged Arrow metadata for {agent_id}: text_source='{arrow_agent_metadata['text_source']}'")
+                        else:
+                            # Fallback text_source if Arrow metadata not available
+                            agent_metadata["text_source"] = f"agent_{agent_id}"
+                            logger.debug(f"⚠️ No Arrow metadata for {agent_id}, using fallback text_source")
+                        
+                        # TEMPORAL INTEGRATION: Map observational_state from temporal_biography.breathing_coherence
+                        if "agent_state" in agent_data and "temporal_components" in agent_data:
+                            temporal_components = agent_data["temporal_components"]
+                            agent_state = agent_data["agent_state"]
+                            
+                            # Map breathing_coherence -> observational_state (the 's' parameter in Q(τ,C,s))
+                            if "breathing_coherence" in temporal_components:
+                                observational_state = temporal_components["breathing_coherence"]
+                                agent_state["observational_state"] = float(observational_state)
+                                logger.debug(f"✅ Mapped observational_state for {agent_id}: {observational_state}")
+                            else:
+                                # Fallback to default observational state
+                                agent_state["observational_state"] = 1.0
+                                logger.debug(f"⚠️ No breathing_coherence for {agent_id}, using default observational_state=1.0")
+                        
+                        agent_data["agent_metadata"] = agent_metadata
+                        agents_data[agent_id] = agent_data
+                
+                loading_time = time.time() - start_time
+                
+                logger.info(f"📦 Loaded {len(agents_data)} agents in {loading_time:.2f}s")
+                logger.info(f"   Universe metadata keys: {list(universe_metadata.keys())}")
+                
+                if agents_data:
+                    first_agent = next(iter(agents_data.values()))
+                    logger.info(f"   Sample agent components: {list(first_agent.keys())}")
+                    
+                    # Log Q_components structure for debugging
+                    if "Q_components" in first_agent:
+                        q_components = first_agent["Q_components"]
+                        logger.info(f"   Sample Q_components keys: {list(q_components.keys())}")
+                        
+                        # Check for complex number reconstruction
+                        for key, value in q_components.items():
+                            if isinstance(value, complex):
+                                logger.info(f"   ✅ Complex number reconstructed: {key} = {value} (magnitude: {abs(value):.2e})")
+                            elif key.endswith(('_real', '_imag')):
+                                logger.info(f"   📝 Real/imag component: {key} = {value}")
+                
+                return {
+                    "status": "success",
+                    "universe_id": universe_id,
+                    "agents": agents_data,
+                    "metadata": universe_metadata,
+                    "loading_time": loading_time,
+                    "agents_count": len(agents_data)
+                }
+                
+        except Exception as e:
+            error_msg = f"Failed to load universe agents: {e}"
+            logger.error(f"❌ {error_msg}")
+            raise ValueError(error_msg) from e
 
     def list_universes(self) -> List[str]:
         """List all stored universe IDs."""

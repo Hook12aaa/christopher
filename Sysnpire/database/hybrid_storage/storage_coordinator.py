@@ -21,6 +21,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 import numpy as np
+import torch
 
 from .arrow_indexer import ArrowIndexer
 
@@ -296,8 +297,16 @@ class StorageCoordinator:
         if ('torch.Tensor' in obj_type_str or 
             (hasattr(obj, 'cpu') and hasattr(obj, 'numpy') and hasattr(obj, 'shape'))):
             try:
-                # Preserve actual tensor data as numpy array (Arrow can handle this)
+                # Simple tensor conversion - NO property access that could cause boolean evaluation
+                # Convert directly to CPU without checking device/dtype properties
                 numpy_data = obj.cpu().detach().numpy()
+                
+                # Handle MPS float64 compatibility at numpy level
+                if numpy_data.dtype == np.float64:
+                    numpy_data = numpy_data.astype(np.float32)
+                elif numpy_data.dtype == np.complex128:
+                    numpy_data = numpy_data.astype(np.complex64)
+                
                 # Only convert to list if array is small to avoid performance issues
                 if numpy_data.size <= 1000:
                     return numpy_data.tolist()
@@ -306,8 +315,8 @@ class StorageCoordinator:
                     return numpy_data
             except Exception as e:
                 # Log the error for debugging but don't lose the data
-                logger.warning(f"Failed to convert tensor to numpy: {e}, keeping as tensor")
-                return obj
+                logger.warning(f"Failed to convert tensor to numpy: {e}, converting to string")
+                return str(obj)
         
         # Handle dictionaries recursively - preserve structure
         if isinstance(obj, dict):
@@ -338,7 +347,11 @@ class StorageCoordinator:
                 return self._convert_torch_objects(obj.data)
             elif hasattr(obj, 'numpy'):
                 try:
-                    return obj.numpy()
+                    # MPS-safe tensor conversion - move to CPU first
+                    if hasattr(obj, 'cpu'):
+                        return obj.cpu().detach().numpy()
+                    else:
+                        return obj.numpy()
                 except:
                     logger.warning(f"Could not convert {obj_type_str} to numpy, converting to string")
                     return str(obj)
@@ -346,6 +359,33 @@ class StorageCoordinator:
                 return str(obj)
         
         # For everything else, preserve as-is first, only convert to string as last resort
+        return obj
+
+    def _restore_complex_numbers(self, obj):
+        """
+        Recursively restore dictionary-format complex numbers back to proper Python complex objects.
+        
+        Converts {"real": float, "imag": float, "_type": "complex"} back to complex(real, imag).
+        """
+        if obj is None:
+            return None
+        
+        # Check if this is a complex number dictionary
+        if (isinstance(obj, dict) and 
+            "_type" in obj and obj["_type"] == "complex" and
+            "real" in obj and "imag" in obj):
+            return complex(float(obj["real"]), float(obj["imag"]))
+        
+        # Handle dictionaries recursively
+        if isinstance(obj, dict):
+            return {k: self._restore_complex_numbers(v) for k, v in obj.items()}
+        
+        # Handle lists/tuples recursively
+        if isinstance(obj, (list, tuple)):
+            restored = [self._restore_complex_numbers(item) for item in obj]
+            return restored if isinstance(obj, list) else tuple(restored)
+        
+        # Return primitive types as-is
         return obj
 
     def _validate_arrow_compatibility(self, metadata: Dict[str, Any]) -> Dict[str, Any]:
@@ -372,7 +412,8 @@ class StorageCoordinator:
                 errors.append(f"Found torch.dtype at {path}: {obj}")
                 compatible = False
             elif 'torch.Tensor' in obj_type_str:
-                errors.append(f"Found torch.Tensor at {path}: shape {getattr(obj, 'shape', 'unknown')}")
+                # NO tensor property access - just report tensor presence
+                errors.append(f"Found torch.Tensor at {path}")
                 compatible = False
             elif hasattr(obj, 'cpu') and hasattr(obj, 'numpy') and 'torch' in obj_type_str:
                 errors.append(f"Found PyTorch tensor-like object at {path}: {obj_type_str}")
@@ -522,6 +563,10 @@ class StorageCoordinator:
 
             # Load metadata from Arrow
             arrow_metadata = self.arrow_indexer.get_universe_metadata(universe_id)
+
+            # CRITICAL FIX: Convert dictionary-format complex numbers back to proper complex numbers
+            hdf5_data = self._restore_complex_numbers(hdf5_data)
+            arrow_metadata = self._restore_complex_numbers(arrow_metadata)
 
             # Combine data
             universe_data = {

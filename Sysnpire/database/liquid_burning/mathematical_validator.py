@@ -1,15 +1,16 @@
 """
-Mathematical Validator - Ensure Q(τ,C,s) Preservation
+Mathematical Validator - Mathematical Relationship Validation
 
-Validates that extracted mathematical components maintain field-theoretic
-accuracy and completeness. Ensures no loss of precision during the burning
-process and validates mathematical consistency.
+Validates mathematical relationships and consistency in reconstructed data.
+Does NOT validate tensor existence (handled by RawDataValidator).
+Focuses on mathematical properties and relationships only.
 
 Key Features:
-- Q(τ,C,s) component validation
+- Q(τ,C,s) mathematical relationship validation
 - Complex number precision verification
 - Field dimension consistency checks
-- Mathematical relationship validation
+- Mathematical property validation
+- NO tensor boolean evaluation
 """
 
 import logging
@@ -107,6 +108,54 @@ class MathematicalValidator:
                 ),
                 "strict_mode": self.strict_validation,
             },
+        }
+    
+    def validate_reconstructed_data(self, converted_data: Dict[str, Any], agent_id: str = "unknown") -> Dict[str, Any]:
+        """
+        Validate reconstructed agent data after conversion from storage format.
+        
+        Mirrors the saving validation logic to ensure mathematical consistency
+        throughout the storage → reconstruction → liquid orchestrator pipeline.
+        
+        Args:
+            converted_data: Agent data converted from storage format
+            agent_id: Agent identifier for error reporting
+            
+        Returns:
+            Validation results dictionary
+        """
+        logger.info(f"🔍 Validating reconstructed data for agent: {agent_id}")
+        
+        results = ValidationResults()
+        
+        # Validate reconstructed components using same patterns as saving validation
+        self._validate_reconstructed_metadata(converted_data.get("agent_metadata", {}), results, agent_id)
+        self._validate_reconstructed_q_components(converted_data.get("Q_components", {}), results, agent_id)
+        self._validate_reconstructed_field_components(converted_data.get("field_components", {}), results, agent_id)
+        self._validate_reconstructed_temporal_components(converted_data.get("temporal_components", {}), results, agent_id)
+        self._validate_reconstructed_emotional_components(converted_data.get("emotional_components", {}), results, agent_id)
+        
+        # Determine overall validation status
+        results.validation_passed = results.failed_checks == 0
+        
+        logger.info(f"🔍 Reconstruction validation complete for {agent_id}")
+        logger.info(f"   Passed: {results.passed_checks}/{results.total_checks}")
+        logger.info(f"   Status: {'✅ PASSED' if results.validation_passed else '❌ FAILED'}")
+        
+        if results.errors:
+            logger.warning(f"   Errors: {len(results.errors)}")
+            for error in results.errors:
+                logger.warning(f"     - {error}")
+        
+        return {
+            "validation_passed": results.validation_passed,
+            "total_checks": results.total_checks,
+            "passed_checks": results.passed_checks,
+            "failed_checks": results.failed_checks,
+            "errors": results.errors,
+            "warnings": results.warnings,
+            "agent_id": agent_id,
+            "validation_type": "reconstruction"
         }
 
     def _validate_universe_metadata(
@@ -340,6 +389,118 @@ class MathematicalValidator:
             else:
                 results.failed_checks += 1
                 results.errors.append("Invalid field energy in statistics")
+
+
+    def _validate_reconstructed_metadata(self, metadata: Dict[str, Any], results: ValidationResults, agent_id: str):
+        """Validate reconstructed metadata (mirrors _validate_universe_metadata patterns)."""
+        results.total_checks += 1
+        if "charge_id" in metadata:
+            results.passed_checks += 1
+        else:
+            results.failed_checks += 1
+            results.errors.append(f"Agent {agent_id}: Missing charge_id in metadata")
+    
+    def _validate_reconstructed_q_components(self, q_components: Dict[str, Any], results: ValidationResults, agent_id: str):
+        """
+        Validate reconstructed Q(τ,C,s) components (mirrors _validate_q_components).
+        
+        Checks that data conversion from storage format worked correctly.
+        """
+        # Check for converted Q_value (should be complex now)
+        results.total_checks += 1
+        if "Q_value" in q_components:
+            q_value = q_components["Q_value"]
+            if isinstance(q_value, complex):
+                results.passed_checks += 1
+                
+                # Validate complex number properties
+                results.total_checks += 1
+                if np.isfinite(q_value.real) and np.isfinite(q_value.imag):
+                    results.passed_checks += 1
+                    
+                    # Validate magnitude range (using same logic as AgentFactory)
+                    results.total_checks += 1
+                    q_magnitude = abs(q_value)
+                    if 1e-15 <= q_magnitude <= 1e10:
+                        results.passed_checks += 1
+                    else:
+                        results.failed_checks += 1
+                        results.errors.append(f"Agent {agent_id}: Q_value magnitude out of range: {q_magnitude:.2e}")
+                else:
+                    results.failed_checks += 1
+                    results.errors.append(f"Agent {agent_id}: Q_value has non-finite components")
+            else:
+                results.failed_checks += 1
+                results.errors.append(f"Agent {agent_id}: Q_value not converted to complex type: {type(q_value)}")
+        else:
+            results.failed_checks += 1
+            results.errors.append(f"Agent {agent_id}: Missing Q_value after reconstruction")
+        
+        # Check for mathematical component presence (no tensor validation)
+        mathematical_components = ["gamma", "T_tensor", "E_trajectory", "phi_semantic"]
+        found_components = []
+        for component in mathematical_components:
+            for key in q_components:
+                if key.startswith(component):
+                    found_components.append(component)
+                    break
+        
+        results.total_checks += 1
+        if len(found_components) >= 2:  # Expect at least 2 mathematical components
+            results.passed_checks += 1
+        else:
+            results.failed_checks += 1
+            results.errors.append(f"Agent {agent_id}: Insufficient mathematical components. Found: {found_components}")
+    
+    def _validate_reconstructed_field_components(self, field_components: Dict[str, Any], results: ValidationResults, agent_id: str):
+        """
+        Validate field component mathematical relationships.
+        
+        Validates mathematical properties, NOT tensor existence.
+        """
+        # Check for semantic field presence
+        results.total_checks += 1
+        has_semantic = any("semantic" in key.lower() for key in field_components.keys())
+        if has_semantic:
+            results.passed_checks += 1
+        else:
+            results.failed_checks += 1
+            results.errors.append(f"Agent {agent_id}: Missing semantic field components after reconstruction")
+        
+        # Check for reasonable number of field components
+        results.total_checks += 1
+        if len(field_components) >= 2:  # Expect at least semantic + one other component
+            results.passed_checks += 1
+        else:
+            results.failed_checks += 1
+            results.errors.append(f"Agent {agent_id}: Insufficient field components. Found {len(field_components)} components")
+    
+    def _validate_reconstructed_temporal_components(self, temporal_components: Dict[str, Any], results: ValidationResults, agent_id: str):
+        """Validate temporal component mathematical relationships."""
+        
+        # Check for temporal data presence
+        results.total_checks += 1
+        has_temporal = len(temporal_components) > 0
+        if has_temporal:
+            results.passed_checks += 1
+        else:
+            results.warnings.append(f"Agent {agent_id}: No temporal components after reconstruction")
+            results.passed_checks += 1  # Warning, not error
+    
+    def _validate_reconstructed_emotional_components(self, emotional_components: Dict[str, Any], results: ValidationResults, agent_id: str):
+        """Validate reconstructed emotional components."""
+        import torch
+        
+        # Check for emotional data presence
+        results.total_checks += 1
+        has_emotional = len(emotional_components) > 0
+        if has_emotional:
+            results.passed_checks += 1
+        else:
+            results.warnings.append(f"Agent {agent_id}: No emotional components after reconstruction")
+            results.passed_checks += 1  # Warning, not error
+        
+        # No tensor validation - emotional components are pre-validated
 
 
 if __name__ == "__main__":

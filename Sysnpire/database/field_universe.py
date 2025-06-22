@@ -272,6 +272,88 @@ class FieldUniverse:
             Storage statistics dictionary
         """
         return self.storage_coordinator.get_statistics()
+    
+    def reconstruct_liquid_universe(self, universe_id: Optional[str] = None, 
+                                  device: str = "mps") -> Dict[str, Any]:
+        """
+        Reconstruct a complete liquid universe from storage.
+        
+        This is the main high-level interface for universe reconstruction.
+        Creates a living LiquidOrchestrator with all agents and field dynamics restored.
+        
+        Args:
+            universe_id: Universe to reconstruct (latest if None)
+            device: PyTorch device for reconstruction
+            
+        Returns:
+            Complete reconstruction results with living LiquidOrchestrator
+        """
+        logger.info("🌊 FIELD UNIVERSE RECONSTRUCTION")
+        logger.info(f"   Storage path: {self.config.storage_path}")
+        logger.info(f"   Universe ID: {universe_id or 'latest'}")
+        logger.info(f"   Target device: {device}")
+        
+        start_time = time.time()
+        
+        try:
+            # Get universe ID if not specified
+            if universe_id is None:
+                universes = self.storage_coordinator.list_universes()
+                if not universes:
+                    raise ValueError("No universes available for reconstruction")
+                
+                # Get the most recent universe
+                universe_id = universes[0]["universe_id"]
+                logger.info(f"   Selected latest universe: {universe_id}")
+            
+            # Create LiquidOrchestrator for reconstruction
+            from Sysnpire.model.liquid.liquid_orchestrator import LiquidOrchestrator
+            
+            logger.info("🏗️  Creating LiquidOrchestrator for reconstruction...")
+            orchestrator = LiquidOrchestrator(device=device, field_resolution=256)
+            
+            # Load universe into orchestrator
+            logger.info("🔄 Loading universe into orchestrator...")
+            reconstruction_result = orchestrator.load_universe_from_storage(
+                storage_coordinator=self.storage_coordinator,
+                universe_id=universe_id
+            )
+            
+            if reconstruction_result["status"] != "success":
+                raise ValueError(f"Orchestrator reconstruction failed: {reconstruction_result.get('error')}")
+            
+            total_time = time.time() - start_time
+            
+            # Complete reconstruction results
+            final_result = {
+                "status": "success",
+                "universe_id": universe_id,
+                "reconstruction_time": total_time,
+                "orchestrator": orchestrator,  # Living LiquidOrchestrator
+                "agents_count": reconstruction_result["agents_reconstructed"],
+                "field_energy": reconstruction_result["field_energy"],
+                "validation_passed": reconstruction_result["validation_passed"],
+                "ready_for_simulation": reconstruction_result["ready_for_simulation"],
+                "reconstruction_details": reconstruction_result
+            }
+            
+            logger.info("🎉 FIELD UNIVERSE RECONSTRUCTION COMPLETE")
+            logger.info(f"   Total time: {total_time:.2f}s")
+            logger.info(f"   Agents: {final_result['agents_count']}")
+            logger.info(f"   Field energy: {final_result['field_energy']:.6f}")
+            logger.info(f"   Ready for simulation: {final_result['ready_for_simulation']}")
+            
+            return final_result
+            
+        except Exception as e:
+            error_msg = f"Field universe reconstruction failed: {e}"
+            logger.error(f"❌ {error_msg}")
+            return {
+                "status": "failed",
+                "error": error_msg,
+                "universe_id": universe_id,
+                "reconstruction_time": time.time() - start_time
+            }
 
 
 # Convenience functions for direct usage

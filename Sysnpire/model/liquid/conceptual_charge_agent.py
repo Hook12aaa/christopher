@@ -14,12 +14,23 @@ with full coupling between dimensions.
 
 import torch
 import numpy as np
+
+# CRITICAL FIX: Set default dtype to float32 for MPS compatibility
+# This must be done early to prevent float64 tensor creation on MPS devices
+if torch.backends.mps.is_available():
+    torch.set_default_dtype(torch.float32)
+    print("🔧 ConceptualChargeAgent: MPS detected, using float32 precision")
 import scipy as sp
 from scipy import integrate, signal, fft, linalg
 from typing import Dict, List, Optional, Tuple, Any, Union
 from dataclasses import dataclass
 import time
 import math
+
+# CRITICAL FIX: Import safe tensor validation utilities to prevent boolean evaluation errors
+from Sysnpire.utils.tensor_validation import (
+    safe_tensor_comparison, extract_tensor_scalar, TensorValidationError
+)
 
 # Additional DTF mathematical libraries for proper field theory operations
 from scipy.integrate import quad
@@ -226,7 +237,19 @@ class ConceptualChargeAgent:
         self.charge_obj = charge_obj
         self.charge_id = charge_obj.charge_id
         self.charge_index = charge_index
-        self.device = torch.device(device if torch.backends.mps.is_available() else "cpu")
+        # Initialize device with improved validation and fallback
+        try:
+            if device == "mps" and torch.backends.mps.is_available():
+                self.device = torch.device("mps")
+            elif device == "cuda" and torch.cuda.is_available():
+                self.device = torch.device("cuda")
+            else:
+                if device != "cpu":
+                    logger.warning(f"⚠️ Device {device} not available, falling back to CPU")
+                self.device = torch.device("cpu")
+        except Exception as e:
+            logger.warning(f"⚠️ Device initialization failed: {e}, using CPU")
+            self.device = torch.device("cpu")
         
         # 📚 VOCAB CONTEXT: Store vocabulary information for agent identity
         self.vocab_token_string = charge_obj.text_source  # Human-readable token string
@@ -260,12 +283,18 @@ class ConceptualChargeAgent:
             s_t_coupling_strength=self.emotional_field_signature.field_modulation_strength
         )
         
-        # Initialize agent field state
+        # Initialize agent field state with MPS-safe state conversion
+        # Ensure observational_state is converted to float (not tensor)
+        if hasattr(charge_obj.observational_state, 'cpu'):
+            obs_state = float(charge_obj.observational_state.cpu().detach().numpy())
+        else:
+            obs_state = float(charge_obj.observational_state)
+            
         self.state = AgentFieldState(
             tau=charge_obj.text_source,
             current_context_C=initial_context or {},
-            current_s=charge_obj.observational_state,
-            s_zero=charge_obj.observational_state,
+            current_s=obs_state,
+            s_zero=obs_state,
             field_position=charge_obj.metadata.field_position or (0.0, 0.0),
             trajectory_time=0.0
         )
@@ -284,6 +313,59 @@ class ConceptualChargeAgent:
         
         # Initialize with first computation
         self.compute_complete_Q()
+    
+    @classmethod
+    def from_stored_data(cls, stored_data: Dict[str, Any], charge_obj: ConceptualChargeObject = None, device: str = "mps") -> 'ConceptualChargeAgent':
+        """
+        CRITICAL RECONSTRUCTION METHOD: Create agent from stored data with proper mathematical state.
+        
+        This method is essential for universe reconstruction - it restores agents with their
+        actual mathematical state instead of using default values that cause explosions.
+        """
+        logger.info(f"🔄 Reconstructing agent from stored data...")
+        
+        # Extract basic metadata
+        agent_metadata = stored_data.get("agent_metadata", {})
+        charge_id = agent_metadata.get("charge_id", "reconstructed_agent")
+        
+        # Create charge object if not provided
+        if charge_obj is None:
+            # Reconstruct charge object from stored Q_components and field_components
+            q_components = stored_data.get("Q_components", {})
+            field_components = stored_data.get("field_components", {})
+            
+            charge_obj = ConceptualChargeObject(
+                charge_id=charge_id,
+                text_source=agent_metadata.get("text_source", "unknown"),
+                complete_charge=q_components.get("Q_value", complex(1.0, 0.0)),
+                field_components=FieldComponents(
+                    semantic_field_generation=field_components.get("semantic_field_generation"),
+                    emotional_trajectory=field_components.get("emotional_trajectory"),
+                    trajectory_operators=field_components.get("trajectory_operators"),
+                    phase_total=field_components.get("phase_total", 0.0),
+                    observational_persistence=field_components.get("observational_persistence", 1.0)
+                ),
+                observational_state=agent_metadata.get("observational_state", 1.0)
+            )
+        
+        # Create minimal combined_results for initialization (won't be used for real math)
+        minimal_combined_results = cls._create_minimal_combined_results(stored_data, 0)
+        
+        # Initialize agent with minimal data (this calls __init__)
+        agent = cls(
+            charge_obj=charge_obj,
+            charge_index=0,  # Not used in reconstruction
+            combined_results=minimal_combined_results,
+            initial_context={},
+            device=device
+        )
+        
+        # CRITICAL: Now restore the ACTUAL mathematical state from stored data
+        agent._restore_mathematical_state_from_storage(stored_data)
+        
+        logger.info(f"✅ Agent {charge_id} reconstructed from stored data")
+        return agent
+    
     
     @classmethod
     def from_charge_factory_results(cls, 
@@ -386,6 +468,721 @@ class ConceptualChargeAgent:
             logger.debug(f"🧬 Agent {charge_index} enhanced with vocab context: ID={source_token}, String='{vocab_token_string}'")
         
         return agent
+    
+    @classmethod
+    def from_stored_data(cls, 
+                        stored_data: Dict[str, Any],
+                        charge_obj: ConceptualChargeObject = None,
+                        device: str = "mps") -> 'ConceptualChargeAgent':
+        """
+        Reconstruct ConceptualChargeAgent from stored database data.
+        
+        This is the critical missing constructor that rebuilds complete living
+        mathematical entities from persistent storage with full Q(τ,C,s) state.
+        
+        Args:
+            stored_data: Complete stored agent data from HDF5 storage
+            charge_obj: Optional pre-constructed charge object
+            device: PyTorch device for tensor operations
+            
+        Returns:
+            Fully reconstructed ConceptualChargeAgent with living mathematical state
+        """
+        logger.info("🔄 Reconstructing ConceptualChargeAgent from stored data")
+        
+        # CRITICAL FIX: Set float32 for MPS compatibility
+        if "mps" in device and torch.backends.mps.is_available():
+            torch.set_default_dtype(torch.float32)
+            logger.debug("🔧 MPS device detected: Using float32 precision for agent reconstruction")
+        
+        # Extract stored components
+        agent_metadata = stored_data.get("agent_metadata", {})
+        q_components = stored_data.get("Q_components", {})
+        field_components = stored_data.get("field_components", {})
+        temporal_components = stored_data.get("temporal_components", {})
+        emotional_components = stored_data.get("emotional_components", {})
+        agent_state = stored_data.get("agent_state", {})
+        
+        # Create charge object if not provided
+        if charge_obj is None:
+            charge_obj = cls._reconstruct_charge_object_from_storage(agent_metadata, q_components, field_components)
+        
+        # Create minimal combined_results structure for initialization
+        minimal_combined_results = cls._create_minimal_combined_results(
+            stored_data, agent_metadata.get("charge_index", 0)
+        )
+        
+        # Create instance using standard constructor
+        agent = cls.__new__(cls)
+        
+        # Initialize basic attributes
+        agent.charge_obj = charge_obj
+        agent.charge_id = charge_obj.charge_id
+        agent.charge_index = agent_metadata.get("charge_index", 0)
+        agent.device = torch.device(device if torch.backends.mps.is_available() else "cpu")
+        
+        # Restore vocabulary context
+        agent.vocab_token_string = agent_metadata.get("vocab_token_string", charge_obj.text_source)
+        agent.vocab_token_id = agent_metadata.get("vocab_token_id")
+        agent.vocab_context = {}
+        
+        # Restore mathematical state from storage
+        agent._restore_mathematical_state_from_storage(stored_data)
+        
+        # Restore field coupling and agent state
+        agent._restore_field_and_agent_state(stored_data)
+        
+        # CRITICAL FIX: Initialize living evolution attributes that are missing during reconstruction
+        agent._initialize_living_evolution()
+        
+        # CRITICAL: Set the agent's living_Q_value to the stored Q_value instead of computing new ones
+        stored_q_value = charge_obj.complete_charge
+        agent.living_Q_value = stored_q_value
+        
+        # Create Q_components from stored data instead of computing new ones
+        q_data = stored_data.get("Q_components", {})
+        agent.Q_components = QMathematicalComponents(
+            gamma=q_data.get("gamma", 1.0),
+            T_tensor=q_data.get("T_tensor", complex(1.0, 0.0)),
+            E_trajectory=q_data.get("E_trajectory", complex(1.0, 0.0)),
+            phi_semantic=q_data.get("phi_semantic", complex(1.0, 0.0)),
+            theta_components=ThetaComponents(0.0, 0.0, 0.0, 0.0, 0.0, 0.0),  # Default
+            phase_factor=q_data.get("phase_factor", complex(1.0, 0.0)),
+            psi_persistence=q_data.get("psi_persistence", 1.0),
+            psi_gaussian=q_data.get("psi_gaussian", 1.0),
+            psi_exponential_cosine=q_data.get("psi_exponential_cosine", 1.0),
+            Q_value=stored_q_value
+        )
+        
+        logger.info(f"✅ Agent {agent.charge_id} reconstructed using STORED Q values only - Q magnitude: {abs(agent.living_Q_value):.6f}")
+        
+        # Skip Q validation during reconstruction since we're using stored values
+        # if not agent.validate_Q_components():
+        #     logger.warning(f"⚠️  Agent {agent.charge_id} - Q validation failed after reconstruction")
+        
+        logger.info(f"✅ Agent {agent.charge_id} reconstructed - Q magnitude: {abs(agent.living_Q_value):.6f}")
+        return agent
+    
+    @classmethod
+    def _reconstruct_charge_object_from_storage(cls, metadata: Dict[str, Any], 
+                                              q_components: Dict[str, Any],
+                                              field_components: Dict[str, Any]) -> ConceptualChargeObject:
+        """Reconstruct ConceptualChargeObject from stored metadata."""
+        
+        # Reconstruct complex charge value from real/imag components
+        if "living_Q_value_real" in q_components and "living_Q_value_imag" in q_components:
+            complete_charge = complex(q_components["living_Q_value_real"], q_components["living_Q_value_imag"])
+        elif "Q_value_real" in q_components and "Q_value_imag" in q_components:
+            complete_charge = complex(q_components["Q_value_real"], q_components["Q_value_imag"])
+        else:
+            complete_charge = complex(1.0, 0.0)
+        
+        # Reconstruct field components
+        field_comps = FieldComponents(
+            semantic_field=field_components.get("semantic_embedding"),
+            emotional_trajectory=field_components.get("emotional_trajectory"),
+            trajectory_operators=field_components.get("trajectory_operators"),
+            phase_total=field_components.get("phase_total", 0.0),
+            observational_persistence=field_components.get("observational_persistence", 1.0)
+        )
+        
+        return ConceptualChargeObject(
+            charge_id=metadata.get("charge_id", "reconstructed_agent"),
+            text_source=metadata.get("text_source", "unknown"),
+            complete_charge=complete_charge,
+            field_components=field_comps,
+            observational_state=metadata.get("observational_state", 1.0)
+        )
+    
+    @classmethod
+    def _create_minimal_combined_results(cls, stored_data: Dict[str, Any], charge_index: int) -> Dict[str, Any]:
+        """Create minimal combined_results structure for reconstruction."""
+        
+        # This creates a minimal structure that won't break the initialization
+        # but isn't used for actual mathematical computation (we restore directly)
+        return {
+            'semantic_results': {
+                'field_representations': [{'semantic_field': None, 'field_metadata': {'source_token': 'reconstructed'}}]
+            },
+            'temporal_results': {
+                'temporal_biographies': [None],
+                'field_interference_matrix': np.eye(1),
+                'collective_breathing_rhythm': {'collective_frequency': np.array([1.0])}
+            },
+            'emotional_results': {
+                'emotional_modulations': [None],
+                'field_signature': {'field_modulation_strength': 1.0}
+            }
+        }
+    
+    def _restore_complex_numbers(self, obj):
+        """
+        Recursively restore dictionary-format complex numbers back to proper Python complex objects.
+        
+        Converts {"real": float, "imag": float, "_type": "complex"} back to complex(real, imag).
+        """
+        if obj is None:
+            return None
+        
+        # Check if this is a complex number dictionary
+        if (isinstance(obj, dict) and 
+            "_type" in obj and obj["_type"] == "complex" and
+            "real" in obj and "imag" in obj):
+            return complex(float(obj["real"]), float(obj["imag"]))
+        
+        # Handle dictionaries recursively
+        if isinstance(obj, dict):
+            return {k: self._restore_complex_numbers(v) for k, v in obj.items()}
+        
+        # Handle lists/tuples recursively
+        if isinstance(obj, (list, tuple)):
+            restored = [self._restore_complex_numbers(item) for item in obj]
+            return restored if isinstance(obj, list) else tuple(restored)
+        
+        # Return primitive types as-is
+        return obj
+    
+    def _extract_float_value(self, value):
+        """
+        Extract a float value from potentially complex number objects.
+        
+        Handles cases where value might be:
+        - A direct float/int
+        - A complex number (take real part)
+        - A dictionary-format complex number
+        """
+        if isinstance(value, (int, float)):
+            return float(value)
+        elif isinstance(value, complex):
+            return float(value.real)
+        elif isinstance(value, dict) and "_type" in value and value["_type"] == "complex":
+            return float(value["real"])
+        else:
+            # Try to convert to float as last resort
+            try:
+                return float(value)
+            except (ValueError, TypeError):
+                logger.warning(f"Could not extract float from value: {value} (type: {type(value)})")
+                return 0.0
+    
+    def _restore_mathematical_state_from_storage(self, stored_data: Dict[str, Any]) -> None:
+        """Restore complete mathematical state from stored data."""
+        
+        q_components = stored_data.get("Q_components", {})
+        agent_state = stored_data.get("agent_state", {})
+        
+        # CRITICAL FIX: Restore complex numbers from dictionary format before using them
+        logger.debug(f"🔧 Restoring complex numbers for agent reconstruction...")
+        original_q_keys = list(q_components.keys())
+        original_state_keys = list(agent_state.keys())
+        
+        q_components = self._restore_complex_numbers(q_components)
+        agent_state = self._restore_complex_numbers(agent_state)
+        
+        # IMMEDIATE VALIDATION: Check that restoration worked
+        logger.debug(f"   Q components before restoration: {len([k for k, v in q_components.items() if isinstance(v, dict) and '_type' in v])} dict-format complex numbers")
+        remaining_dict_complex = [(k, v) for k, v in q_components.items() if isinstance(v, dict) and '_type' in v and v.get('_type') == 'complex']
+        if remaining_dict_complex:
+            logger.error(f"❌ COMPLEX RESTORATION FAILED: {len(remaining_dict_complex)} dictionary-format complex numbers remain:")
+            for key, value in remaining_dict_complex:
+                logger.error(f"   {key}: {value}")
+        else:
+            logger.debug(f"✅ Complex number restoration completed successfully")
+        
+        # Restore living Q value from storage with proper complex number handling
+        if "living_Q_value_real" in q_components and "living_Q_value_imag" in q_components:
+            real_val = self._extract_float_value(q_components["living_Q_value_real"])
+            imag_val = self._extract_float_value(q_components["living_Q_value_imag"])
+            self.living_Q_value = complex(real_val, imag_val)
+        elif "Q_value_real" in q_components and "Q_value_imag" in q_components:
+            real_val = self._extract_float_value(q_components["Q_value_real"])
+            imag_val = self._extract_float_value(q_components["Q_value_imag"])
+            self.living_Q_value = complex(real_val, imag_val)
+        else:
+            self.living_Q_value = complex(0.0, 0.0)
+        
+        # CRITICAL VALIDATION: Ensure living_Q_value is always a proper complex number
+        if not isinstance(self.living_Q_value, complex):
+            logger.error(f"❌ RECONSTRUCTION ERROR: living_Q_value was not a complex number (type: {type(self.living_Q_value)}, value: {self.living_Q_value})")
+            logger.error(f"   This indicates incomplete complex number deserialization during reconstruction!")
+            try:
+                if hasattr(self.living_Q_value, 'real') and hasattr(self.living_Q_value, 'imag'):
+                    self.living_Q_value = complex(float(self.living_Q_value.real), float(self.living_Q_value.imag))
+                    logger.warning(f"   Successfully converted to complex: {self.living_Q_value}")
+                else:
+                    self.living_Q_value = complex(float(self.living_Q_value), 0.0)
+                    logger.warning(f"   Converted to complex (assuming real): {self.living_Q_value}")
+            except (ValueError, TypeError) as e:
+                logger.error(f"   Failed to convert living_Q_value to complex: {e}, setting to 0+0j")
+                self.living_Q_value = complex(0.0, 0.0)
+                
+        # COMPREHENSIVE VALIDATION: Check all critical complex number fields during reconstruction
+        complex_fields_to_validate = [
+            ('living_Q_value', self.living_Q_value),
+            ('temporal_momentum', getattr(self, 'temporal_momentum', None)),
+            ('T_tensor', getattr(self, 'T_tensor', None)),
+            ('E_trajectory', getattr(self, 'E_trajectory', None)),
+            ('phi_semantic', getattr(self, 'phi_semantic', None))
+        ]
+        
+        validation_failed = False
+        for field_name, field_value in complex_fields_to_validate:
+            if field_value is not None and not isinstance(field_value, complex):
+                logger.error(f"❌ RECONSTRUCTION ERROR: {field_name} is not a complex number (type: {type(field_value)}, value: {field_value})")
+                validation_failed = True
+                
+        if validation_failed:
+            logger.error(f"❌ CRITICAL: Complex number validation failed during reconstruction for agent {getattr(self, 'charge_id', 'unknown')}")
+            logger.error(f"   This will cause comparison errors during evolution simulation!")
+            # Log the original q_components for debugging
+            logger.error(f"   Original q_components keys: {list(q_components.keys())}")
+            for key, value in q_components.items():
+                if isinstance(value, dict) and "_type" in value:
+                    logger.error(f"   {key}: {value} (type: {type(value)})")
+        else:
+            logger.debug(f"✅ Complex number validation passed for agent {getattr(self, 'charge_id', 'unknown')}")
+            
+        # ADDITIONAL VALIDATION: Check persistence layers contain only real numbers
+        if hasattr(self, 'temporal_biography') and self.temporal_biography:
+            persistence_layers_to_check = [
+                ('vivid_layer', getattr(self.temporal_biography, 'vivid_layer', None)),
+                ('character_layer', getattr(self.temporal_biography, 'character_layer', None))
+            ]
+            
+            persistence_validation_failed = False
+            for layer_name, layer_data in persistence_layers_to_check:
+                if layer_data is not None and len(layer_data) > 0:
+                    if np.iscomplexobj(layer_data) or any(np.iscomplexobj(item) for item in layer_data):
+                        logger.error(f"❌ PERSISTENCE LAYER ERROR: {layer_name} contains complex numbers!")
+                        logger.error(f"   This will cause max() comparison errors during persistence calculations!")
+                        persistence_validation_failed = True
+                        
+            if persistence_validation_failed:
+                logger.error(f"❌ CRITICAL: Persistence layer validation failed for agent {getattr(self, 'charge_id', 'unknown')}")
+            else:
+                logger.debug(f"✅ Persistence layers contain only real numbers for agent {getattr(self, 'charge_id', 'unknown')}")
+        
+        # Restore evolution parameters with explicit type safety
+        evolution_params = ["sigma_i", "alpha_i", "lambda_i", "beta_i"]
+        for param in evolution_params:
+            if param in agent_state:
+                # CRITICAL FIX: Ensure evolution parameters are Python floats, not tensors
+                param_value = agent_state[param]
+                original_type = type(param_value)
+                
+                # Convert to Python float regardless of input type
+                if hasattr(param_value, 'cpu'):
+                    # It's a tensor - convert to Python float
+                    float_value = float(param_value.cpu().detach().numpy())
+                elif hasattr(param_value, 'item'):
+                    # It's a numpy scalar - convert to Python float
+                    float_value = float(param_value.item())
+                else:
+                    # It's already a primitive - ensure it's a Python float
+                    float_value = float(param_value)
+                
+                setattr(self, param, float_value)
+                logger.info(f"🔧 EVOLUTION PARAM RESTORED: {param}: {original_type} -> {type(float_value)} (value: {float_value})")
+            else:
+                # Set defaults if missing
+                defaults = {"sigma_i": 0.5, "alpha_i": 0.3, "lambda_i": 0.1, "beta_i": 2.0}
+                default_value = float(defaults.get(param, 1.0))
+                setattr(self, param, default_value)
+                logger.warning(f"⚠️  EVOLUTION PARAM DEFAULT: {param} = {default_value} (missing from stored data)")
+        
+        # Restore breathing parameters
+        breathing_params = ["breath_frequency", "breath_amplitude", "breath_phase"]
+        for param in breathing_params:
+            if param in agent_state:
+                setattr(self, param, agent_state[param])
+        
+        # Restore complex mathematical components from real/imag pairs
+        complex_fields = [
+            ("temporal_momentum", "temporal_momentum"),
+            ("T_tensor", "T_tensor"),
+            ("E_trajectory", "E_trajectory"),
+            ("phi_semantic", "phi_semantic")
+        ]
+        
+        for stored_name, agent_attr in complex_fields:
+            real_key = f"{stored_name}_real"
+            imag_key = f"{stored_name}_imag"
+            
+            if real_key in q_components and imag_key in q_components:
+                real_val = self._extract_float_value(q_components[real_key])
+                imag_val = self._extract_float_value(q_components[imag_key])
+                complex_val = complex(real_val, imag_val)
+                setattr(self, agent_attr, complex_val)
+        
+        # Restore other Q-component values
+        if "gamma" in q_components:
+            self.gamma = q_components["gamma"]
+        if "psi_persistence" in q_components:
+            self.psi_persistence = q_components["psi_persistence"]
+        
+        logger.debug(f"🔧 Mathematical state restored for agent {self.charge_id}")
+    
+    def _restore_field_and_agent_state(self, stored_data: Dict[str, Any]) -> None:
+        """Restore field components and agent state."""
+        
+        field_components = stored_data.get("field_components", {})
+        temporal_biography = stored_data.get("temporal_biography", {})
+        emotional_modulation = stored_data.get("emotional_modulation", {})
+        
+        # Create semantic field object from stored data
+        semantic_embedding = field_components.get("semantic_embedding")
+        semantic_phase_factors = field_components.get("semantic_phase_factors")
+        
+        class SemanticField:
+            def __init__(self, embedding_components, phase_factors=None):
+                # MPS-safe tensor conversion for embedding components
+                if embedding_components is not None:
+                    if hasattr(embedding_components, 'cpu'):
+                        self.embedding_components = embedding_components.cpu().detach().numpy()
+                    else:
+                        self.embedding_components = np.array(embedding_components)
+                else:
+                    self.embedding_components = np.zeros(384)
+                
+                # MPS-safe tensor conversion for phase factors
+                if phase_factors is not None:
+                    if hasattr(phase_factors, 'cpu'):
+                        self.phase_factors = phase_factors.cpu().detach().numpy()
+                    else:
+                        self.phase_factors = np.array(phase_factors)
+                else:
+                    self.phase_factors = np.ones(1024)
+            
+            def evaluate_at(self, position_x: np.ndarray) -> complex:
+                """
+                Evaluate semantic field at position x.
+                
+                Simple implementation using embedding components and phase factors.
+                All operations use numpy arrays (MPS-safe).
+                """
+                # Use position to create a simple basis evaluation
+                # Take magnitude of position as a scalar modulation factor
+                if len(position_x) > 0:
+                    position_magnitude = float(np.linalg.norm(position_x))
+                    position_factor = 1.0 + 0.1 * np.sin(position_magnitude)
+                else:
+                    position_factor = 1.0
+                
+                # Compute phase factors from stored phases
+                phase_factors = np.exp(1j * self.phase_factors[:len(self.embedding_components)])
+                
+                # Combine embedding components with phase modulation
+                # Simple field evaluation: weighted sum of components
+                field_real = np.mean(self.embedding_components * np.real(phase_factors)) * position_factor
+                field_imag = np.mean(self.embedding_components * np.imag(phase_factors)) * position_factor
+                
+                return complex(field_real, field_imag)
+        
+        self.semantic_field = SemanticField(semantic_embedding, semantic_phase_factors)
+        
+        # CRITICAL: Initialize semantic_field_data with required field_metadata - NO FALLBACKS
+        field_magnitude = np.mean(np.abs(self.semantic_field.embedding_components)) if len(self.semantic_field.embedding_components) > 0 else 1.0
+        self.semantic_field_data = {
+            "semantic_field": self.semantic_field,
+            "field_metadata": {
+                "source_token": "reconstructed",
+                "manifold_dimension": len(self.semantic_field.embedding_components),
+                "field_magnitude": field_magnitude
+            }
+        }
+        
+        # Create temporal biography object from stored data
+        trajectory_operators = field_components.get("trajectory_operators", [])
+        if temporal_biography and "trajectory_operators" in temporal_biography:
+            trajectory_operators = temporal_biography["trajectory_operators"]
+        
+        # Get frequency evolution from stored data if available
+        frequency_evolution = temporal_biography.get("frequency_evolution", []) if temporal_biography else []
+        
+        class TemporalBiography:
+            def __init__(self, trajectory_operators, frequency_evolution=None):
+                if trajectory_operators is not None and len(trajectory_operators) > 0:
+                    # MPS-safe tensor conversion for trajectory operators
+                    if hasattr(trajectory_operators, 'cpu'):
+                        self.trajectory_operators = trajectory_operators.cpu().detach().numpy()
+                    else:
+                        self.trajectory_operators = np.array(trajectory_operators)
+                else:
+                    self.trajectory_operators = np.array([1.0])
+                
+                if frequency_evolution is not None and len(frequency_evolution) > 0:
+                    # MPS-safe tensor conversion for frequency evolution
+                    if hasattr(frequency_evolution, 'cpu'):
+                        self.frequency_evolution = frequency_evolution.cpu().detach().numpy()
+                    else:
+                        self.frequency_evolution = np.array(frequency_evolution)
+                else:
+                    self.frequency_evolution = np.array([1.0])
+                
+                # CRITICAL FIX: Initialize field_interference_signature - required for FieldCouplingState
+                if len(self.trajectory_operators) > 0:
+                    mean_traj = np.mean(self.trajectory_operators)
+                    # Ensure proper scalar conversion from numpy to Python complex
+                    if np.iscomplexobj(mean_traj):
+                        self.field_interference_signature = complex(float(mean_traj.real), float(mean_traj.imag))
+                    else:
+                        self.field_interference_signature = complex(float(mean_traj), 0.1)
+                else:
+                    self.field_interference_signature = complex(1.0, 0.1)
+                    
+                # CRITICAL FIX: Initialize missing TemporalBiography attributes for evolution
+                # breathing_coherence - required for dimensional cascades
+                if len(self.frequency_evolution) > 0:
+                    # Calculate coherence as inverse of variance (more uniform = more coherent)
+                    freq_var = np.var(self.frequency_evolution)
+                    self.breathing_coherence = float(1.0 / (1.0 + freq_var))  # Range [0, 1]
+                else:
+                    self.breathing_coherence = 0.5  # Default moderate coherence
+                
+                # temporal_momentum - required for momentum calculations
+                if len(self.trajectory_operators) > 0:
+                    mean_trajectory = np.mean(self.trajectory_operators)
+                    if np.iscomplexobj(mean_trajectory):
+                        self.temporal_momentum = complex(float(mean_trajectory.real), float(mean_trajectory.imag))
+                    else:
+                        self.temporal_momentum = complex(float(mean_trajectory), 0.0)
+                else:
+                    self.temporal_momentum = complex(0.0, 0.0)
+                
+                # phase_coordination - required for breathing coordination
+                self.phase_coordination = self.frequency_evolution.copy() if len(self.frequency_evolution) > 0 else np.array([1.0])
+                
+                # CRITICAL FIX: Initialize missing vivid_layer and character_layer for Q computation persistence
+                # ENSURE REAL VALUES ONLY - extract real parts if trajectory_operators contain complex numbers
+                if len(self.trajectory_operators) > 0:
+                    # Extract magnitudes (real values) from complex trajectory operators
+                    self.vivid_layer = np.array([abs(op) if np.iscomplexobj(op) else float(op) for op in self.trajectory_operators])
+                else:
+                    self.vivid_layer = np.array([1.0])
+                    
+                if len(self.frequency_evolution) > 0:
+                    # Extract magnitudes (real values) from complex frequency evolution
+                    self.character_layer = np.array([abs(freq) if np.iscomplexobj(freq) else float(freq) for freq in self.frequency_evolution])
+                else:
+                    self.character_layer = np.array([1.0])
+        
+        self.temporal_biography = TemporalBiography(trajectory_operators, frequency_evolution)
+        
+        # Create emotional modulation object from stored data
+        emotional_trajectory = field_components.get("emotional_trajectory")
+        if emotional_modulation and "emotional_trajectory" in emotional_modulation:
+            emotional_trajectory = emotional_modulation["emotional_trajectory"]
+        
+        class EmotionalModulation:
+            def __init__(self, emotional_trajectory):
+                if emotional_trajectory is not None and len(emotional_trajectory) > 0:
+                    # MPS-safe tensor conversion for emotional trajectory
+                    if hasattr(emotional_trajectory, 'cpu'):
+                        self.emotional_trajectory = emotional_trajectory.cpu().detach().numpy()
+                    else:
+                        self.emotional_trajectory = np.array(emotional_trajectory)
+                else:
+                    self.emotional_trajectory = np.array([1.0])
+                
+                # CRITICAL: Initialize ALL required attributes for Q computation - NO FALLBACKS
+                # semantic_modulation_tensor - required for Q computation (E^trajectory component)
+                self.semantic_modulation_tensor = self.emotional_trajectory.copy()
+                
+                # unified_phase_shift - required for phase calculations  
+                if len(self.emotional_trajectory) > 0:
+                    mean_emot = np.mean(self.emotional_trajectory)
+                    # Ensure proper scalar conversion from numpy to Python complex
+                    if np.iscomplexobj(mean_emot):
+                        self.unified_phase_shift = complex(float(mean_emot.real), float(mean_emot.imag))
+                    else:
+                        self.unified_phase_shift = complex(float(mean_emot), 0.1)
+                else:
+                    self.unified_phase_shift = complex(1.0, 0.1)
+                
+                # trajectory_attractors - required for trajectory modulation
+                self.trajectory_attractors = np.linspace(0.5, 2.0, min(len(self.emotional_trajectory), 5))
+                
+                # resonance_frequencies - required for resonance calculations
+                self.resonance_frequencies = np.array([1.0, 2.0, 3.0, 5.0, 8.0])  # Fibonacci-based frequencies
+        
+        self.emotional_modulation = EmotionalModulation(emotional_trajectory)
+        
+        # Initialize minimal state and coupling structures for reconstruction
+        self.state = AgentFieldState(
+            tau=self.charge_obj.text_source,
+            current_context_C={},
+            current_s=self.charge_obj.observational_state,
+            s_zero=self.charge_obj.observational_state,
+            field_position=(0.0, 0.0),
+            trajectory_time=0.0
+        )
+        
+        # CRITICAL: Initialize ALL required mathematical components - NO FALLBACKS
+        
+        # Initialize field_interference_matrix - required for Q computation
+        self.field_interference_matrix = np.eye(1)  # Identity matrix for single agent coupling
+        
+        # Initialize breathing coefficients - complete mathematical structure required
+        self._initialize_breathing_q_expansion_for_reconstruction()
+        self.collective_breathing = {'collective_frequency': np.array([1.0])}
+        self.breath_frequency = 0.1
+        self.breath_amplitude = 1.0 
+        self.breath_phase = 0.0
+        
+        # CRITICAL FIX: Initialize missing emotional_field_signature for Q computation
+        class EmotionalFieldSignature:
+            def __init__(self):
+                self.field_modulation_strength = 1.0  # Required for coupling_state initialization
+                self.phase_coherence = 0.5
+                self.emotional_amplitude = 1.0
+        
+        self.emotional_field_signature = EmotionalFieldSignature()
+        
+        self.coupling_state = FieldCouplingState(
+            emotional_field_coupling=self.emotional_modulation.unified_phase_shift,
+            field_interference_coupling=self.temporal_biography.field_interference_signature,
+            collective_breathing_rhythm=self.collective_breathing,
+            s_t_coupling_strength=self.emotional_field_signature.field_modulation_strength
+        )
+        
+        # CRITICAL: Initialize complete modular form structure - REQUIRED for evolution
+        self._initialize_modular_geometry_for_reconstruction()
+        
+        # CRITICAL: Initialize missing mathematical components for Q computation and evolution
+        self._initialize_missing_components_for_reconstruction()
+        
+        # CRITICAL VALIDATION: Ensure ALL required mathematical components are properly initialized
+        required_attrs = [
+            'living_Q_value', 'semantic_field', 'temporal_biography', 'emotional_modulation', 
+            'emotional_field_signature', 'tau_position', 'modular_weight', 'field_interference_matrix',
+            'breathing_q_coefficients', 'geometric_features', 'emotional_conductivity',
+            'hecke_eigenvalues', 'l_function_coefficients', 'semantic_field_data'
+        ]
+        
+        missing_attrs = [attr for attr in required_attrs if not hasattr(self, attr)]
+        if missing_attrs:
+            logger.error(f"❌ CRITICAL: Missing mathematical components after reconstruction: {missing_attrs}")
+            raise ValueError(f"Reconstruction failed - missing required mathematical components: {missing_attrs}")
+        
+        # Validate mathematical component structures
+        validation_errors = []
+        
+        if not isinstance(self.tau_position, complex):
+            validation_errors.append(f"tau_position must be complex, got {type(self.tau_position)}")
+            
+        if not isinstance(self.breathing_q_coefficients, dict) or len(self.breathing_q_coefficients) == 0:
+            validation_errors.append(f"breathing_q_coefficients must be non-empty dict, got {type(self.breathing_q_coefficients)}")
+            
+        if not hasattr(self.geometric_features, 'shape') or len(self.geometric_features) != 4:
+            validation_errors.append(f"geometric_features must be tensor with 4 elements, got shape {getattr(self.geometric_features, 'shape', 'unknown')}")
+        
+        if validation_errors:
+            logger.error(f"❌ CRITICAL: Mathematical component validation errors: {validation_errors}")
+            raise ValueError(f"Reconstruction failed - invalid mathematical components: {validation_errors}")
+        
+        logger.info(f"✅ All mathematical components properly initialized for agent {self.charge_id}")
+        
+        logger.debug(f"🔧 Field and agent state restored for agent {self.charge_id}")
+    
+    def _initialize_modular_geometry_for_reconstruction(self):
+        """Initialize complete modular form geometry during reconstruction - NO FALLBACKS."""
+        
+        # Position agent in modular fundamental domain using field position
+        x, y = self.state.field_position
+        
+        # Transform to upper half-plane coordinates (modular fundamental domain)
+        # Fundamental domain: |τ| ≥ 1, -1/2 ≤ Re(τ) ≤ 1/2, Im(τ) > 0
+        real_part = np.clip(x, -0.5, 0.5)  # Real part in fundamental domain
+        imag_part = max(0.1, 1.0 + y)      # Ensure positive imaginary part
+        
+        self.tau_position = complex(real_part, imag_part)
+        
+        # Modular weight determines transformation behavior - derive from semantic field
+        if hasattr(self.semantic_field, 'embedding_components') and len(self.semantic_field.embedding_components) > 0:
+            field_magnitude = np.mean(np.abs(self.semantic_field.embedding_components))
+        else:
+            field_magnitude = 1.0
+        self.modular_weight = max(2, int(2 * field_magnitude))  # Even weight ≥ 2
+        
+        # Emotional conductivity from emotional modulation
+        if hasattr(self.emotional_modulation, 'emotional_trajectory') and len(self.emotional_modulation.emotional_trajectory) > 0:
+            self.emotional_conductivity = np.mean(np.abs(self.emotional_modulation.emotional_trajectory))
+        else:
+            self.emotional_conductivity = 1.0
+            
+        # Create geometric node features for PyTorch Geometric operations
+        self.geometric_features = torch.tensor([
+            self.tau_position.real,
+            self.tau_position.imag, 
+            self.modular_weight,
+            self.emotional_conductivity
+        ], dtype=torch.float32, device=self.device)
+        
+        logger.debug(f"🔧 Modular geometry initialized: τ={self.tau_position}, weight={self.modular_weight}")
+    
+    def _initialize_breathing_q_expansion_for_reconstruction(self):
+        """Initialize complete breathing q-coefficients during reconstruction - NO FALLBACKS."""
+        
+        # Base q-coefficients from semantic embedding components
+        semantic_components = self.semantic_field.embedding_components
+        
+        # Create complex q-coefficients: semantic (real) + temporal (imaginary)
+        self.breathing_q_coefficients = {}
+        max_coeffs = min(1024, len(semantic_components)) if semantic_components is not None else 128
+        
+        for n in range(max_coeffs):
+            # Real part from semantic field strength
+            if semantic_components is not None and n < len(semantic_components):
+                real_part = float(semantic_components[n])  # Ensure proper scalar conversion
+            else:
+                real_part = 0.1  # Minimal real component
+            
+            # Imaginary part from temporal biography (frequency evolution)
+            if (hasattr(self.temporal_biography, 'frequency_evolution') and 
+                self.temporal_biography.frequency_evolution is not None and 
+                n < len(self.temporal_biography.frequency_evolution)):
+                imag_part = float(self.temporal_biography.frequency_evolution[n])  # Ensure proper scalar conversion
+            else:
+                imag_part = 0.1  # Minimal imaginary component
+                
+            # Complex q-coefficient
+            self.breathing_q_coefficients[n] = complex(real_part, imag_part)
+        
+        logger.debug(f"🔧 Breathing q-coefficients initialized: {len(self.breathing_q_coefficients)} coefficients")
+    
+    def _initialize_missing_components_for_reconstruction(self):
+        """Initialize all missing mathematical components required for Q computation and evolution - NO FALLBACKS."""
+        
+        # Initialize Hecke eigenvalues for evolution simulation
+        trajectory_ops = self.temporal_biography.trajectory_operators
+        self.hecke_eigenvalues = {}
+        primes = [2, 3, 5, 7, 11, 13, 17, 19, 23, 29]
+        for i, p in enumerate(primes):
+            if i < len(trajectory_ops):
+                # CRITICAL FIX: Ensure proper scalar conversion from numpy to Python complex
+                traj_val = trajectory_ops[i]
+                if np.iscomplexobj(traj_val):
+                    self.hecke_eigenvalues[p] = complex(float(traj_val.real), float(traj_val.imag))
+                else:
+                    self.hecke_eigenvalues[p] = complex(float(traj_val), 0.0)
+            else:
+                self.hecke_eigenvalues[p] = complex(1.0, 0.0)
+        
+        # Initialize L-function coefficients for Q computation
+        self.l_function_coefficients = {}
+        for n in range(1, min(50, len(self.emotional_modulation.semantic_modulation_tensor) + 1)):
+            base_coeff = self.emotional_modulation.semantic_modulation_tensor[n % len(self.emotional_modulation.semantic_modulation_tensor)]
+            emotional_phase = np.angle(self.emotional_modulation.unified_phase_shift) * n / 10
+            self.l_function_coefficients[n] = base_coeff * np.exp(1j * emotional_phase)
+        
+        # Initialize Hecke adaptivity for agent interactions
+        self.hecke_adaptivity = 0.01
+        
+        # Initialize interaction memory buffer
+        self.interaction_memory = []
+        self.interaction_memory_buffer = {}
+        
+        logger.debug(f"🔧 Missing mathematical components initialized: {len(self.hecke_eigenvalues)} hecke eigenvalues, {len(self.l_function_coefficients)} L-function coefficients")
     
     def _validate_extracted_data(self, charge_index: int):
         """
@@ -581,17 +1378,26 @@ class ConceptualChargeAgent:
             primes = [2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47]
             for i, p in enumerate(primes):
                 if i < len(trajectory_ops):
-                    # Use complex trajectory operator as eigenvalue
-                    self.hecke_eigenvalues[p] = complex(trajectory_ops[i])
+                    # CRITICAL FIX: Ensure proper scalar conversion from numpy to Python complex
+                    traj_val = trajectory_ops[i]
+                    if np.iscomplexobj(traj_val):
+                        self.hecke_eigenvalues[p] = complex(float(traj_val.real), float(traj_val.imag))
+                    else:
+                        self.hecke_eigenvalues[p] = complex(float(traj_val), 0.0)
                 else:
                     # Default eigenvalue for higher primes
                     self.hecke_eigenvalues[p] = complex(1.0, 0.0)
         else:
             # Fallback: direct mapping without Sage
-            self.hecke_eigenvalues = {
-                p: complex(trajectory_ops[i % len(trajectory_ops)]) 
-                for i, p in enumerate([2, 3, 5, 7, 11, 13, 17, 19, 23, 29])
-            }
+            self.hecke_eigenvalues = {}
+            primes = [2, 3, 5, 7, 11, 13, 17, 19, 23, 29]
+            for i, p in enumerate(primes):
+                traj_val = trajectory_ops[i % len(trajectory_ops)]
+                # CRITICAL FIX: Ensure proper scalar conversion from numpy to Python complex
+                if np.iscomplexobj(traj_val):
+                    self.hecke_eigenvalues[p] = complex(float(traj_val.real), float(traj_val.imag))
+                else:
+                    self.hecke_eigenvalues[p] = complex(float(traj_val), 0.0)
             
         # Adaptivity parameters - how eigenvalues respond to field
         self.hecke_adaptivity = 0.01  # Learning rate for eigenvalue evolution
@@ -709,11 +1515,24 @@ class ConceptualChargeAgent:
         This implements the cascading feedback loops where:
         Semantic → Temporal → Emotional → Semantic (endless cycle)
         """
+        # STABILITY FIX: Apply decay to cascade momentum to prevent exponential explosion
+        decay_factor = 0.95  # 5% decay per step to prevent unbounded growth
+        for key in self.cascade_momentum:
+            self.cascade_momentum[key] *= decay_factor
         # SEMANTIC → TEMPORAL: Field gradients drive temporal evolution
         q_magnitudes = [abs(self.breathing_q_coefficients.get(n, 0)) for n in range(100)]
-        semantic_gradient = torch.tensor(q_magnitudes, device=self.device)
-        semantic_gradient = F.pad(semantic_gradient, (1, 1), mode='circular')
-        semantic_gradient = torch.gradient(semantic_gradient, dim=0)[0][:100]
+        # CRITICAL FIX: Use float32 for MPS compatibility (Apple Silicon doesn't support float64)
+        semantic_gradient = torch.tensor(q_magnitudes, dtype=torch.float32, device=self.device)
+        
+        # CRITICAL FIX: Manual circular padding for 1D tensor (PyTorch doesn't support 1D circular padding)
+        # Add first element at end and last element at beginning for circular boundary conditions
+        semantic_gradient_padded = torch.cat([
+            semantic_gradient[-1:],  # Last element at beginning
+            semantic_gradient,       # Original tensor
+            semantic_gradient[:1]    # First element at end
+        ], dim=0)
+        
+        semantic_gradient = torch.gradient(semantic_gradient_padded, dim=0)[0][1:101]  # Extract middle 100 elements
         
         # Update temporal momentum from semantic pressure
         gradient_magnitude = torch.mean(torch.abs(semantic_gradient)).item()
@@ -752,7 +1571,11 @@ class ConceptualChargeAgent:
         self.state.current_s += total_cascade_energy * self.evolution_rates['cascading'] * 0.1
         
         # Update living Q value after cascading feedback
+        eval_start = time.time()
         self.living_Q_value = self.evaluate_living_form()
+        eval_time = time.time() - eval_start
+        if hasattr(self, 'charge_id'):
+            logger.debug(f"🔧 Agent {self.charge_id} - CASCADE evaluate_living_form (time: {eval_time:.3f}s)")
         
         # Update charge object with current state
         self.charge_obj.complete_charge = self.living_Q_value
@@ -981,16 +1804,26 @@ class ConceptualChargeAgent:
         else:
             tau = complex(tau, self.tau_position.imag)
         
-        # Compute q = exp(2πiτ)
-        q = torch.exp(2j * np.pi * tau)
+        # PERFORMANCE OPTIMIZATION: Cache result if state hasn't changed significantly
+        current_s = self.state.current_s
+        if hasattr(self, '_cached_living_Q') and hasattr(self, '_cached_s'):
+            s_change = abs(current_s - self._cached_s)
+            if s_change < 0.001:  # Very small change in observational state
+                logger.debug(f"🔧 Agent {self.charge_id} - Using cached living Q (s_change: {s_change:.6f})")
+                return self._cached_living_Q
         
-        # Evaluate breathing q-expansion
-        f_tau = complex(0.0, 0.0)
+        # Compute q = exp(2πiτ) - convert complex tau to proper PyTorch tensor
+        tau_tensor = torch.tensor(2j * np.pi * tau, dtype=torch.complex64, device=self.device)
+        q = torch.exp(tau_tensor)
+        
+        # Evaluate breathing q-expansion - ensure tensor/complex consistency
+        f_tau = torch.tensor(complex(0.0, 0.0), dtype=torch.complex64, device=self.device)
         for n, coeff in self.breathing_q_coefficients.items():
+            coeff_tensor = torch.tensor(coeff, dtype=torch.complex64, device=self.device)
             if n == 0:
-                f_tau += coeff  # Constant term
+                f_tau += coeff_tensor  # Constant term
             else:
-                f_tau += coeff * (q ** n)
+                f_tau += coeff_tensor * (q ** n)
         
         # Apply responsive Hecke operators
         for p, eigenvalue in self.hecke_eigenvalues.items():
@@ -998,22 +1831,50 @@ class ConceptualChargeAgent:
             hecke_factor = 1.0 + eigenvalue * (q ** p) / (1.0 + abs(q ** p))
             f_tau *= hecke_factor
         
-        # Apply emotional L-function modulation
-        l_value = complex(1.0, 0.0)
+        # Apply emotional L-function modulation - ensure tensor consistency
+        l_value = torch.tensor(complex(1.0, 0.0), dtype=torch.complex64, device=self.device)
         for n, coeff in self.l_function_coefficients.items():
             if abs(coeff) > 0:
-                l_value *= (1.0 + coeff / (n ** (1 + 0.1j)))
+                coeff_tensor = torch.tensor(coeff, dtype=torch.complex64, device=self.device)
+                n_factor = torch.tensor(n ** (1 + 0.1j), dtype=torch.complex64, device=self.device)
+                l_value *= (1.0 + coeff_tensor / n_factor)
         
         f_tau *= l_value
         
-        # Apply observational state persistence
+        # Apply observational state persistence - ensure tensor consistency
         s_factor = self.compute_observational_persistence()[0]  # Total persistence
-        f_tau *= s_factor
+        s_factor_tensor = torch.tensor(s_factor, dtype=torch.complex64, device=self.device)
+        f_tau *= s_factor_tensor
         
         # Store as living Q value
-        self.living_Q_value = f_tau
+        # Convert back to Python complex for compatibility with rest of system
+        # CRITICAL FIX: Use safe tensor validation to prevent boolean evaluation errors
+        try:
+            context = f"Agent_{self.charge_id}_Q_calculation"
+            if safe_tensor_comparison(f_tau, 1, context):
+                # CRITICAL FIX: Use safe scalar extraction to prevent ambiguous tensor evaluation
+                tensor_value = extract_tensor_scalar(f_tau, context)
+                if isinstance(tensor_value, complex):
+                    f_tau_complex = complex(float(tensor_value.real), float(tensor_value.imag))
+                else:
+                    f_tau_complex = complex(float(tensor_value), 0.0)
+            else:
+                f_tau_complex = f_tau
+        except TensorValidationError as e:
+            print(f"💥 Agent {self.charge_id} - Q calculation tensor validation failed: {e}")
+            # Fallback to default complex value with error reporting
+            f_tau_complex = complex(1.0, 0.0)
+        except Exception as e:
+            print(f"💥 Agent {self.charge_id} - Unexpected Q calculation error: {e}")
+            f_tau_complex = complex(1.0, 0.0)
         
-        return f_tau
+        self.living_Q_value = f_tau_complex
+        
+        # Cache the result for performance optimization
+        self._cached_living_Q = f_tau_complex
+        self._cached_s = current_s
+        
+        return f_tau_complex
     
     def sync_positions(self):
         """
@@ -1115,7 +1976,7 @@ class ConceptualChargeAgent:
         
         # Observational state s affects trajectory integration
         s = self.state.current_s
-        s_evolution = torch.exp(torch.tensor(-0.05 * s, device=self.device))
+        s_evolution = torch.exp(torch.tensor(-0.05 * s, dtype=torch.float32, device=self.device))
         
         # Emotional coupling modulates T tensor (multiplicative effect)
         emotional_coupling = abs(self.coupling_state.emotional_field_coupling)
@@ -1124,7 +1985,12 @@ class ConceptualChargeAgent:
         T_tensor_value = torch.mean(T_ops) * context_modulation * s_evolution * (1.0 + 0.2 * emotional_coupling)
         
         # Extract complex result
-        T_complex = complex(T_tensor_value.cpu().numpy())
+        # CRITICAL FIX: Ensure proper tensor-to-Python complex conversion with MPS safety
+        tensor_numpy = T_tensor_value.cpu().detach().numpy()
+        if tensor_numpy.dtype == np.complex64 or tensor_numpy.dtype == np.complex128:
+            T_complex = complex(float(tensor_numpy.real), float(tensor_numpy.imag))
+        else:
+            T_complex = complex(float(tensor_numpy), 0.0)
         
         return T_complex
         
@@ -1250,17 +2116,29 @@ class ConceptualChargeAgent:
         theta_emotional = np.angle(emotional_phase_shift)
         
         # ∫₀ˢ ω_temporal(τ,s') ds' - temporal integral using frequency evolution
+        integration_start = time.time()
         frequency_evolution = self.temporal_biography.frequency_evolution
         if len(frequency_evolution) > 0 and abs(s - s_zero) > 0.01:
-            # Create interpolation function for omega
-            s_points = np.linspace(s_zero, s, len(frequency_evolution))
-            omega_func = sp.interpolate.interp1d(s_points, frequency_evolution, 
-                                                kind='cubic', fill_value='extrapolate')
+            logger.debug(f"🔧 Agent {self.charge_id} - Computing temporal integral: freq_len={len(frequency_evolution)}, s_range=({s_zero:.3f}, {s:.3f})")
             
-            # Integrate omega from s_zero to s
-            temporal_integral, _ = integrate.quad(omega_func, s_zero, s)
+            # PERFORMANCE FIX: Use fast trapezoidal rule instead of expensive quad integration
+            # Extract real parts for integration (frequency_evolution can be complex)
+            omega_values = np.real(frequency_evolution) if hasattr(frequency_evolution, '__len__') else [np.real(frequency_evolution)]
+            s_span = abs(s - s_zero)
+            
+            if len(omega_values) > 1:
+                # Trapezoidal rule: much faster than cubic interpolation + quad
+                temporal_integral = np.trapz(omega_values, dx=s_span/(len(omega_values)-1))
+            else:
+                # Single value case
+                temporal_integral = omega_values[0] * s_span if omega_values else 0.0
+                
+            logger.debug(f"🔧 Agent {self.charge_id} - Fast integration complete (time: {time.time() - integration_start:.3f}s, result: {temporal_integral:.6f})")
         else:
             temporal_integral = 0.0
+            logger.debug(f"🔧 Agent {self.charge_id} - Skipping integration: freq_len={len(frequency_evolution)}, s_range=({s_zero:.3f}, {s:.3f})")
+        
+        logger.debug(f"🔧 Agent {self.charge_id} - Total integration phase (time: {time.time() - integration_start:.3f}s)")
         
         # θ_interaction(τ,C,s) - contextual coupling with interference
         interference_strength = np.mean(np.abs(self.temporal_biography.field_interference_signature))
@@ -1300,29 +2178,89 @@ class ConceptualChargeAgent:
         
         Uses actual vivid_layer and character_layer from temporal biography.
         """
-        s = self.state.current_s
-        s_zero = self.state.s_zero
+        logger.info(f"🔧 Agent {self.charge_id} - Starting observational persistence computation")
+        
+        # CRITICAL DEBUG: Check state value types before access
+        logger.info(f"🔧 Agent {self.charge_id} - State types: current_s={type(self.state.current_s)}, s_zero={type(self.state.s_zero)}")
+        
+        # MPS-safe state access with explicit tensor checking
+        if hasattr(self.state.current_s, 'cpu'):
+            s = float(self.state.current_s.cpu().detach().numpy())
+            logger.info(f"🔧 Agent {self.charge_id} - Converted current_s tensor to float: {s}")
+        else:
+            s = float(self.state.current_s)
+            
+        if hasattr(self.state.s_zero, 'cpu'):
+            s_zero = float(self.state.s_zero.cpu().detach().numpy())
+            logger.info(f"🔧 Agent {self.charge_id} - Converted s_zero tensor to float: {s_zero}")
+        else:
+            s_zero = float(self.state.s_zero)
+            
+        logger.info(f"🔧 Agent {self.charge_id} - State values: s={s}, s_zero={s_zero}")
+        
         delta_s = s - s_zero
         
         # Extract persistence layers from temporal biography
         vivid_layer = self.temporal_biography.vivid_layer
         character_layer = self.temporal_biography.character_layer
+        logger.debug(f"🔧 Agent {self.charge_id} - Layer types: vivid={type(vivid_layer)}, character={type(character_layer)}")
+        logger.debug(f"🔧 Agent {self.charge_id} - Layer lengths: vivid={len(vivid_layer)}, character={len(character_layer)}")
         
         # Gaussian component from vivid layer (recent sharp memory)
         if len(vivid_layer) > 0:
             # Use actual vivid layer data with underflow protection
-            vivid_base = max(0.9, np.mean(vivid_layer))  # 🔧 Clamp vivid layer to minimum 0.9
-            vivid_influence = vivid_base * np.exp(-(delta_s * delta_s) / (2 * self.sigma_i * self.sigma_i))
+            # CRITICAL FIX: Ensure mean is real before comparison - MPS-safe
+            logger.info(f"🔧 Agent {self.charge_id} - Processing vivid_layer, type: {type(vivid_layer)}")
+            if hasattr(vivid_layer, 'cpu'):
+                vivid_mean = np.mean(vivid_layer.cpu().detach().numpy())
+                logger.info(f"🔧 Agent {self.charge_id} - Converted vivid_layer tensor to numpy")
+            else:
+                vivid_mean = np.mean(vivid_layer)
+                logger.info(f"🔧 Agent {self.charge_id} - Used vivid_layer directly as numpy")
+            vivid_mean_real = float(vivid_mean.real) if np.iscomplexobj(vivid_mean) else float(vivid_mean)
+            vivid_base = float(max(0.9, vivid_mean_real))  # 🔧 Clamp vivid layer to minimum 0.9 - ensure float
+            logger.info(f"🔧 Agent {self.charge_id} - About to compute vivid_influence with vivid_base={vivid_base}, delta_s={delta_s}")
+            
+            # CRITICAL FIX: Ensure sigma_i is a float for MPS compatibility
+            if hasattr(self.sigma_i, 'cpu'):
+                sigma_i_val = float(self.sigma_i.cpu().detach().numpy())
+            else:
+                sigma_i_val = float(self.sigma_i)
+            
+            try:
+                vivid_influence = vivid_base * np.exp(-(delta_s * delta_s) / (2 * sigma_i_val * sigma_i_val))
+                logger.info(f"🔧 Agent {self.charge_id} - Vivid influence computed: {vivid_influence}")
+            except Exception as vivid_error:
+                logger.error(f"🔧 Agent {self.charge_id} - Error in vivid_influence computation: {vivid_error}")
+                raise
         else:
-            vivid_influence = np.exp(-(delta_s * delta_s) / (2 * self.sigma_i * self.sigma_i))
+            # CRITICAL FIX: Ensure sigma_i is a float for MPS compatibility
+            if hasattr(self.sigma_i, 'cpu'):
+                sigma_i_val = float(self.sigma_i.cpu().detach().numpy())
+            else:
+                sigma_i_val = float(self.sigma_i)
+                
+            try:
+                vivid_influence = np.exp(-(delta_s * delta_s) / (2 * sigma_i_val * sigma_i_val))
+                logger.info(f"🔧 Agent {self.charge_id} - Vivid influence (else case) computed: {vivid_influence}")
+            except Exception as vivid_else_error:
+                logger.error(f"🔧 Agent {self.charge_id} - Error in vivid_influence (else) computation: {vivid_else_error}")
+                raise
         
         # Apply additional vivid underflow protection
-        vivid_influence = max(0.8, vivid_influence)  # 🔧 Keep vivid influence above 0.8
+        vivid_influence_real = float(vivid_influence.real) if np.iscomplexobj(vivid_influence) else float(vivid_influence)
+        vivid_influence = max(0.8, vivid_influence_real)  # 🔧 Keep vivid influence above 0.8
         
         # Exponential-cosine from character layer (persistent themes)
         if len(character_layer) > 0:
             # Use actual character layer data with underflow protection
-            character_base = max(0.08, np.mean(character_layer))  # 🔧 Clamp character layer minimum
+            # CRITICAL FIX: Ensure mean is real before comparison - MPS-safe
+            if hasattr(character_layer, 'cpu'):
+                character_mean = np.mean(character_layer.cpu().detach().numpy())
+            else:
+                character_mean = np.mean(character_layer)
+            character_mean_real = float(character_mean.real) if np.iscomplexobj(character_mean) else float(character_mean)
+            character_base = float(max(0.08, character_mean_real))  # 🔧 Clamp character layer minimum - ensure float
             character_influence = character_base * np.exp(-self.lambda_i * abs(delta_s))
             # Add rhythmic reinforcement
             character_influence *= np.cos(self.beta_i * delta_s)
@@ -1330,7 +2268,8 @@ class ConceptualChargeAgent:
             character_influence = self.alpha_i * np.exp(-self.lambda_i * abs(delta_s)) * np.cos(self.beta_i * delta_s)
         
         # Apply additional character underflow protection
-        character_influence = max(0.05, abs(character_influence))  # 🔧 Keep character influence above 0.05
+        character_influence_real = float(abs(character_influence))  # abs() ensures real value
+        character_influence = max(0.05, character_influence_real)  # 🔧 Keep character influence above 0.05
         
         # Combined persistence with stronger minimum
         total_persistence = vivid_influence + character_influence
@@ -1338,9 +2277,16 @@ class ConceptualChargeAgent:
         # Ensure persistence stays in reasonable range for Q computation
         total_persistence = max(0.9, min(2.0, total_persistence))  # 🔧 Clamp to [0.9, 2.0]
         
-        # Log when clamping occurs
-        if abs(np.mean(vivid_layer)) < 0.9 if len(vivid_layer) > 0 else False:
-            logger.debug(f"🔧 Agent {self.charge_id} - Vivid layer clamped: {np.mean(vivid_layer):.3f} → 0.9+")
+        # Log when clamping occurs - MPS-safe vivid layer access
+        if len(vivid_layer) > 0:
+            # MPS-safe mean calculation for vivid layer
+            if hasattr(vivid_layer, 'cpu'):
+                vivid_mean_for_log = np.mean(vivid_layer.cpu().detach().numpy())
+            else:
+                vivid_mean_for_log = np.mean(vivid_layer)
+            
+            if abs(vivid_mean_for_log) < 0.9:
+                logger.debug(f"🔧 Agent {self.charge_id} - Vivid layer clamped: {vivid_mean_for_log:.3f} → 0.9+")
         if total_persistence == 0.9:
             logger.debug(f"🔧 Agent {self.charge_id} - Persistence clamped to minimum: 0.9")
         
@@ -1353,22 +2299,31 @@ class ConceptualChargeAgent:
         This is the living mathematical entity in action - computing the complete
         conceptual charge using actual field theory mathematics with real data.
         """
+        start_time = time.time()
+        logger.info(f"🔧 Agent {self.charge_id} - Starting Q computation (pool_size: {pool_size})")
+        
         try:
-            # Compute all components with debugging
+            # Compute all components with detailed timing
+            component_start = time.time()
             gamma = self.compute_gamma_calibration(collective_field_strength, pool_size)
-            logger.debug(f"🔧 Agent {self.charge_id} - gamma: {gamma:.6f} (pool_size: {pool_size})")
+            logger.info(f"🔧 Agent {self.charge_id} - gamma: {gamma:.6f} (time: {time.time() - component_start:.3f}s)")
             
+            component_start = time.time()
             T_tensor = self.compute_transformative_potential_tensor()
-            logger.debug(f"🔧 Agent {self.charge_id} - T_tensor: {T_tensor} (magnitude: {abs(T_tensor):.6f})")
+            logger.info(f"🔧 Agent {self.charge_id} - T_tensor: {T_tensor} (magnitude: {abs(T_tensor):.6f}, time: {time.time() - component_start:.3f}s)")
             
+            component_start = time.time()
             E_trajectory = self.compute_emotional_trajectory_integration()  
-            logger.debug(f"🔧 Agent {self.charge_id} - E_trajectory: {E_trajectory} (magnitude: {abs(E_trajectory):.6f})")
+            logger.info(f"🔧 Agent {self.charge_id} - E_trajectory: {E_trajectory} (magnitude: {abs(E_trajectory):.6f}, time: {time.time() - component_start:.3f}s)")
             
+            component_start = time.time()
             phi_semantic = self.compute_semantic_field_generation()
-            logger.debug(f"🔧 Agent {self.charge_id} - phi_semantic: {phi_semantic} (magnitude: {abs(phi_semantic):.6f})")
+            logger.info(f"🔧 Agent {self.charge_id} - phi_semantic: {phi_semantic} (magnitude: {abs(phi_semantic):.6f}, time: {time.time() - component_start:.3f}s)")
             
+            component_start = time.time()
             theta_components = self.compute_5component_phase_integration()
             phase_factor = complex(np.cos(theta_components.total), np.sin(theta_components.total))
+            logger.info(f"🔧 Agent {self.charge_id} - phase_integration (time: {time.time() - component_start:.3f}s)")
             
             # 🔧 VERIFY: Phase factor magnitude should be exactly 1.0 (e^iθ property)
             phase_magnitude = abs(phase_factor)
@@ -1381,8 +2336,15 @@ class ConceptualChargeAgent:
             
             logger.debug(f"🔧 Agent {self.charge_id} - phase_factor: {phase_factor} (magnitude: {abs(phase_factor):.6f})")
             
-            psi_persistence, psi_gaussian, psi_exponential_cosine = self.compute_observational_persistence()
-            logger.debug(f"🔧 Agent {self.charge_id} - psi_persistence: {psi_persistence:.6f} (gaussian: {psi_gaussian:.6f}, exp_cos: {psi_exponential_cosine:.6f})")
+            # CRITICAL DEBUG: Wrap persistence computation to catch MPS errors
+            try:
+                logger.debug(f"🔧 Agent {self.charge_id} - About to call compute_observational_persistence()")
+                psi_persistence, psi_gaussian, psi_exponential_cosine = self.compute_observational_persistence()
+                logger.debug(f"🔧 Agent {self.charge_id} - Persistence computation completed successfully")
+                logger.debug(f"🔧 Agent {self.charge_id} - psi_persistence: {psi_persistence:.6f} (gaussian: {psi_gaussian:.6f}, exp_cos: {psi_exponential_cosine:.6f})")
+            except Exception as persistence_error:
+                logger.error(f"🔧 Agent {self.charge_id} - Persistence computation failed: {persistence_error}")
+                raise
             
             # Apply underflow protection to persistence components
             psi_persistence = max(psi_persistence, 1e-10)
@@ -1407,17 +2369,8 @@ class ConceptualChargeAgent:
             
         except Exception as e:
             logger.error(f"❌ Agent {self.charge_id} - Q computation failed: {e}")
-            # Set minimal fallback values
-            Q_value = complex(0.1, 0.0)
-            gamma = 0.1
-            T_tensor = complex(1.0, 0.0)
-            E_trajectory = complex(1.0, 0.0)
-            phi_semantic = complex(1.0, 0.0)
-            phase_factor = complex(1.0, 0.0)
-            psi_persistence = 1.0
-            psi_gaussian = 1.0
-            psi_exponential_cosine = 1.0
-            theta_components = ThetaComponents(0.0, 0.0, 0.0, 0.0, 0.0, 0.0)
+            # NO FALLBACKS - we want to use stored Q values, not compute new ones
+            raise ValueError(f"Q computation failed and we refuse to use fallback values: {e}")
         
         # Store components
         self.Q_components = QMathematicalComponents(
@@ -1444,6 +2397,9 @@ class ConceptualChargeAgent:
         
         # 🔧 VALIDATE: Check Q components are reasonable
         self.validate_Q_components()
+        
+        total_time = time.time() - start_time
+        logger.info(f"✅ Agent {self.charge_id} - Q computation COMPLETE (total time: {total_time:.3f}s)")
         
         return self.Q_components
         

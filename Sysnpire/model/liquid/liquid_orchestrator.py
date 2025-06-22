@@ -1632,8 +1632,8 @@ class LiquidOrchestrator:
         if len(eigenvalue_data) < 2:
             return {}
         
-        # Sort eigenvalues for O(N log N) clustering
-        eigenvalue_data.sort(key=lambda x: x[0])
+        # Sort eigenvalues for O(N log N) clustering (by magnitude for complex numbers)
+        eigenvalue_data.sort(key=lambda x: abs(x[0]))
         
         # Adaptive clustering based on eigenvalue gaps
         clusters = {}
@@ -2204,3 +2204,150 @@ class LiquidOrchestrator:
         }
         
         return optimization_stats
+    
+    def load_universe_from_storage(self, storage_coordinator: "StorageCoordinator", 
+                                 universe_id: str) -> Dict[str, Any]:
+        """
+        Load a liquid universe from storage using proper data type conversion.
+        
+        This method should happily consume properly converted data from the 
+        AgentFactory pipeline without doing any heavy lifting on data formatting.
+        
+        Args:
+            storage_coordinator: Storage coordinator to load data from
+            universe_id: Universe identifier to reconstruct
+            
+        Returns:
+            Reconstruction results dictionary
+        """
+        logger.info(f"🔄 Loading universe {universe_id} from storage...")
+        start_time = time.time()
+        
+        try:
+            # Import AgentFactory here to avoid circular imports
+            from Sysnpire.database.universe_reconstruction.agent_factory import AgentFactory
+            
+            # Create AgentFactory with same device and validation settings
+            agent_factory = AgentFactory(
+                device=str(self.device).replace('cuda:0', 'cuda').replace('mps:0', 'mps'),
+                validate_reconstruction=True  # Always validate during reconstruction
+            )
+            
+            # Get stored agent data from storage coordinator
+            stored_data = storage_coordinator.hdf5_manager.load_universe_agents(universe_id)
+            
+            if not stored_data or "agents" not in stored_data:
+                raise ValueError(f"No agent data found for universe {universe_id}")
+            
+            agent_data_dict = stored_data["agents"]
+            universe_metadata = stored_data.get("metadata", {})
+            
+            logger.info(f"📦 Found {len(agent_data_dict)} stored agents to reconstruct")
+            
+            # Reconstruct agents using AgentFactory (with data conversion pipeline)
+            reconstructed_agents = []
+            failed_reconstructions = 0
+            
+            for agent_id, agent_data in agent_data_dict.items():
+                try:
+                    # AgentFactory handles all data type conversion and validation
+                    reconstructed_agent = agent_factory.reconstruct_single_agent(
+                        stored_agent_data=agent_data,
+                        universe_metadata=universe_metadata
+                    )
+                    
+                    # Add to our active collections (properly formatted data)
+                    self.charge_agents[agent_id] = reconstructed_agent
+                    if hasattr(reconstructed_agent, 'charge_obj'):
+                        self.active_charges[agent_id] = reconstructed_agent.charge_obj
+                    
+                    reconstructed_agents.append(reconstructed_agent)
+                    
+                except Exception as e:
+                    raise ValueError(f"Failed to reconstruct agent {agent_id}: {e}")
+            
+            # Validate reconstruction success
+            if not reconstructed_agents:
+                raise ValueError("No agents could be successfully reconstructed")
+            
+            # Calculate field energy from reconstructed agents
+            total_field_energy = 0.0
+            for agent in reconstructed_agents:
+                if hasattr(agent, 'living_Q_value'):
+                    total_field_energy += abs(agent.living_Q_value) ** 2
+            
+            # Initialize adaptive tuning for the reconstructed universe
+            self._initialize_adaptive_optimization(reconstructed_agents)
+            
+            reconstruction_time = time.time() - start_time
+            
+            logger.info(f"✅ Universe loaded successfully in {reconstruction_time:.2f}s")
+            logger.info(f"   Agents reconstructed: {len(reconstructed_agents)}")
+            logger.info(f"   Failed reconstructions: {failed_reconstructions}")
+            logger.info(f"   Field energy: {total_field_energy:.6f}")
+            
+            return {
+                "status": "success",
+                "agents_reconstructed": len(reconstructed_agents),
+                "failed_reconstructions": failed_reconstructions,
+                "field_energy": total_field_energy,
+                "reconstruction_time": reconstruction_time,
+                "validation_passed": True,  # AgentFactory validated everything
+                "ready_for_simulation": len(reconstructed_agents) > 0,
+                "universe_metadata": universe_metadata
+            }
+            
+        except Exception as e:
+            error_msg = f"Universe loading failed: {e}"
+            logger.error(f"❌ {error_msg}")
+            return {
+                "status": "failed",
+                "error": error_msg,
+                "agents_reconstructed": 0,
+                "reconstruction_time": time.time() - start_time,
+                "validation_passed": False,
+                "ready_for_simulation": False
+            }
+    
+    def _initialize_adaptive_optimization(self, reconstructed_agents):
+        """
+        Initialize adaptive optimization for reconstructed universe.
+        
+        Sets up optimization parameters based on the actual mathematical state
+        of reconstructed agents rather than using defaults.
+        
+        Args:
+            reconstructed_agents: List of successfully reconstructed ConceptualChargeAgent objects
+        """
+        logger.info(f"🔧 Initializing adaptive optimization for {len(reconstructed_agents)} reconstructed agents")
+        
+        # Calculate average Q magnitude for field calibration
+        total_q_magnitude = 0.0
+        valid_agents = 0
+        
+        for agent in reconstructed_agents:
+            if hasattr(agent, 'living_Q_value') and agent.living_Q_value is not None:
+                total_q_magnitude += abs(agent.living_Q_value)
+                valid_agents += 1
+        
+        if valid_agents > 0:
+            avg_q_magnitude = total_q_magnitude / valid_agents
+            logger.info(f"✅ Average Q magnitude: {avg_q_magnitude:.6f}")
+            
+            # Store optimization metrics for potential future use
+            self.reconstruction_metrics = {
+                "avg_q_magnitude": avg_q_magnitude,
+                "total_agents": len(reconstructed_agents),
+                "valid_agents": valid_agents,
+                "field_energy_density": total_q_magnitude / len(reconstructed_agents)
+            }
+        else:
+            logger.warning("⚠️  No valid Q values found in reconstructed agents")
+            self.reconstruction_metrics = {
+                "avg_q_magnitude": 0.0,
+                "total_agents": len(reconstructed_agents),
+                "valid_agents": 0,
+                "field_energy_density": 0.0
+            }
+        
+        logger.info("✅ Adaptive optimization initialized")
