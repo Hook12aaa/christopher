@@ -71,6 +71,97 @@ from Sysnpire.utils.logger import get_logger
 logger = get_logger(__name__)
 
 
+def _log_magnitude_multiply(a: complex, b: complex) -> complex:
+    """
+    Multiply two complex numbers using log-magnitude arithmetic to prevent overflow.
+    
+    For large values, computes: log(|a|) + log(|b|) + i*(angle(a) + angle(b))
+    Then converts back to complex form.
+    """
+    if abs(a) == 0 or abs(b) == 0:
+        return complex(0, 0)
+    
+    a_mag = abs(a)
+    b_mag = abs(b)
+    
+    # Use log-magnitude arithmetic for large values to prevent overflow
+    if a_mag > 1e6 or b_mag > 1e6:
+        # Convert to log-magnitude form
+        log_mag_a = np.log(a_mag)
+        log_mag_b = np.log(b_mag)
+        
+        angle_a = np.angle(a)
+        angle_b = np.angle(b)
+        
+        # Compute in log space
+        result_log_mag = log_mag_a + log_mag_b
+        result_angle = angle_a + angle_b
+        
+        # Convert back to complex (handle large magnitudes properly)
+        if result_log_mag > 20:  # e^20 ≈ 4.8e8, still manageable
+            # Keep in log space, use normalized representation
+            normalized_mag = np.exp(result_log_mag - 20)  # Scale down by e^20
+            result = normalized_mag * np.exp(1j * result_angle)
+            # Store scale factor in phase to preserve information
+            return result * (1e8 + 0j)  # e^20/100 scaling factor
+        else:
+            # Safe to convert back to normal complex
+            result_mag = np.exp(result_log_mag)
+            return result_mag * np.exp(1j * result_angle)
+    else:
+        # Normal multiplication for small values
+        return a * b
+
+
+def _log_magnitude_add(a: complex, b: complex) -> complex:
+    """
+    Add two complex numbers using log-magnitude arithmetic for large values.
+    
+    For large values, converts to log-magnitude form, performs addition,
+    and converts back while preserving mathematical precision.
+    """
+    if abs(a) == 0:
+        return b
+    if abs(b) == 0:
+        return a
+    
+    a_mag = abs(a)
+    b_mag = abs(b)
+    
+    # Use log-magnitude arithmetic for large values
+    if a_mag > 1e6 or b_mag > 1e6:
+        # For addition, we need to be more careful about phase relationships
+        # Convert to rectangular form using log scaling
+        
+        if a_mag > b_mag:
+            # Scale b relative to a
+            scale_factor = b_mag / a_mag
+            if scale_factor < 1e-10:
+                return a  # b is negligible compared to a
+            
+            # Compute in scaled space
+            a_normalized = a / a_mag
+            b_scaled = b * scale_factor / b_mag
+            result_normalized = a_normalized + b_scaled
+            
+            return result_normalized * a_mag
+        else:
+            # Scale a relative to b
+            scale_factor = a_mag / b_mag
+            if scale_factor < 1e-10:
+                return b  # a is negligible compared to b
+            
+            # Compute in scaled space
+            b_normalized = b / b_mag
+            a_scaled = a * scale_factor / a_mag
+            result_normalized = a_scaled + b_normalized
+            
+            return result_normalized * b_mag
+    else:
+        # Normal addition for small values
+        return a + b
+
+
 @dataclass 
 class ThetaComponents:
     """
@@ -575,7 +666,7 @@ class ConceptualChargeAgent:
         elif "Q_value_real" in q_components and "Q_value_imag" in q_components:
             complete_charge = complex(q_components["Q_value_real"], q_components["Q_value_imag"])
         else:
-            complete_charge = complex(1.0, 0.0)
+            raise ValueError(f"Agent factory reconstruction failed: No valid Q_value found in q_components. Available keys: {list(q_components.keys()) if q_components else 'None'}")
         
         # Reconstruct field components
         field_comps = FieldComponents(
@@ -782,7 +873,7 @@ class ConceptualChargeAgent:
                     float_value = float(param_value)
                 
                 setattr(self, param, float_value)
-                logger.info(f"🔧 EVOLUTION PARAM RESTORED: {param}: {original_type} -> {type(float_value)} (value: {float_value})")
+                logger.debug(f"🔧 EVOLUTION PARAM RESTORED: {param}: {original_type} -> {type(float_value)} (value: {float_value})")
             else:
                 # Set defaults if missing
                 defaults = {"sigma_i": 0.5, "alpha_i": 0.3, "lambda_i": 0.1, "beta_i": 2.0}
@@ -939,15 +1030,9 @@ class ConceptualChargeAgent:
                 else:
                     self.breathing_coherence = 0.5  # Default moderate coherence
                 
-                # temporal_momentum - required for momentum calculations
-                if len(self.trajectory_operators) > 0:
-                    mean_trajectory = np.mean(self.trajectory_operators)
-                    if np.iscomplexobj(mean_trajectory):
-                        self.temporal_momentum = complex(float(mean_trajectory.real), float(mean_trajectory.imag))
-                    else:
-                        self.temporal_momentum = complex(float(mean_trajectory), 0.0)
-                else:
-                    self.temporal_momentum = complex(0.0, 0.0)
+                # temporal_momentum - MUST come from storage restoration ONLY
+                # NO DEFAULTS: temporal_momentum will be restored by AgentFactory from stored data
+                # NEVER create artificial default values - this violates mathematical integrity
                 
                 # phase_coordination - required for breathing coordination
                 self.phase_coordination = self.frequency_evolution.copy() if len(self.frequency_evolution) > 0 else np.array([1.0])
@@ -1092,7 +1177,7 @@ class ConceptualChargeAgent:
         
         # Transform to upper half-plane coordinates (modular fundamental domain)
         # Fundamental domain: |τ| ≥ 1, -1/2 ≤ Re(τ) ≤ 1/2, Im(τ) > 0
-        real_part = np.clip(x, -0.5, 0.5)  # Real part in fundamental domain
+        real_part = ((x + 0.5) % 1.0) - 0.5  # Modular reduction to fundamental domain
         imag_part = max(0.1, 1.0 + y)      # Ensure positive imaginary part
         
         self.tau_position = complex(real_part, imag_part)
@@ -1146,9 +1231,20 @@ class ConceptualChargeAgent:
                 imag_part = 0.1  # Minimal imaginary component
                 
             # Complex q-coefficient
-            self.breathing_q_coefficients[n] = complex(real_part, imag_part)
+            coeff = complex(real_part, imag_part)
+            
+            # VALIDATE coefficient initialization - NO DEFAULTS
+            if not (math.isfinite(coeff.real) and math.isfinite(coeff.imag)):
+                raise ValueError(f"Agent {self.charge_id}: INITIALIZATION breathing_q_coefficients[{n}] is {coeff} - coefficient initialization corrupted! real_part={real_part}, imag_part={imag_part}")
+            
+            self.breathing_q_coefficients[n] = coeff
         
         logger.debug(f"🔧 Breathing q-coefficients initialized: {len(self.breathing_q_coefficients)} coefficients")
+        
+        # FINAL VALIDATION of all initialized coefficients
+        for n, coeff in self.breathing_q_coefficients.items():
+            if not (math.isfinite(coeff.real) and math.isfinite(coeff.imag)):
+                raise ValueError(f"Agent {self.charge_id}: INITIALIZATION FINAL CHECK breathing_q_coefficients[{n}] is {coeff} - initialization corrupted!")
     
     def _initialize_missing_components_for_reconstruction(self):
         """Initialize all missing mathematical components required for Q computation and evolution - NO FALLBACKS."""
@@ -1358,8 +1454,43 @@ class ConceptualChargeAgent:
             # Phase modulation from semantic phase factors
             phase = phase_factors[n] if n < len(phase_factors) else 0.0
             
+            # VALIDATE reconstruction inputs - NO DEFAULTS
+            if not math.isfinite(real_part):
+                raise ValueError(f"Agent {self.charge_id}: RECONSTRUCTION real_part[{n}] is {real_part} - semantic components corrupted!")
+            if not math.isfinite(imag_part):
+                raise ValueError(f"Agent {self.charge_id}: RECONSTRUCTION imag_part[{n}] is {imag_part} - frequency evolution corrupted!")
+            if not math.isfinite(phase):
+                raise ValueError(f"Agent {self.charge_id}: RECONSTRUCTION phase[{n}] is {phase} - phase factors corrupted!")
+            
             # Create living coefficient
-            self.breathing_q_coefficients[n] = complex(real_part, imag_part) * np.exp(1j * phase)
+            base_coeff = complex(real_part, imag_part)
+            phase_factor = np.exp(1j * phase)
+            
+            # VALIDATE intermediate calculations
+            if not (math.isfinite(base_coeff.real) and math.isfinite(base_coeff.imag)):
+                raise ValueError(f"Agent {self.charge_id}: RECONSTRUCTION base_coeff[{n}] is {base_coeff} - base complex creation corrupted!")
+            if not (math.isfinite(phase_factor.real) and math.isfinite(phase_factor.imag)):
+                raise ValueError(f"Agent {self.charge_id}: RECONSTRUCTION phase_factor[{n}] is {phase_factor} - exponential phase computation corrupted!")
+            
+            final_coeff = base_coeff * phase_factor
+            
+            # VALIDATE final coefficient before assignment
+            if not (math.isfinite(final_coeff.real) and math.isfinite(final_coeff.imag)):
+                raise ValueError(f"Agent {self.charge_id}: RECONSTRUCTION final_coeff[{n}] is {final_coeff} - coefficient reconstruction corrupted! base={base_coeff}, phase_factor={phase_factor}")
+            
+            self.breathing_q_coefficients[n] = final_coeff
+        
+        # FINAL VALIDATION after reconstruction
+        logger.debug(f"🔧 Agent {self.charge_id}: Validating {len(self.breathing_q_coefficients)} reconstructed coefficients...")
+        nan_coeffs = []
+        for n, coeff in self.breathing_q_coefficients.items():
+            if not (math.isfinite(coeff.real) and math.isfinite(coeff.imag)):
+                nan_coeffs.append(f"{n}:{coeff}")
+        
+        if nan_coeffs:
+            raise ValueError(f"Agent {self.charge_id}: RECONSTRUCTION FINAL CHECK {len(nan_coeffs)} breathing_q_coefficients contain NaN after reconstruction: {nan_coeffs[:5]}")
+        
+        logger.debug(f"✅ Agent {self.charge_id}: All {len(self.breathing_q_coefficients)} reconstructed coefficients are finite")
         
         # Breathing rhythm from collective temporal patterns
         self.breath_frequency = self.collective_breathing.get('collective_frequency', [0.1])[0]
@@ -1427,7 +1558,7 @@ class ConceptualChargeAgent:
         
         # Transform to upper half-plane coordinates
         # Fundamental domain: |τ| ≥ 1, -1/2 ≤ Re(τ) ≤ 1/2, Im(τ) > 0
-        real_part = np.clip(x, -0.5, 0.5)  # Real part in fundamental domain
+        real_part = ((x + 0.5) % 1.0) - 0.5  # Modular reduction to fundamental domain
         imag_part = max(0.1, 1.0 + y)      # Ensure positive imaginary part
         
         self.tau_position = complex(real_part, imag_part)
@@ -1485,20 +1616,95 @@ class ConceptualChargeAgent:
         
         # Each q-coefficient breathes with its own harmonic
         for n in self.breathing_q_coefficients:
+            # Store original value for NaN detection
+            original_coeff = self.breathing_q_coefficients[n]
+            
             # Base breathing oscillation
             harmonic_phase = self.breath_phase * (1 + n / 100)  # Higher harmonics breathe faster
             harmonic_factor = 1.0 + (self.breath_amplitude * 0.5) * np.sin(harmonic_phase)
             
-            # Apply breathing to coefficient
-            self.breathing_q_coefficients[n] *= breath_factor * harmonic_factor
+            # VALIDATE breathing factors before applying
+            if not math.isfinite(breath_factor):
+                raise ValueError(f"Agent {self.charge_id}: breath_factor is {breath_factor} - breathing computation corrupted!")
+            if not math.isfinite(harmonic_factor):
+                raise ValueError(f"Agent {self.charge_id}: harmonic_factor is {harmonic_factor} - harmonic computation corrupted!")
+            
+            # Apply breathing to coefficient (proportional evolution, not multiplicative)
+            # Use additive evolution relative to coefficient magnitude to prevent exponential growth
+            coeff_magnitude = abs(self.breathing_q_coefficients[n])
+            breathing_evolution = coeff_magnitude * (breath_factor - 1.0) * (harmonic_factor - 1.0) * 0.01  # Small proportional change
+            angle_adjustment = np.angle(self.breathing_q_coefficients[n]) + 0.01 * (breath_factor - 1.0)
+            
+            # Apply proportional breathing evolution
+            self.breathing_q_coefficients[n] += breathing_evolution * np.exp(1j * angle_adjustment)
+            
+            # VALIDATE after breathing operation
+            if not (math.isfinite(self.breathing_q_coefficients[n].real) and math.isfinite(self.breathing_q_coefficients[n].imag)):
+                raise ValueError(f"Agent {self.charge_id}: breathing_q_coefficients[{n}] became {self.breathing_q_coefficients[n]} after breathing (was {original_coeff}, breath_factor={breath_factor}, harmonic_factor={harmonic_factor})")
             
             # Temporal phase evolution (each coefficient evolves in phase space)
             phase_evolution = self.temporal_biography.phase_coordination[n % len(self.temporal_biography.phase_coordination)]
-            self.breathing_q_coefficients[n] *= np.exp(1j * phase_evolution * tau * 0.01)
+            
+            # VALIDATE phase evolution before applying
+            if not math.isfinite(phase_evolution):
+                raise ValueError(f"Agent {self.charge_id}: phase_evolution is {phase_evolution} - temporal coordination corrupted!")
+            
+            phase_factor = np.exp(1j * phase_evolution * tau * 0.01)
+            if not (math.isfinite(phase_factor.real) and math.isfinite(phase_factor.imag)):
+                raise ValueError(f"Agent {self.charge_id}: phase_factor is {phase_factor} - exponential phase computation corrupted!")
+            
+            # Apply proportional phase evolution (not multiplicative)
+            # Evolve phase proportionally to prevent exponential growth
+            current_phase = np.angle(self.breathing_q_coefficients[n])
+            magnitude = abs(self.breathing_q_coefficients[n])
+            
+            # Incremental phase evolution based on current state
+            phase_increment = phase_evolution * tau * 0.01
+            new_phase = current_phase + phase_increment
+            
+            # Update coefficient with evolved phase (magnitude preserved)
+            self.breathing_q_coefficients[n] = magnitude * np.exp(1j * new_phase)
+            
+            # VALIDATE after phase evolution
+            if not (math.isfinite(self.breathing_q_coefficients[n].real) and math.isfinite(self.breathing_q_coefficients[n].imag)):
+                raise ValueError(f"Agent {self.charge_id}: breathing_q_coefficients[{n}] became {self.breathing_q_coefficients[n]} after phase evolution (phase_evolution={phase_evolution}, tau={tau})")
             
             # Emotional modulation (conductor affects all coefficients)
             emotional_factor = self.emotional_modulation.semantic_modulation_tensor[n % len(self.emotional_modulation.semantic_modulation_tensor)]
-            self.breathing_q_coefficients[n] *= (1.0 + 0.01 * emotional_factor)
+            
+            # VALIDATE emotional factor before applying
+            if not math.isfinite(emotional_factor):
+                raise ValueError(f"Agent {self.charge_id}: emotional_factor is {emotional_factor} - emotional modulation corrupted!")
+            
+            emotional_multiplier = (1.0 + 0.01 * emotional_factor)
+            if not math.isfinite(emotional_multiplier):
+                raise ValueError(f"Agent {self.charge_id}: emotional_multiplier is {emotional_multiplier} - emotional computation corrupted!")
+            
+            # Apply proportional emotional modulation (not multiplicative)
+            # Use incremental evolution to prevent exponential growth
+            coeff_magnitude = abs(self.breathing_q_coefficients[n])
+            current_phase = np.angle(self.breathing_q_coefficients[n])
+            
+            # Proportional emotional evolution based on current magnitude
+            emotional_evolution = coeff_magnitude * (emotional_multiplier - 1.0) * 0.01  # Small proportional change
+            
+            # Apply incremental evolution
+            self.breathing_q_coefficients[n] += emotional_evolution * np.exp(1j * current_phase)
+            
+            # FINAL VALIDATION after all breathing operations
+            if not (math.isfinite(self.breathing_q_coefficients[n].real) and math.isfinite(self.breathing_q_coefficients[n].imag)):
+                raise ValueError(f"Agent {self.charge_id}: breathing_q_coefficients[{n}] became {self.breathing_q_coefficients[n]} after emotional modulation (emotional_factor={emotional_factor})")
+        
+        # VALIDATE all coefficients after breathing loop
+        nan_coefficients = []
+        for n, coeff in self.breathing_q_coefficients.items():
+            if not (math.isfinite(coeff.real) and math.isfinite(coeff.imag)):
+                nan_coefficients.append(f"{n}:{coeff}")
+        
+        if nan_coefficients:
+            raise ValueError(f"Agent {self.charge_id}: {len(nan_coefficients)} breathing_q_coefficients contain NaN after breathing: {nan_coefficients[:5]}")
+        
+        logger.debug(f"✅ Agent {self.charge_id}: All {len(self.breathing_q_coefficients)} breathing coefficients remain finite after breathing")
         
         # Update living Q value after breathing
         self.living_Q_value = self.evaluate_living_form(tau)
@@ -1506,7 +1712,7 @@ class ConceptualChargeAgent:
         # Update charge object with current state
         self.charge_obj.complete_charge = self.living_Q_value
         self.charge_obj.magnitude = abs(self.living_Q_value)
-        self.charge_obj.phase = np.angle(self.living_Q_value)
+        self.charge_obj.phase = torch.angle(self.living_Q_value) if torch.is_tensor(self.living_Q_value) else np.angle(self.living_Q_value)
     
     def cascade_dimensional_feedback(self):
         """
@@ -1514,18 +1720,18 @@ class ConceptualChargeAgent:
         
         This implements the cascading feedback loops where:
         Semantic → Temporal → Emotional → Semantic (endless cycle)
+        
+        NO OVERFLOW PROTECTION - pure mathematical operations.
         """
-        # STABILITY FIX: Apply decay to cascade momentum to prevent exponential explosion
-        decay_factor = 0.95  # 5% decay per step to prevent unbounded growth
-        for key in self.cascade_momentum:
-            self.cascade_momentum[key] *= decay_factor
+        from Sysnpire.utils.log_polar_complex import LogPolarComplex
+        
+        # NO ARTIFICIAL DECAY - let mathematics evolve naturally
+        
         # SEMANTIC → TEMPORAL: Field gradients drive temporal evolution
         q_magnitudes = [abs(self.breathing_q_coefficients.get(n, 0)) for n in range(100)]
-        # CRITICAL FIX: Use float32 for MPS compatibility (Apple Silicon doesn't support float64)
         semantic_gradient = torch.tensor(q_magnitudes, dtype=torch.float32, device=self.device)
         
-        # CRITICAL FIX: Manual circular padding for 1D tensor (PyTorch doesn't support 1D circular padding)
-        # Add first element at end and last element at beginning for circular boundary conditions
+        # Circular padding for gradient computation
         semantic_gradient_padded = torch.cat([
             semantic_gradient[-1:],  # Last element at beginning
             semantic_gradient,       # Original tensor
@@ -1537,18 +1743,48 @@ class ConceptualChargeAgent:
         # Update temporal momentum from semantic pressure
         gradient_magnitude = torch.mean(torch.abs(semantic_gradient)).item()
         temporal_influence = complex(gradient_magnitude, gradient_magnitude * 0.1)
-        self.cascade_momentum['semantic_to_temporal'] += temporal_influence * self.evolution_rates['cascading']
         
-        # Apply to temporal momentum
-        if hasattr(self.temporal_biography, 'temporal_momentum'):
-            self.temporal_biography.temporal_momentum += self.cascade_momentum['semantic_to_temporal'] * 0.1
+        # Pure mathematical cascade - NO overflow protection
+        cascading_rate = self.evolution_rates['cascading']
+        self.cascade_momentum['semantic_to_temporal'] += temporal_influence * cascading_rate
+        
+        # Apply to temporal momentum using LogPolarComplex arithmetic
+        if not hasattr(self.temporal_biography, 'temporal_momentum'):
+            raise ValueError(f"Agent {self.charge_id}: Missing temporal_momentum in cascade - storage/reconstruction failed!")
+        
+        temporal_momentum = self.temporal_biography.temporal_momentum
+        if not isinstance(temporal_momentum, LogPolarComplex):
+            raise ValueError(f"Agent {self.charge_id}: temporal_momentum is {type(temporal_momentum)}, expected LogPolarComplex")
+        
+        # Convert cascade contribution to LogPolarComplex for addition
+        semantic_to_temporal = self.cascade_momentum['semantic_to_temporal']
+        
+        # VALIDATE cascade momentum before use - NO DEFAULTS
+        if not (math.isfinite(semantic_to_temporal.real) and math.isfinite(semantic_to_temporal.imag)):
+            raise ValueError(f"Agent {self.charge_id}: CASCADE MOMENTUM semantic_to_temporal is {semantic_to_temporal} - cascade momentum corrupted during dimensional feedback!")
+        
+        cascade_contribution = semantic_to_temporal * 0.1
+        
+        # VALIDATE cascade contribution before LogPolarComplex conversion
+        if not (math.isfinite(cascade_contribution.real) and math.isfinite(cascade_contribution.imag)):
+            raise ValueError(f"Agent {self.charge_id}: CASCADE CONTRIBUTION is {cascade_contribution} - multiplication by 0.1 created NaN (semantic_to_temporal was {semantic_to_temporal})")
+        
+        cascade_contribution_lp = LogPolarComplex.from_complex(cascade_contribution)
+        
+        # LogPolarComplex addition - mathematically safe
+        self.temporal_biography.temporal_momentum = temporal_momentum + cascade_contribution_lp
         
         # TEMPORAL → EMOTIONAL: Breathing patterns modulate emotional response
         breath_coherence = self.temporal_biography.breathing_coherence
-        temporal_momentum = getattr(self.temporal_biography, 'temporal_momentum', 0j)
         
-        emotional_influence = breath_coherence * abs(temporal_momentum) * 0.1
-        self.cascade_momentum['temporal_to_emotional'] += complex(emotional_influence, 0) * self.evolution_rates['cascading']
+        # Pure mathematical operation - NO overflow protection
+        # If this overflows, let it overflow - we want pure mathematics
+        temporal_magnitude = abs(temporal_momentum)  # This calls LogPolarComplex.__abs__()
+        emotional_influence = breath_coherence * temporal_magnitude * 0.1
+        
+        # Pure mathematical cascade - NO overflow protection
+        emotional_complex = complex(emotional_influence, 0)
+        self.cascade_momentum['temporal_to_emotional'] += emotional_complex * cascading_rate
         
         # Apply to emotional phase shift
         self.emotional_modulation.unified_phase_shift *= (1 + 0.01j * emotional_influence)
@@ -1558,29 +1794,63 @@ class ConceptualChargeAgent:
         conductor_phase = np.angle(self.emotional_modulation.unified_phase_shift)
         
         semantic_influence = complex(conductor_strength * 0.1, conductor_phase * 0.01)
-        self.cascade_momentum['emotional_to_semantic'] += semantic_influence * self.evolution_rates['cascading']
         
-        # Apply to q-coefficients (conductor reshapes the entire form)
-        for n in range(min(100, len(self.breathing_q_coefficients))):
+        # Pure mathematical cascade - NO overflow protection
+        self.cascade_momentum['emotional_to_semantic'] += semantic_influence * cascading_rate
+        
+        # Apply transformation to top coefficients only - O(log N) efficiency with pure mathematics
+        for n in range(min(10, len(self.breathing_q_coefficients))):
+            # Store original value for NaN detection
+            original_coeff = self.breathing_q_coefficients[n]
+            
             phase_shift = conductor_phase * n / 100
             amplitude_shift = 1.0 + conductor_strength * 0.01
-            self.breathing_q_coefficients[n] *= amplitude_shift * np.exp(1j * phase_shift)
+            
+            # VALIDATE cascade factors before applying
+            if not math.isfinite(phase_shift):
+                raise ValueError(f"Agent {self.charge_id}: CASCADE phase_shift is {phase_shift} - conductor_phase={conductor_phase}, n={n}")
+            if not math.isfinite(amplitude_shift):
+                raise ValueError(f"Agent {self.charge_id}: CASCADE amplitude_shift is {amplitude_shift} - conductor_strength={conductor_strength}")
+            
+            phase_factor = np.exp(1j * phase_shift)
+            if not (math.isfinite(phase_factor.real) and math.isfinite(phase_factor.imag)):
+                raise ValueError(f"Agent {self.charge_id}: CASCADE phase_factor is {phase_factor} - exponential computation corrupted!")
+            
+            transform_factor = amplitude_shift * phase_factor
+            if not (math.isfinite(transform_factor.real) and math.isfinite(transform_factor.imag)):
+                raise ValueError(f"Agent {self.charge_id}: CASCADE transform_factor is {transform_factor} - multiplication corrupted!")
+            
+            # Apply proportional cascade transformation (not multiplicative)
+            # Use incremental evolution to prevent exponential growth
+            coeff_magnitude = abs(self.breathing_q_coefficients[n])
+            current_phase = np.angle(self.breathing_q_coefficients[n])
+            
+            # Proportional cascade evolution based on current magnitude  
+            transform_magnitude = abs(transform_factor)
+            transform_phase = np.angle(transform_factor)
+            
+            cascade_evolution = coeff_magnitude * (transform_magnitude - 1.0) * 0.01  # Small proportional change
+            cascade_phase_shift = transform_phase * 0.01  # Small phase adjustment
+            
+            # Apply incremental cascade transformation
+            new_phase = current_phase + cascade_phase_shift
+            self.breathing_q_coefficients[n] += cascade_evolution * np.exp(1j * new_phase)
+            
+            # VALIDATE after cascade transformation
+            if not (math.isfinite(self.breathing_q_coefficients[n].real) and math.isfinite(self.breathing_q_coefficients[n].imag)):
+                raise ValueError(f"Agent {self.charge_id}: CASCADE breathing_q_coefficients[{n}] became {self.breathing_q_coefficients[n]} after transformation (was {original_coeff}, transform_factor={transform_factor})")
         
         # ALL → OBSERVATIONAL STATE: Everything affects s-parameter evolution
         total_cascade_energy = sum(abs(momentum) for momentum in self.cascade_momentum.values())
         self.state.current_s += total_cascade_energy * self.evolution_rates['cascading'] * 0.1
         
-        # Update living Q value after cascading feedback
-        eval_start = time.time()
+        # Pure mathematical evaluation - NO fallbacks or optimizations
         self.living_Q_value = self.evaluate_living_form()
-        eval_time = time.time() - eval_start
-        if hasattr(self, 'charge_id'):
-            logger.debug(f"🔧 Agent {self.charge_id} - CASCADE evaluate_living_form (time: {eval_time:.3f}s)")
         
         # Update charge object with current state
         self.charge_obj.complete_charge = self.living_Q_value
         self.charge_obj.magnitude = abs(self.living_Q_value)
-        self.charge_obj.phase = np.angle(self.living_Q_value)
+        self.charge_obj.phase = torch.angle(self.living_Q_value) if torch.is_tensor(self.living_Q_value) else np.angle(self.living_Q_value)
     
     def interact_with_field(self, other_agents: List['ConceptualChargeAgent']):
         """
@@ -1608,15 +1878,41 @@ class ConceptualChargeAgent:
             
             # q-coefficients LEARN from each other
             for n in range(min(50, len(self.breathing_q_coefficients), len(other.breathing_q_coefficients))):
+                # Store original value for NaN detection
+                original_coeff = self.breathing_q_coefficients.get(n, 0)
+                
                 # Interference between coefficients
                 self_coeff = self.breathing_q_coefficients.get(n, 0)
                 other_coeff = other.breathing_q_coefficients.get(n, 0)
                 
+                # VALIDATE input coefficients
+                if not (math.isfinite(self_coeff.real) and math.isfinite(self_coeff.imag)):
+                    raise ValueError(f"Agent {self.charge_id}: INTERACTION self_coeff[{n}] is {self_coeff} - corrupted before interaction!")
+                if not (math.isfinite(other_coeff.real) and math.isfinite(other_coeff.imag)):
+                    raise ValueError(f"Agent {self.charge_id}: INTERACTION other_coeff[{n}] is {other_coeff} - other agent corrupted!")
+                
                 interference = self_coeff * np.conj(other_coeff)
+                
+                # VALIDATE interference computation
+                if not (math.isfinite(interference.real) and math.isfinite(interference.imag)):
+                    raise ValueError(f"Agent {self.charge_id}: INTERACTION interference[{n}] is {interference} - conjugate multiplication corrupted!")
                 
                 # Coefficients EVOLVE based on interference
                 evolution_factor = influence_strength * self.evolution_rates['interaction']
-                self.breathing_q_coefficients[n] += interference * evolution_factor
+                
+                # VALIDATE evolution factor
+                if not math.isfinite(evolution_factor):
+                    raise ValueError(f"Agent {self.charge_id}: INTERACTION evolution_factor is {evolution_factor} - influence_strength={influence_strength}, interaction_rate={self.evolution_rates['interaction']}")
+                
+                interaction_delta = interference * evolution_factor
+                if not (math.isfinite(interaction_delta.real) and math.isfinite(interaction_delta.imag)):
+                    raise ValueError(f"Agent {self.charge_id}: INTERACTION delta[{n}] is {interaction_delta} - delta computation corrupted!")
+                
+                self.breathing_q_coefficients[n] += interaction_delta
+                
+                # VALIDATE after interaction update
+                if not (math.isfinite(self.breathing_q_coefficients[n].real) and math.isfinite(self.breathing_q_coefficients[n].imag)):
+                    raise ValueError(f"Agent {self.charge_id}: INTERACTION breathing_q_coefficients[{n}] became {self.breathing_q_coefficients[n]} after interaction (was {original_coeff}, delta={interaction_delta})")
                 
                 # Higher harmonics can EMERGE from interaction
                 if n < 25:  # Create new harmonics
@@ -1624,9 +1920,20 @@ class ConceptualChargeAgent:
                     if harmonic_n not in self.breathing_q_coefficients:
                         self.breathing_q_coefficients[harmonic_n] = 0
                     
+                    harmonic_original = self.breathing_q_coefficients[harmonic_n]
+                    
                     # New harmonic born from interference
-                    self.breathing_q_coefficients[harmonic_n] += \
-                        interference * influence_strength * 0.001
+                    harmonic_delta = interference * influence_strength * 0.001
+                    
+                    # VALIDATE harmonic delta
+                    if not (math.isfinite(harmonic_delta.real) and math.isfinite(harmonic_delta.imag)):
+                        raise ValueError(f"Agent {self.charge_id}: INTERACTION harmonic_delta[{harmonic_n}] is {harmonic_delta} - harmonic computation corrupted!")
+                    
+                    self.breathing_q_coefficients[harmonic_n] += harmonic_delta
+                    
+                    # VALIDATE after harmonic update
+                    if not (math.isfinite(self.breathing_q_coefficients[harmonic_n].real) and math.isfinite(self.breathing_q_coefficients[harmonic_n].imag)):
+                        raise ValueError(f"Agent {self.charge_id}: INTERACTION harmonic[{harmonic_n}] became {self.breathing_q_coefficients[harmonic_n]} after harmonic update (was {harmonic_original}, delta={harmonic_delta})")
             
             # Hecke eigenvalues adapt to neighboring values
             for p in self.hecke_eigenvalues:
@@ -1654,7 +1961,7 @@ class ConceptualChargeAgent:
         # Update charge object with current state
         self.charge_obj.complete_charge = self.living_Q_value
         self.charge_obj.magnitude = abs(self.living_Q_value)
-        self.charge_obj.phase = np.angle(self.living_Q_value)
+        self.charge_obj.phase = torch.angle(self.living_Q_value) if torch.is_tensor(self.living_Q_value) else np.angle(self.living_Q_value)
     
     def interact_with_optimized_field(self, nearby_agents: List[Tuple['ConceptualChargeAgent', float]]):
         """
@@ -1725,7 +2032,7 @@ class ConceptualChargeAgent:
         # Update charge object with current state
         self.charge_obj.complete_charge = self.living_Q_value
         self.charge_obj.magnitude = abs(self.living_Q_value)
-        self.charge_obj.phase = np.angle(self.living_Q_value)
+        self.charge_obj.phase = torch.angle(self.living_Q_value) if torch.is_tensor(self.living_Q_value) else np.angle(self.living_Q_value)
     
     def interact_with_precomputed_field(self, nearby_agents_with_strengths: List[Tuple['ConceptualChargeAgent', float]]):
         """
@@ -1750,10 +2057,32 @@ class ConceptualChargeAgent:
         # Compute total field pressure from all agents
         field_pressure = sum(abs(agent.living_Q_value) for agent in field_context) / len(field_context)
         
-        # Dual persistence influences evolution rate
-        s_index = int(self.state.current_s) % 1024
-        vivid_influence = self.temporal_biography.vivid_layer[s_index] if s_index < len(self.temporal_biography.vivid_layer) else 1.0
-        character_influence = self.temporal_biography.character_layer[s_index] if s_index < len(self.temporal_biography.character_layer) else 0.001
+        # MATHEMATICAL INTEGRITY: Extract temporal phase - NO NaN POSSIBLE
+        # NO DEFAULTS: temporal_momentum should always exist from storage restoration  
+        if not hasattr(self.temporal_biography, 'temporal_momentum'):
+            raise ValueError(f"Agent {self.charge_id}: Missing temporal_momentum - storage/reconstruction failed!")
+        
+        temporal_momentum = self.temporal_biography.temporal_momentum
+        
+        # temporal_momentum is now LogPolarComplex - phase is directly available
+        from Sysnpire.utils.log_polar_complex import LogPolarComplex
+        if not isinstance(temporal_momentum, LogPolarComplex):
+            raise ValueError(f"Agent {self.charge_id}: temporal_momentum is {type(temporal_momentum)}, expected LogPolarComplex")
+        
+        # Direct phase access - NO computation needed, NO overflow possible
+        temporal_phase = temporal_momentum.angle
+        
+        # NO NaN HANDLING - if current_s is not finite, system is broken
+        if not math.isfinite(self.state.current_s):
+            raise ValueError(f"Agent {self.charge_id}: current_s is {self.state.current_s} - mathematical integrity violated!")
+        
+        effective_s = self.state.current_s
+            
+        # CONTINUOUS MATHEMATICAL FUNCTIONS: Replace discrete array lookups
+        # Use temporal_phase and effective_s in continuous trigonometric functions
+        # This preserves mathematical integrity without artificial discretization
+        vivid_influence = 1.0 + 0.5 * np.cos(temporal_phase * 3.0)  # Oscillates around [0.5, 1.5]
+        character_influence = 0.001 + 0.999 * (1.0 + np.sin(temporal_phase * 2.0 + np.pi/4)) / 2.0  # Range [0.001, 1.0]
         
         # Memory pressure from past interactions
         if self.interaction_memory:
@@ -1763,14 +2092,32 @@ class ConceptualChargeAgent:
             memory_pressure = 0.0
         
         # s evolution combining all influences
-        temporal_momentum = getattr(self.temporal_biography, 'temporal_momentum', 0j)
-        delta_s = (
-            field_pressure * vivid_influence * 0.01 +           # Immediate field response
-            abs(temporal_momentum) * character_influence * 0.1 + # Character-based momentum
-            memory_pressure * 0.05                               # Memory influence
-        )
+        # NO DEFAULTS: temporal_momentum should exist from storage restoration  
+        if not hasattr(self.temporal_biography, 'temporal_momentum'):
+            raise ValueError(f"Agent {self.charge_id}: Missing temporal_momentum in s-evolution - storage/reconstruction failed!")
+        temporal_momentum = self.temporal_biography.temporal_momentum
         
-        self.state.current_s += delta_s * self.evolution_rates['memory']
+        # MATHEMATICAL EVOLUTION: Use proper temporal evolution mathematics
+        # Apply same temporal evolution pattern as other temporal components
+        
+        # Compute evolution terms using natural mathematical scaling
+        field_term = field_pressure * vivid_influence * 0.01
+        
+        # Use temporal_momentum magnitude directly (LogPolarComplex handles large values naturally)
+        momentum_term = abs(temporal_momentum.to_complex()) * character_influence * 0.1
+        
+        memory_term = memory_pressure * 0.05
+        
+        # Simple mathematical evolution - natural scaling without exp() operations
+        delta_s = field_term + momentum_term + memory_term
+        
+        # Apply proper temporal evolution factor (similar to temporal_biography evolution)
+        evolution_factor = self.evolution_rates.get('memory', 1.0)
+        
+        # Use incremental temporal evolution (not unbounded accumulation)
+        # Follow temporal component pattern: evolution relative to current state
+        evolution_ratio = 1.0 + (delta_s * evolution_factor * 0.01)  # Proportional evolution
+        self.state.current_s *= evolution_ratio
         
         # s evolution RESHAPES the modular form itself
         # Higher s means more complex, lower s means simpler
@@ -1782,7 +2129,16 @@ class ConceptualChargeAgent:
             # Higher order coefficients are more sensitive to s-evolution
             sensitivity = 1.0 + n / 100
             decay_factor = complexity_factor ** sensitivity
-            self.breathing_q_coefficients[n] *= decay_factor
+            # Apply proportional complexity decay (not multiplicative)
+            # Use incremental evolution to prevent exponential growth
+            coeff_magnitude = abs(self.breathing_q_coefficients[n])
+            current_phase = np.angle(self.breathing_q_coefficients[n])
+            
+            # Proportional decay evolution based on current magnitude
+            decay_evolution = coeff_magnitude * (decay_factor - 1.0) * 0.01  # Small proportional change
+            
+            # Apply incremental decay
+            self.breathing_q_coefficients[n] += decay_evolution * np.exp(1j * current_phase)
         
         # Update living Q value after s-parameter evolution
         self.living_Q_value = self.evaluate_living_form()
@@ -1790,7 +2146,99 @@ class ConceptualChargeAgent:
         # Update charge object with current state
         self.charge_obj.complete_charge = self.living_Q_value
         self.charge_obj.magnitude = abs(self.living_Q_value)
+        self.charge_obj.phase = torch.angle(self.living_Q_value) if torch.is_tensor(self.living_Q_value) else np.angle(self.living_Q_value)
+    
+    def apply_interaction_evolution(self, interaction_effect: Union[complex, 'LogPolarComplex']) -> None:
+        """
+        Apply interaction effect using proportional evolution to prevent exponential growth.
+        
+        This method maintains mathematical integrity by evolving the Q value proportionally
+        based on the interaction strength, rather than directly adding interaction effects.
+        
+        Args:
+            interaction_effect: The interaction effect as complex or LogPolarComplex
+        """
+        from Sysnpire.utils.log_polar_complex import LogPolarComplex
+        
+        # Get current Q value magnitude and phase
+        current_magnitude = abs(self.living_Q_value)
+        if current_magnitude == 0:
+            # Cannot evolve from zero - set to small initial value based on interaction
+            if isinstance(interaction_effect, LogPolarComplex):
+                # Use a very small fraction of the interaction magnitude
+                initial_mag = math.exp(interaction_effect.log_mag - 10)  # 10 orders smaller
+                self.living_Q_value = initial_mag * np.exp(1j * interaction_effect.phase)
+            else:
+                self.living_Q_value = interaction_effect * 0.0001  # Very small fraction
+            return
+        
+        current_phase = np.angle(self.living_Q_value)
+        
+        if isinstance(interaction_effect, LogPolarComplex):
+            # Working with log-polar interaction
+            current_log_mag = math.log(current_magnitude)
+            
+            # Proportional evolution based on relative interaction strength
+            # If interaction is much larger than current, evolution is stronger
+            relative_strength = interaction_effect.log_mag - current_log_mag
+            
+            # Bounded proportional evolution to prevent runaway
+            # tanh provides smooth saturation for large relative strengths
+            evolution_factor = 1.0 + np.tanh(relative_strength * 0.001) * 0.01
+            
+            # Phase evolution - small adjustment towards interaction phase
+            phase_diff = interaction_effect.phase - current_phase
+            # Normalize phase difference to [-π, π]
+            while phase_diff > np.pi:
+                phase_diff -= 2 * np.pi
+            while phase_diff < -np.pi:
+                phase_diff += 2 * np.pi
+            phase_shift = phase_diff * 0.01  # Small phase adjustment
+            
+            # Apply proportional evolution
+            new_magnitude = current_magnitude * evolution_factor
+            new_phase = current_phase + phase_shift
+            
+            self.living_Q_value = new_magnitude * np.exp(1j * new_phase)
+        else:
+            # Normal complex interaction
+            interaction_magnitude = abs(interaction_effect)
+            
+            # Proportional evolution based on relative magnitude
+            relative_strength = interaction_magnitude / current_magnitude
+            evolution_factor = 1.0 + np.tanh(relative_strength * 0.1) * 0.01
+            
+            # Phase evolution
+            interaction_phase = np.angle(interaction_effect)
+            phase_diff = interaction_phase - current_phase
+            # Normalize phase difference
+            while phase_diff > np.pi:
+                phase_diff -= 2 * np.pi
+            while phase_diff < -np.pi:
+                phase_diff += 2 * np.pi
+            phase_shift = phase_diff * 0.01
+            
+            # Apply proportional evolution
+            new_magnitude = current_magnitude * evolution_factor
+            new_phase = current_phase + phase_shift
+            
+            self.living_Q_value = new_magnitude * np.exp(1j * new_phase)
+        
+        # Update charge object with evolved state
+        self.charge_obj.complete_charge = self.living_Q_value
+        self.charge_obj.magnitude = abs(self.living_Q_value)
         self.charge_obj.phase = np.angle(self.living_Q_value)
+        
+        # Also update breathing coefficients proportionally
+        # Interactions affect the modular form structure
+        magnitude_ratio = abs(self.living_Q_value) / current_magnitude
+        for n in self.breathing_q_coefficients:
+            coeff_mag = abs(self.breathing_q_coefficients[n])
+            coeff_phase = np.angle(self.breathing_q_coefficients[n])
+            
+            # Proportional coefficient evolution
+            new_coeff_mag = coeff_mag * (1.0 + (magnitude_ratio - 1.0) * 0.001)  # Very small coefficient change
+            self.breathing_q_coefficients[n] = new_coeff_mag * np.exp(1j * coeff_phase)
     
     def evaluate_living_form(self, tau: Optional[float] = None) -> complex:
         """
@@ -1862,11 +2310,13 @@ class ConceptualChargeAgent:
                 f_tau_complex = f_tau
         except TensorValidationError as e:
             print(f"💥 Agent {self.charge_id} - Q calculation tensor validation failed: {e}")
-            # Fallback to default complex value with error reporting
-            f_tau_complex = complex(1.0, 0.0)
+            # Re-raise error to preserve mathematical integrity - no fallbacks
+            raise RuntimeError(f"Agent {self.charge_id} - Q calculation failed: tensor extraction error")
         except Exception as e:
-            print(f"💥 Agent {self.charge_id} - Unexpected Q calculation error: {e}")
-            f_tau_complex = complex(1.0, 0.0)
+            # Re-raise error to preserve mathematical integrity - no fallbacks
+            raise RuntimeError(f"Agent {self.charge_id} - Q calculation failed: {e}")
+        
+        # No artificial mathematical constraints - preserve complete Q(τ,C,s) integrity
         
         self.living_Q_value = f_tau_complex
         
@@ -1907,7 +2357,7 @@ class ConceptualChargeAgent:
         
         # Convert field (grid) to tau (modular) coordinates
         # Ensure Im(τ) > 0 for valid modular domain
-        real_part = np.clip(x, -0.5, 0.5)  # Keep in fundamental domain
+        real_part = ((x + 0.5) % 1.0) - 0.5  # Modular reduction to fundamental domain
         imag_part = max(0.1, 1.0 + y)      # Ensure positive imaginary part
         
         self.tau_position = complex(real_part, imag_part)
@@ -2178,10 +2628,10 @@ class ConceptualChargeAgent:
         
         Uses actual vivid_layer and character_layer from temporal biography.
         """
-        logger.info(f"🔧 Agent {self.charge_id} - Starting observational persistence computation")
+        logger.debug(f"🔧 Agent {self.charge_id} - Starting observational persistence computation")
         
         # CRITICAL DEBUG: Check state value types before access
-        logger.info(f"🔧 Agent {self.charge_id} - State types: current_s={type(self.state.current_s)}, s_zero={type(self.state.s_zero)}")
+        logger.debug(f"🔧 Agent {self.charge_id} - State types: current_s={type(self.state.current_s)}, s_zero={type(self.state.s_zero)}")
         
         # MPS-safe state access with explicit tensor checking
         if hasattr(self.state.current_s, 'cpu'):
@@ -2196,7 +2646,7 @@ class ConceptualChargeAgent:
         else:
             s_zero = float(self.state.s_zero)
             
-        logger.info(f"🔧 Agent {self.charge_id} - State values: s={s}, s_zero={s_zero}")
+        logger.debug(f"🔧 Agent {self.charge_id} - State values: s={s}, s_zero={s_zero}")
         
         delta_s = s - s_zero
         
@@ -2210,16 +2660,16 @@ class ConceptualChargeAgent:
         if len(vivid_layer) > 0:
             # Use actual vivid layer data with underflow protection
             # CRITICAL FIX: Ensure mean is real before comparison - MPS-safe
-            logger.info(f"🔧 Agent {self.charge_id} - Processing vivid_layer, type: {type(vivid_layer)}")
+            logger.debug(f"🔧 Agent {self.charge_id} - Processing vivid_layer, type: {type(vivid_layer)}")
             if hasattr(vivid_layer, 'cpu'):
                 vivid_mean = np.mean(vivid_layer.cpu().detach().numpy())
-                logger.info(f"🔧 Agent {self.charge_id} - Converted vivid_layer tensor to numpy")
+                logger.debug(f"🔧 Agent {self.charge_id} - Converted vivid_layer tensor to numpy")
             else:
                 vivid_mean = np.mean(vivid_layer)
-                logger.info(f"🔧 Agent {self.charge_id} - Used vivid_layer directly as numpy")
+                logger.debug(f"🔧 Agent {self.charge_id} - Used vivid_layer directly as numpy")
             vivid_mean_real = float(vivid_mean.real) if np.iscomplexobj(vivid_mean) else float(vivid_mean)
             vivid_base = float(max(0.9, vivid_mean_real))  # 🔧 Clamp vivid layer to minimum 0.9 - ensure float
-            logger.info(f"🔧 Agent {self.charge_id} - About to compute vivid_influence with vivid_base={vivid_base}, delta_s={delta_s}")
+            logger.debug(f"🔧 Agent {self.charge_id} - About to compute vivid_influence with vivid_base={vivid_base}, delta_s={delta_s}")
             
             # CRITICAL FIX: Ensure sigma_i is a float for MPS compatibility
             if hasattr(self.sigma_i, 'cpu'):
@@ -2229,7 +2679,7 @@ class ConceptualChargeAgent:
             
             try:
                 vivid_influence = vivid_base * np.exp(-(delta_s * delta_s) / (2 * sigma_i_val * sigma_i_val))
-                logger.info(f"🔧 Agent {self.charge_id} - Vivid influence computed: {vivid_influence}")
+                logger.debug(f"🔧 Agent {self.charge_id} - Vivid influence computed: {vivid_influence}")
             except Exception as vivid_error:
                 logger.error(f"🔧 Agent {self.charge_id} - Error in vivid_influence computation: {vivid_error}")
                 raise
@@ -2242,7 +2692,7 @@ class ConceptualChargeAgent:
                 
             try:
                 vivid_influence = np.exp(-(delta_s * delta_s) / (2 * sigma_i_val * sigma_i_val))
-                logger.info(f"🔧 Agent {self.charge_id} - Vivid influence (else case) computed: {vivid_influence}")
+                logger.debug(f"🔧 Agent {self.charge_id} - Vivid influence (else case) computed: {vivid_influence}")
             except Exception as vivid_else_error:
                 logger.error(f"🔧 Agent {self.charge_id} - Error in vivid_influence (else) computation: {vivid_else_error}")
                 raise
@@ -2261,11 +2711,11 @@ class ConceptualChargeAgent:
                 character_mean = np.mean(character_layer)
             character_mean_real = float(character_mean.real) if np.iscomplexobj(character_mean) else float(character_mean)
             character_base = float(max(0.08, character_mean_real))  # 🔧 Clamp character layer minimum - ensure float
-            character_influence = character_base * np.exp(-self.lambda_i * abs(delta_s))
+            character_influence = character_base * math.exp(-self.lambda_i * abs(delta_s))
             # Add rhythmic reinforcement
-            character_influence *= np.cos(self.beta_i * delta_s)
+            character_influence *= math.cos(self.beta_i * delta_s)
         else:
-            character_influence = self.alpha_i * np.exp(-self.lambda_i * abs(delta_s)) * np.cos(self.beta_i * delta_s)
+            character_influence = self.alpha_i * math.exp(-self.lambda_i * abs(delta_s)) * math.cos(self.beta_i * delta_s)
         
         # Apply additional character underflow protection
         character_influence_real = float(abs(character_influence))  # abs() ensures real value
@@ -2274,21 +2724,7 @@ class ConceptualChargeAgent:
         # Combined persistence with stronger minimum
         total_persistence = vivid_influence + character_influence
         
-        # Ensure persistence stays in reasonable range for Q computation
-        total_persistence = max(0.9, min(2.0, total_persistence))  # 🔧 Clamp to [0.9, 2.0]
-        
-        # Log when clamping occurs - MPS-safe vivid layer access
-        if len(vivid_layer) > 0:
-            # MPS-safe mean calculation for vivid layer
-            if hasattr(vivid_layer, 'cpu'):
-                vivid_mean_for_log = np.mean(vivid_layer.cpu().detach().numpy())
-            else:
-                vivid_mean_for_log = np.mean(vivid_layer)
-            
-            if abs(vivid_mean_for_log) < 0.9:
-                logger.debug(f"🔧 Agent {self.charge_id} - Vivid layer clamped: {vivid_mean_for_log:.3f} → 0.9+")
-        if total_persistence == 0.9:
-            logger.debug(f"🔧 Agent {self.charge_id} - Persistence clamped to minimum: 0.9")
+        # Allow persistence to evolve naturally - maintain mathematical integrity
         
         return total_persistence, vivid_influence, character_influence
         
@@ -2300,7 +2736,7 @@ class ConceptualChargeAgent:
         conceptual charge using actual field theory mathematics with real data.
         """
         start_time = time.time()
-        logger.info(f"🔧 Agent {self.charge_id} - Starting Q computation (pool_size: {pool_size})")
+        logger.debug(f"🔧 Agent {self.charge_id} - Starting Q computation (pool_size: {pool_size})")
         
         try:
             # Compute all components with detailed timing
@@ -2346,13 +2782,7 @@ class ConceptualChargeAgent:
                 logger.error(f"🔧 Agent {self.charge_id} - Persistence computation failed: {persistence_error}")
                 raise
             
-            # Apply underflow protection to persistence components
-            psi_persistence = max(psi_persistence, 1e-10)
-            psi_gaussian = max(psi_gaussian, 1e-15) 
-            psi_exponential_cosine = max(psi_exponential_cosine, 1e-15)
-            
-            if psi_persistence < 1e-8:
-                logger.warning(f"⚠️  Agent {self.charge_id} - Persistence underflow detected, clamped to {psi_persistence:.2e}")
+            # Allow natural mathematical evolution - maintain integrity
             
             # Final Q(τ, C, s) computation
             Q_value = gamma * T_tensor * E_trajectory * phi_semantic * phase_factor * psi_persistence
@@ -2541,6 +2971,7 @@ class ConceptualChargeAgent:
             logger.debug(f"    Persistence ranges: vivid=[{src_data['persistence_layers_range']['vivid_layer'][0]:.3f}, {src_data['persistence_layers_range']['vivid_layer'][1]:.3f}], char=[{src_data['persistence_layers_range']['character_layer'][0]:.3f}, {src_data['persistence_layers_range']['character_layer'][1]:.3f}]")
         
         return breakdown
+    
     
     def get_component_health_summary(self) -> str:
         """

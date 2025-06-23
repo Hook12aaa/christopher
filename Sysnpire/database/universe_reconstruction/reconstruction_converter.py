@@ -14,6 +14,7 @@ Key Features:
 """
 
 import logging
+import math
 import time
 from typing import Any, Dict, List, Optional, Tuple, Union
 
@@ -223,15 +224,61 @@ class ReconstructionConverter:
     
     def _convert_temporal_components(self, temporal_components: Dict[str, Any]) -> Dict[str, Any]:
         """Convert temporal biography components to tensors."""
+        logger.info("🔍 DEBUG: _convert_temporal_components called")
+        logger.info(f"🔍 DEBUG: temporal_components keys: {list(temporal_components.keys())}")
         converted = {}
         
+        # MATHEMATICAL INTEGRITY: Convert temporal_momentum to LogPolarComplex representation
+        from Sysnpire.utils.log_polar_complex import LogPolarComplex
+        
+        # Check for new log-polar storage format first
+        if "temporal_momentum_log_mag" in temporal_components and "temporal_momentum_phase" in temporal_components:
+            logger.info("🔍 DEBUG: Found log-polar format temporal_momentum")
+            log_mag = float(temporal_components["temporal_momentum_log_mag"])
+            phase = float(temporal_components["temporal_momentum_phase"])
+            
+            # NO DEFAULTS - validate or fail hard
+            if not math.isfinite(log_mag):
+                raise ReconstructionConversionError(f"temporal_momentum_log_mag is {log_mag} - storage corrupted!")
+            if not math.isfinite(phase):
+                raise ReconstructionConversionError(f"temporal_momentum_phase is {phase} - storage corrupted!")
+            
+            converted["temporal_momentum"] = LogPolarComplex(log_mag, phase)
+            logger.info(f"✅ temporal_momentum loaded from log-polar: exp({log_mag:.3f}) * exp(i*{phase:.3f})")
+        
+        # Legacy format: convert (real, imag) to log-polar
+        elif "temporal_momentum_real" in temporal_components and "temporal_momentum_imag" in temporal_components:
+            logger.info("🔍 DEBUG: Converting legacy (real, imag) to log-polar format")
+            real_part = float(temporal_components["temporal_momentum_real"])
+            imag_part = float(temporal_components["temporal_momentum_imag"])
+            
+            # NO GRACEFUL HANDLING - let LogPolarComplex.from_real_imag validate and fail if needed
+            try:
+                converted["temporal_momentum"] = LogPolarComplex.from_real_imag(real_part, imag_part)
+                logger.info(f"✅ temporal_momentum converted from legacy format: {real_part}+{imag_part}j → {converted['temporal_momentum']}")
+            except ValueError as e:
+                # NO DEFAULTS - if conversion fails, storage is corrupted
+                raise ReconstructionConversionError(f"Legacy temporal_momentum conversion failed: {e}. Real={real_part}, Imag={imag_part}")
+        
+        # Already in some other format
+        elif "temporal_momentum" in temporal_components:
+            logger.error("❌ UNSUPPORTED: temporal_momentum in unknown format")
+            raise ReconstructionConversionError("temporal_momentum found but not in log-polar or real/imag format - unsupported storage version")
+        
+        # Missing entirely
+        else:
+            logger.error(f"❌ CRITICAL: No temporal_momentum found in temporal_components!")
+            logger.error(f"   Available keys: {list(temporal_components.keys())}")
+            raise ReconstructionConversionError("Missing temporal_momentum in temporal_components - storage incomplete!")
+        
         temporal_arrays = ["trajectory_operators", "vivid_layer", "character_layer", 
-                          "frequency_evolution", "phase_coordination", "temporal_momentum", "breathing_coherence"]
+                          "frequency_evolution", "phase_coordination", "breathing_coherence"]
         
         for key, value in temporal_components.items():
             if key in temporal_arrays and isinstance(value, np.ndarray):
                 converted[key] = self._convert_array_to_tensor(value, f"temporal.{key}")
-            else:
+            elif key not in ["temporal_momentum_real", "temporal_momentum_imag", "temporal_momentum"]:
+                # Skip the real/imag components we already processed, and the combined one
                 converted[key] = value
         
         return converted

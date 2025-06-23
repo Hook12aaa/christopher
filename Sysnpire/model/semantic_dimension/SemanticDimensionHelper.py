@@ -16,9 +16,9 @@ MATHEMATICAL FOUNDATION:
 
 """
 
-
 import sys
 from pathlib import Path
+
 project_root = Path(__file__).resolve().parent.parent.parent.parent
 sys.path.insert(0, str(project_root))
 from Sysnpire.model.semantic_dimension.vector_transformation import VectorTransformation
@@ -28,41 +28,37 @@ from Sysnpire.utils.logger import get_logger
 logger = get_logger(__name__)
 
 
-
-class SemanticDimensionHelper():
+class SemanticDimensionHelper:
     """
     Helper class for managing semantic dimensions in data structures and models.
-    
+
     This class provides methods to add, validate, and integrate semantic dimensions
     into existing systems, ensuring coherence and consistency across the model.
     """
 
-    def __init__(self, from_base:bool, model_info=None, helper = None) -> None:
+    def __init__(self, from_base: bool, model_info=None, helper=None) -> None:
         """
         Initialize the SemanticDimensionHelper with a specific dimension name.
 
         """
 
         self.helper = helper
-        self.from_base = from_base 
-
+        self.from_base = from_base
 
     def key_component(self, key: str) -> str:
         # Get embedding dimension from model info or helper
-        if self.from_base and hasattr(self.helper, 'info'):
+        if self.from_base and hasattr(self.helper, "info"):
             model_info = self.helper.info()
-            embedding_dim = model_info.get('dimension', 1024)  # BGE default
+            embedding_dim = model_info.get("dimension", 1024)  # BGE default
         else:
             embedding_dim = 1024  # Default for BGE
-            
+
         self.vector = VectorTransformation(
-            from_base=self.from_base, 
-            embedding_dimension=embedding_dim, 
-            helper=self.helper, 
-            phase_computation_method="component_based"
+            from_base=self.from_base,
+            embedding_dimension=embedding_dim,
+            helper=self.helper,
+            phase_computation_method="component_based",
         )
-        
-    
 
     def convert_vector_to_field_respentation(self, total_embeddings, vocab_mappings: dict = None) -> dict:
         """
@@ -80,51 +76,72 @@ class SemanticDimensionHelper():
         # Extract individual embeddings from BGE search results
         individual_embeddings = []
         for item in total_embeddings:
-            if 'embeddings' in item and isinstance(item['embeddings'], list):
+            if "embeddings" in item and isinstance(item["embeddings"], list):
                 # This is a BGE search result with embedded list
-                individual_embeddings.extend(item['embeddings'])
+                individual_embeddings.extend(item["embeddings"])
             else:
                 # This is already an individual embedding dictionary
                 individual_embeddings.append(item)
-        
+
         logger.info(f"Converting {len(individual_embeddings)} embeddings to semantic fields")
-        
+
         # Initialize vector transformation if not already done
-        if not hasattr(self, 'vector'):
+        if not hasattr(self, "vector"):
             self.key_component("default")  # Initialize transformation
-        
+
         # PERFORMANCE OPTIMIZATION: Compute spatial analysis ONCE for all embeddings
         spatial_analysis = None
-        if self.from_base and hasattr(self.vector, 'model') and hasattr(self.vector.model, 'extract_spatial_field_analysis'):
+        if (
+            self.from_base
+            and hasattr(self.vector, "model")
+            and hasattr(self.vector.model, "extract_spatial_field_analysis")
+        ):
             logger.info("🚀 OPTIMIZATION: Computing spatial field analysis ONCE for all embeddings")
             spatial_analysis = self.vector.model.extract_spatial_field_analysis(
-                num_samples=500, 
-                return_full_details=False
+                num_samples=500, return_full_details=False  # Use memory-efficient mode
             )
             logger.info("✅ Spatial analysis computed, will reuse for all embeddings")
-        
+
+            # MEMORY OPTIMIZATION: Immediately clear spatial analysis cache after extraction
+            if hasattr(self.vector.model, "_spatial_analysis_cache"):
+                cache_size = len(self.vector.model._spatial_analysis_cache)
+                self.vector.model._spatial_analysis_cache.clear()
+                logger.debug(f"🗑️  MEMORY: Cleared spatial analysis cache ({cache_size} entries) after extraction")
+
         field_representations = []
-        
+
         # Transform each embedding to semantic field
         for i, embedding_dict in enumerate(individual_embeddings):
             try:
                 logger.debug(f"Transforming embedding {i+1}/{len(individual_embeddings)}")
                 # Pass pre-computed spatial analysis to avoid redundant computation
                 field_result = self.vector.model_transform_to_field(
-                    embedding_dict, 
-                    precomputed_spatial_analysis=spatial_analysis
+                    embedding_dict, precomputed_spatial_analysis=spatial_analysis
                 )
                 field_representations.append(field_result)
-                
+
             except Exception as e:
                 logger.error(f"Failed to transform embedding {i}: {e}")
                 raise RuntimeError(f"Semantic field transformation failed for embedding {i}: {e}")
-        
+
         logger.info(f"Successfully converted {len(field_representations)} embeddings to semantic fields")
-        
+
+        # MEMORY OPTIMIZATION: Clear any remaining model caches after processing
+        if self.from_base and hasattr(self.vector, "model"):
+            import gc
+
+            # Clear any remaining caches in the model
+            for cache_attr in ["_spatial_analysis_cache", "_laplacian_cache", "_embedding_data"]:
+                if hasattr(self.vector.model, cache_attr):
+                    cache = getattr(self.vector.model, cache_attr)
+                    if isinstance(cache, dict) and cache:
+                        cache.clear()
+                        logger.debug(f"🗑️  MEMORY: Cleared {cache_attr} after semantic processing")
+            gc.collect()  # Force garbage collection
+
         return {
-            'field_representations': field_representations,
-            'total_converted': len(field_representations),
-            'transformation_method': 'S_τ(x) = Σᵢ e_τ,ᵢ · φᵢ(x) · e^(iθ_τ,ᵢ)',
-            'conversion_complete': True
+            "field_representations": field_representations,
+            "total_converted": len(field_representations),
+            "transformation_method": "S_τ(x) = Σᵢ e_τ,ᵢ · φᵢ(x) · e^(iθ_τ,ᵢ)",
+            "conversion_complete": True,
         }

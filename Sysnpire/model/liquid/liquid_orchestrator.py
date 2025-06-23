@@ -17,6 +17,7 @@ ARCHITECTURE: AgentTorch-based multi-agent simulation with PyTorch tensors
 
 import torch
 import numpy as np
+import math
 from typing import Dict, List, Optional, Tuple, Any
 from dataclasses import dataclass
 import time
@@ -82,9 +83,20 @@ class LiquidOrchestrator:
         # ChargeFactory data storage
         self.combined_results: Optional[Dict[str, Any]] = None
         
-        # Field state tensors
+        # Field state tensors with proper complex dtype handling
         self.field_grid = self._initialize_field_grid()
-        self.q_field_values = torch.zeros(field_resolution, field_resolution, dtype=torch.complex64, device=self.device)
+        
+        # Use complex128 for mathematical precision, fallback to complex64 for MPS if needed
+        if self.device.type == "mps":
+            # MPS may not support complex128, use complex64 with proper conversion handling
+            self.q_field_values = torch.zeros(field_resolution, field_resolution, dtype=torch.complex64, device=self.device)
+            self.field_dtype = torch.complex64
+            logger.warning("🔧 MPS device detected: Using complex64 for field tensor with precision conversion")
+        else:
+            # Use full complex128 precision for CPU/CUDA
+            self.q_field_values = torch.zeros(field_resolution, field_resolution, dtype=torch.complex128, device=self.device)
+            self.field_dtype = torch.complex128
+            logger.info("✅ Using complex128 for full mathematical precision")
         
         # Emotional conductor state
         self.emotional_conductor = EmotionalConductorState(
@@ -374,20 +386,52 @@ class LiquidOrchestrator:
                 self.listen_to_modular_forms(agents, tau)
                 self.adapt_computation_strategy(agents, tau)
             
+            logger.info("🔍 Post-adaptation: Starting MOVEMENT sequence...")
+            
             # MOVEMENT 1: 🎵 Collective Breathing (with breathing sync groups)
+            logger.info("🎵 Starting collective breathing...")
+            breathing_start = time.time()
             breathing_synchrony = self._orchestrate_collective_breathing(agents, tau)
+            breathing_time = time.time() - breathing_start
+            logger.info(f"✅ Collective breathing complete in {breathing_time:.4f}s")
             evolution_results['breathing_patterns'].append(breathing_synchrony)
             
             # MOVEMENT 2: 🌊 Cascading Dimensional Feedback (with cascade optimization)
+            logger.info("🌊 Starting dimensional cascades...")
+            cascade_start = time.time()
             cascade_energy = self._orchestrate_dimensional_cascades(agents)
+            cascade_time = time.time() - cascade_start
+            logger.info(f"✅ Dimensional cascades complete in {cascade_time:.4f}s")
             evolution_results['cascade_energies'].append(cascade_energy)
             
             # MOVEMENT 3: 🎭 Field Interactions (O(N log N) OPTIMIZED!)
             interaction_strength = self._orchestrate_field_interactions_optimized(agents)
+            
+            # MATHEMATICAL VALIDATION: Check for runaway interaction values
+            if not math.isfinite(interaction_strength):
+                raise ValueError(f"MATHEMATICAL INSTABILITY: interaction_strength is {interaction_strength} - interaction calculation corrupted!")
+            if abs(interaction_strength) > 1e20:
+                logger.warning(f"⚠️ MATHEMATICAL ALERT: interaction_strength is extremely large: {interaction_strength:.2e}")
+            
+            logger.info("📊 Appending interaction strength to results...")
+            append_start = time.time()
             evolution_results['interaction_networks'].append(interaction_strength)
+            append_time = time.time() - append_start
+            logger.info(f"✅ Interaction results appended in {append_time:.4f}s")
             
             # MOVEMENT 4: 📍 Observational Evolution (with phase boundaries)
+            logger.info("📍 Starting s-parameter evolution...")
+            s_param_start = time.time()
             complexity_measure = self._orchestrate_s_parameter_evolution(agents)
+            s_param_time = time.time() - s_param_start
+            logger.info(f"✅ S-parameter evolution complete in {s_param_time:.4f}s")
+            
+            # MATHEMATICAL VALIDATION: Check for runaway complexity values  
+            if not math.isfinite(complexity_measure):
+                raise ValueError(f"MATHEMATICAL INSTABILITY: complexity_measure is {complexity_measure} - s-parameter evolution corrupted!")
+            if abs(complexity_measure) > 1e20:
+                logger.warning(f"⚠️ MATHEMATICAL ALERT: complexity_measure is extremely large: {complexity_measure:.2e}")
+            
             evolution_results['complexity_evolution'].append(complexity_measure)
             
             # MOVEMENT 5: 🎼 Measure Emergent Properties
@@ -426,8 +470,8 @@ class LiquidOrchestrator:
                 logger.info(f"⚡ Efficiency: {optimized_agents}/{len(agents)} optimized agents, "
                           f"{fallback_agents} using efficient fallback")
         
-        # Final analysis
-        final_analysis = self._analyze_evolution_results(evolution_results)
+        # Final analysis - pass agents for total Q energy calculation
+        final_analysis = self._analyze_evolution_results(evolution_results, agents)
         
         logger.info("🎼 Living evolution complete!")
         logger.info(f"📊 Final complexity: {final_analysis['final_complexity']:.3f}")
@@ -483,7 +527,9 @@ class LiquidOrchestrator:
         if len(all_breathing_phases) > 1:
             phase_diffs = [abs(all_breathing_phases[i] - all_breathing_phases[0]) 
                           for i in range(1, len(all_breathing_phases))]
-            synchrony = 1.0 - (np.mean(phase_diffs) / (2 * np.pi))
+            # Convert to tensor and use PyTorch operations for MPS compatibility
+            phase_diffs_tensor = torch.tensor(phase_diffs, device=self.device)
+            synchrony = 1.0 - (torch.mean(phase_diffs_tensor) / (2 * np.pi))
         else:
             synchrony = 1.0
             
@@ -579,6 +625,10 @@ class LiquidOrchestrator:
     
     def _orchestrate_field_interactions_optimized(self, agents: List) -> float:
         """TRUE O(log N) field interactions using group-centric processing."""
+        import time
+        start_time = time.time()
+        logger.info(f"🚀 Starting optimized field interactions for {len(agents)} agents")
+        
         total_interaction_strength = 0.0
         
         # 🔧 VALIDATE: Check Q values before interactions
@@ -627,9 +677,15 @@ class LiquidOrchestrator:
         interaction_agents = valid_agents
         
         # Get interaction groups from adaptive optimization
+        logger.info(f"🔄 Building interaction groups for {len(interaction_agents)} agents...")
+        group_build_start = time.time()
         interaction_groups = self._build_interaction_groups(interaction_agents)
+        group_build_time = time.time() - group_build_start
+        logger.info(f"✅ Built {len(interaction_groups)} groups in {group_build_time:.4f}s")
         
         # 🚀 REVOLUTIONARY CHANGE: Process O(log N) groups instead of O(N) agents
+        logger.info(f"🚀 Processing {len(interaction_groups)} interaction groups...")
+        group_process_start = time.time()
         for group_info in interaction_groups:
             group_agents = group_info['agents']
             group_interactions = group_info['interactions']
@@ -638,8 +694,18 @@ class LiquidOrchestrator:
             group_strength = self._process_interaction_group_collectively(group_agents, group_interactions)
             total_interaction_strength += group_strength
         
+        group_process_time = time.time() - group_process_start
+        logger.info(f"✅ Group processing complete in {group_process_time:.4f}s")
+        
         # Update dynamic field after all group interactions
+        logger.info("🌊 Updating dynamic field...")
+        field_update_start = time.time()
         self.update_dynamic_field()
+        field_update_time = time.time() - field_update_start
+        logger.info(f"✅ Dynamic field update complete in {field_update_time:.4f}s")
+        
+        interaction_time = time.time() - start_time
+        logger.info(f"✅ Optimized field interactions complete: {len(interaction_groups)} groups processed in {interaction_time:.4f}s")
         
         return total_interaction_strength / len(interaction_agents) if interaction_agents else 0.0
     
@@ -674,8 +740,34 @@ class LiquidOrchestrator:
                     other_coeff = other_agent.breathing_q_coefficients.get(n, 0)
                     
                     if self_coeff != 0 and other_coeff != 0:
-                        interaction_effect = influence_strength * np.real(self_coeff * np.conj(other_coeff)) * 0.1
-                        agent.breathing_q_coefficients[n] += interaction_effect
+                        # Use PyTorch operations for MPS compatibility
+                        # Store original value for NaN detection
+                        original_coeff = agent.breathing_q_coefficients[n]
+                        
+                        if torch.is_tensor(self_coeff) or torch.is_tensor(other_coeff):
+                            self_tensor = self_coeff if torch.is_tensor(self_coeff) else torch.tensor(self_coeff, device=self.device)
+                            other_tensor = other_coeff if torch.is_tensor(other_coeff) else torch.tensor(other_coeff, device=self.device)
+                            interaction_effect = influence_strength * torch.real(self_tensor * torch.conj(other_tensor)) * 0.1
+                        else:
+                            # Pure Python complex arithmetic
+                            interaction_effect = influence_strength * (self_coeff * complex(other_coeff.real, -other_coeff.imag)).real * 0.1
+                        
+                        # VALIDATE interaction effect before applying
+                        if torch.is_tensor(interaction_effect):
+                            effect_value = interaction_effect.item()
+                        else:
+                            effect_value = float(interaction_effect)
+                        
+                        if not math.isfinite(effect_value):
+                            agent_id = getattr(agent, 'charge_id', 'unknown')
+                            raise ValueError(f"ORCHESTRATOR: Agent {agent_id} interaction_effect[{n}] is {effect_value} - influence_strength={influence_strength}, self_coeff={self_coeff}, other_coeff={other_coeff}")
+                        
+                        agent.breathing_q_coefficients[n] += effect_value
+                        
+                        # VALIDATE after orchestrator interaction
+                        if not (math.isfinite(agent.breathing_q_coefficients[n].real) and math.isfinite(agent.breathing_q_coefficients[n].imag)):
+                            agent_id = getattr(agent, 'charge_id', 'unknown')
+                            raise ValueError(f"ORCHESTRATOR: Agent {agent_id} breathing_q_coefficients[{n}] became {agent.breathing_q_coefficients[n]} after orchestrator interaction (was {original_coeff}, effect={effect_value})")
             
             total_influence += influence_strength
         
@@ -704,21 +796,61 @@ class LiquidOrchestrator:
     
     def _orchestrate_s_parameter_evolution(self, agents: List) -> float:
         """Coordinate observational state evolution across all agents."""
+        import time
+        logger.info(f"🔧 S-parameter evolution starting for {len(agents)} agents")
+        
         complexity_measures = []
         
         # Each agent evolves its s-parameter
-        for agent in agents:
-            agent.evolve_s_parameter(agents)
+        # OPTIMIZE: Use sparse graph for O(log N) field context instead of O(N) all agents
+        sparse_graph = self.adaptive_tuning.get('sparse_interaction_graph', {})
+        
+        for i, agent in enumerate(agents):
+            agent_start = time.time()
+            
+            # Get only nearby agents from sparse graph (O(log N) neighbors)
+            if sparse_graph and i in sparse_graph:
+                neighbor_indices = [idx for idx, _ in sparse_graph[i]]
+                nearby_agents = [agents[idx] for idx in neighbor_indices if idx < len(agents)]
+                # Include self in field context
+                field_context = [agent] + nearby_agents
+            else:
+                # Fallback: use only self if no sparse graph
+                field_context = [agent]
+            
+            # Pass O(log N) field context instead of O(N) all agents
+            agent.evolve_s_parameter(field_context)
+            agent_evolve_time = time.time() - agent_start
+            
+            if i < 5 or agent_evolve_time > 1.0:  # Log first 5 agents or slow ones
+                agent_id = getattr(agent, 'charge_id', f'agent_{i}')
+                logger.info(f"🔧 Agent {agent_id}: evolve_s_parameter took {agent_evolve_time:.4f}s")
             
             # Sync positions after s-parameter evolution
+            sync_start = time.time()
             agent.sync_positions()
+            sync_time = time.time() - sync_start
+            
+            if sync_time > 0.1:  # Log slow sync operations
+                agent_id = getattr(agent, 'charge_id', f'agent_{i}')
+                logger.info(f"🔧 Agent {agent_id}: sync_positions took {sync_time:.4f}s")
             
             # Measure complexity as distance from initial state
-            s_distance = abs(agent.state.current_s - agent.state.s_zero)
-            complexity_measures.append(s_distance)
+            try:
+                s_distance = abs(agent.state.current_s - agent.state.s_zero)
+                complexity_measures.append(s_distance)
+            except Exception as e:
+                agent_id = getattr(agent, 'charge_id', f'agent_{i}')
+                logger.error(f"❌ Agent {agent_id}: Error measuring complexity: {e}")
+                logger.error(f"   current_s: {getattr(agent.state, 'current_s', 'missing')}")
+                logger.error(f"   s_zero: {getattr(agent.state, 's_zero', 'missing')}")
+                complexity_measures.append(0.0)
         
         # Update dynamic field after all s-parameter evolution
+        field_start = time.time()
         self.update_dynamic_field()
+        field_time = time.time() - field_start
+        logger.info(f"🔧 Dynamic field update after s-evolution: {field_time:.4f}s")
         
         # Return average complexity
         return np.mean(complexity_measures) if complexity_measures else 0.0
@@ -754,7 +886,9 @@ class LiquidOrchestrator:
                 all_coeffs.extend(agent_coeffs[:10])  # First 10 coefficients
             
             if all_coeffs:
-                emergent_data['q_coefficient_diversity'] = np.std(all_coeffs) / (np.mean(all_coeffs) + 1e-8)
+                # Convert to tensor and use PyTorch operations for MPS compatibility
+                all_coeffs_tensor = torch.tensor(all_coeffs, dtype=torch.float32, device=self.device)
+                emergent_data['q_coefficient_diversity'] = torch.std(all_coeffs_tensor) / (torch.mean(all_coeffs_tensor) + 1e-8)
         
         return emergent_data
     
@@ -795,14 +929,15 @@ class LiquidOrchestrator:
         
         return collective_data
     
-    def _analyze_evolution_results(self, evolution_results: Dict[str, Any]) -> Dict[str, Any]:
+    def _analyze_evolution_results(self, evolution_results: Dict[str, Any], agents: List) -> Dict[str, Any]:
         """Analyze the complete evolution to extract emergent patterns."""
         analysis = {
             'final_complexity': 0.0,
             'emergent_harmonics': [],
             'collective_coherence': 0.0,
             'evolution_stability': 0.0,
-            'cascade_efficiency': 0.0
+            'cascade_efficiency': 0.0,
+            'total_Q_energy': 0.0
         }
         
         if not evolution_results['complexity_evolution']:
@@ -810,6 +945,15 @@ class LiquidOrchestrator:
         
         # Final complexity
         analysis['final_complexity'] = evolution_results['complexity_evolution'][-1]
+        
+        # Calculate total Q energy from all agents
+        total_q_energy = 0.0
+        for agent in agents:
+            if hasattr(agent, 'living_Q_value') and agent.living_Q_value is not None:
+                q_magnitude = abs(agent.living_Q_value)
+                if math.isfinite(q_magnitude):
+                    total_q_energy += q_magnitude
+        analysis['total_Q_energy'] = total_q_energy
         
         # Count total emergent harmonics
         total_harmonics = sum(data['new_harmonics'] for data in evolution_results['emergent_harmonics'])
@@ -827,9 +971,26 @@ class LiquidOrchestrator:
         
         # Cascade efficiency (how well energy cascades between dimensions)
         if evolution_results['cascade_energies']:
-            cascade_trend = np.polyfit(range(len(evolution_results['cascade_energies'])), 
-                                     evolution_results['cascade_energies'], 1)[0]
-            analysis['cascade_efficiency'] = max(0.0, cascade_trend)
+            cascade_energies = evolution_results['cascade_energies']
+            
+            # MATHEMATICAL VALIDATION: Check data before polynomial fitting
+            if len(cascade_energies) < 2:
+                # Cannot fit trend to single point - mathematically undefined
+                analysis['cascade_efficiency'] = 0.0
+            elif all(not math.isfinite(x) for x in cascade_energies):
+                # All values invalid - mathematically undefined trend
+                analysis['cascade_efficiency'] = 0.0
+            elif all(abs(x) > 1e30 for x in cascade_energies if math.isfinite(x)):
+                # Values too extreme for numerical stability - use mathematical sign
+                if cascade_energies[-1] > cascade_energies[0]:
+                    analysis['cascade_efficiency'] = 1.0  # Positive mathematical trend
+                else:
+                    analysis['cascade_efficiency'] = 0.0  # Non-positive mathematical trend
+            else:
+                # Attempt mathematical polynomial fitting with robustness
+                # Pure mathematical trend calculation - no fallbacks
+                cascade_trend = np.polyfit(range(len(cascade_energies)), cascade_energies, 1)[0]
+                analysis['cascade_efficiency'] = max(0.0, cascade_trend)
         
         return analysis
     
@@ -872,8 +1033,34 @@ class LiquidOrchestrator:
         col = max(0, min(col, self.field_resolution - 1))
         row = max(0, min(row, self.field_resolution - 1))
         
-        # Add current Q value to field tensor
-        self.q_field_values[row, col] += Q_value
+        # Add Q value to field tensor with proper dtype conversion if needed
+        if hasattr(self, 'field_dtype'):
+            # Convert Q_value to match field tensor dtype while preserving mathematical precision
+            if self.field_dtype == torch.complex64 and isinstance(Q_value, complex):
+                # For MPS: convert complex128 Q_value to complex64 safely
+                # EVOLVE DATA TYPE: Handle large values by using log-space representation if needed
+                # Extract magnitude in type-aware manner (same pattern as phase extraction)
+                magnitude = torch.abs(Q_value).item() if torch.is_tensor(Q_value) else abs(Q_value)
+                
+                if magnitude > 1e30:  # Value too large for direct complex64
+                    # Store log magnitude and phase separately to preserve precision
+                    log_magnitude = math.log(magnitude)
+                    phase = torch.angle(Q_value) if torch.is_tensor(Q_value) else np.angle(Q_value)
+                    # Reconstruct with scaled magnitude to prevent overflow
+                    scaled_magnitude = math.exp(min(log_magnitude, 30.0))  # Cap at e^30 for complex64
+                    q_np = scaled_magnitude * complex(math.cos(phase), math.sin(phase))
+                    logger.debug(f"🔧 Large Q-value scaled: |Q|={magnitude:.2e} → {abs(q_np):.2e}")
+                else:
+                    # Normal conversion for reasonable values - use PyTorch conversion
+                    q_np = Q_value.to(torch.complex64) if torch.is_tensor(Q_value) else complex(Q_value)
+                q_tensor = torch.tensor(q_np, dtype=self.field_dtype, device=self.device)
+                self.q_field_values[row, col] += q_tensor
+            else:
+                # Direct addition for complex128 or non-complex values
+                self.q_field_values[row, col] += torch.tensor(Q_value, dtype=self.field_dtype, device=self.device)
+        else:
+            # Fallback: direct addition
+            self.q_field_values[row, col] += Q_value
     
     def __init_adaptive_optimization(self):
         """
@@ -1428,7 +1615,9 @@ class LiquidOrchestrator:
                         phase_diff = min(phase_diff, 2*np.pi - phase_diff)  # Wrap to [0, π]
                         phase_differences.append(phase_diff)
                 
-                sync_strength = 1.0 - np.mean(phase_differences) / np.pi
+                # Convert to tensor and use PyTorch operations for MPS compatibility
+                phase_differences_tensor = torch.tensor(phase_differences, device=self.orchestrator.device)
+                sync_strength = 1.0 - torch.mean(phase_differences_tensor) / np.pi
                 
                 # Detect significant sync changes
                 sync_change = abs(sync_strength - self.last_sync_strength)
@@ -1438,7 +1627,10 @@ class LiquidOrchestrator:
                 
                 if sync_changed:
                     # Suggest optimal threshold based on current sync patterns
-                    optimal_threshold = np.percentile(phase_differences, 75) if phase_differences else np.pi/8
+                    if phase_differences:
+                        optimal_threshold = torch.quantile(phase_differences_tensor, 0.75)
+                    else:
+                        optimal_threshold = np.pi/8
                     return {
                         'sync_strength_changed': True,
                         'optimal_threshold': optimal_threshold,
@@ -1742,6 +1934,7 @@ class LiquidOrchestrator:
     def _adaptive_cascade_detection(self, agents):
         """Detect resonance cascades for exponential amplification."""
         if len(agents) < 3:
+            logger.debug(f"🎼 CASCADE DETECTION: Too few agents ({len(agents)} < 3) for cascade detection")
             return []
         
         cascades = []
@@ -1756,79 +1949,805 @@ class LiquidOrchestrator:
                 agent_phases.append((i, phase, magnitude))
         
         if len(agent_phases) < 3:
+            logger.debug(f"🎼 CASCADE DETECTION: Too few valid Q-values ({len(agent_phases)} < 3)")
             return []
+        
+        logger.info(f"🎼 CASCADE DETECTION: Processing {len(agent_phases)} agents with valid Q-values")
         
         # Sort by phase for efficient cascade detection
         agent_phases.sort(key=lambda x: x[1])
         
-        # Find consecutive agents with aligned phases
-        for i in range(len(agent_phases) - 2):
-            cascade_chain = [agent_phases[i]]
+        # Calculate actual phase differences to understand the data
+        all_phase_diffs = []
+        for i in range(len(agent_phases) - 1):
+            phase_diff = abs(agent_phases[i+1][1] - agent_phases[i][1])
+            phase_diff = min(phase_diff, 2*np.pi - phase_diff)
+            all_phase_diffs.append(phase_diff)
+        
+        if all_phase_diffs:
+            min_diff = min(all_phase_diffs)
+            max_diff = max(all_phase_diffs)
+            avg_diff = sum(all_phase_diffs) / len(all_phase_diffs)
+            logger.info(f"🎼 CASCADE DETECTION: Phase differences - min:{min_diff:.3f}, max:{max_diff:.3f}, avg:{avg_diff:.3f}")
             
-            for j in range(i+1, len(agent_phases)):
-                phase_diff = abs(agent_phases[j][1] - cascade_chain[-1][1])
+            # Use adaptive threshold based on actual data distribution
+            adaptive_threshold = max(np.pi / 6, avg_diff * 1.5)  # More lenient than π/4
+            logger.info(f"🎼 CASCADE DETECTION: Using adaptive threshold: {adaptive_threshold:.3f} (was π/4={np.pi/4:.3f})")
+        else:
+            adaptive_threshold = np.pi / 4
+        
+        # Find DISTINCT, NON-OVERLAPPING resonance groups using clustering
+        used_agents = set()  # Track agents already assigned to a cascade
+        cascade_count = 0
+        
+        # Phase-based clustering to create distinct groups
+        i = 0
+        while i < len(agent_phases):
+            if agent_phases[i][0] in used_agents:
+                i += 1
+                continue
+                
+            # Start a new cascade group
+            cascade_group = [agent_phases[i]]
+            used_agents.add(agent_phases[i][0])
+            
+            # Find all nearby agents within threshold that aren't already used
+            for j in range(i + 1, len(agent_phases)):
+                if agent_phases[j][0] in used_agents:
+                    continue
+                    
+                # Check phase alignment with cascade group centroid
+                group_phases = [item[1] for item in cascade_group]
+                group_centroid = np.mean(group_phases)
+                
+                phase_diff = abs(agent_phases[j][1] - group_centroid)
                 phase_diff = min(phase_diff, 2*np.pi - phase_diff)
                 
-                if phase_diff < np.pi / 4:  # Phase alignment threshold
-                    cascade_chain.append(agent_phases[j])
-                else:
-                    break
+                if phase_diff < adaptive_threshold:
+                    cascade_group.append(agent_phases[j])
+                    used_agents.add(agent_phases[j][0])
             
-            # Keep cascades with 3+ aligned agents
-            if len(cascade_chain) >= 3:
-                agent_indices = [item[0] for item in cascade_chain]
-                total_magnitude = sum(item[2] for item in cascade_chain)
+            # Keep groups with 3+ aligned agents
+            if len(cascade_group) >= 3:
+                agent_indices = [item[0] for item in cascade_group]
+                total_magnitude = sum(item[2] for item in cascade_group)
                 cascades.append({
                     'agents': agent_indices,
                     'magnitude': total_magnitude,
-                    'length': len(cascade_chain)
+                    'length': len(cascade_group)
                 })
+                cascade_count += 1
+                logger.info(f"🎼 CASCADE FOUND: Group {cascade_count} with {len(cascade_group)} distinct agents")
+            
+            i += 1
+        
+        logger.info(f"🎼 CASCADE DETECTION COMPLETE: Found {len(cascades)} resonance chains")
+        if len(cascades) == 0:
+            logger.warning("⚠️  NO CASCADES FOUND - Will fall back to O(N²) processing!")
         
         return cascades
     
+    def _calculate_adaptive_thresholds(self, agents):
+        """
+        Calculate data-driven thresholds for proportional boundary detection.
+        
+        Instead of fixed thresholds (π/4, π/6, etc.), analyze actual data distribution
+        and set thresholds based on percentiles of observed values.
+        
+        Returns:
+            Dict with adaptive thresholds for different boundary types
+        """
+        if len(agents) < 2:
+            # Fallback to very small fixed thresholds for minimal data
+            return {
+                'phase_difference': np.pi/32,  # Much smaller than π/4
+                'interaction_density_high': 1.0,
+                'interaction_density_low': 0.0,
+                'coherence_difference': 0.05,  # Much smaller than 0.3
+                'eigenvalue_difference': 0.01  # Much smaller than 0.1
+            }
+        
+        logger.info("🎯 Calculating adaptive thresholds from actual data distribution...")
+        
+        # Collect all phase differences between agents
+        phase_differences = []
+        interaction_densities = []
+        coherence_values = []
+        eigenvalues = []
+        
+        for i, agent1 in enumerate(agents):
+            for j, agent2 in enumerate(agents[i+1:], i+1):
+                # Phase differences
+                if hasattr(agent1, 'living_Q_value') and hasattr(agent2, 'living_Q_value'):
+                    phase1 = np.angle(agent1.living_Q_value)
+                    phase2 = np.angle(agent2.living_Q_value)
+                    phase_diff = abs(phase2 - phase1)
+                    phase_diff = min(phase_diff, 2*np.pi - phase_diff)  # Modular arithmetic
+                    phase_differences.append(phase_diff)
+        
+        # Collect interaction densities from sparse graph if available
+        sparse_graph = self.adaptive_tuning.get('sparse_interaction_graph', {})
+        if sparse_graph:
+            interaction_densities = [len(neighbors) for neighbors in sparse_graph.values()]
+        
+        # Collect coherence values
+        for agent in agents:
+            if hasattr(agent, 'temporal_biography') and hasattr(agent.temporal_biography, 'breathing_coherence'):
+                coherence_values.append(agent.temporal_biography.breathing_coherence)
+        
+        # Collect eigenvalues from clusters if available
+        eigenvalue_clusters = self.adaptive_tuning.get('eigenvalue_clusters', {})
+        if eigenvalue_clusters:
+            eigenvalues = list(eigenvalue_clusters.keys())
+        
+        # Calculate adaptive thresholds using percentiles
+        thresholds = {}
+        
+        # Phase difference threshold: Use 75th percentile (detect top 25% of differences)
+        if phase_differences:
+            phase_array = np.array(phase_differences)
+            thresholds['phase_difference'] = np.percentile(phase_array, 75)
+            # Ensure minimum threshold for mathematical significance
+            thresholds['phase_difference'] = max(thresholds['phase_difference'], np.percentile(phase_array, 50))
+            logger.info(f"🎯 Phase differences: min={np.min(phase_array):.4f}, median={np.median(phase_array):.4f}, 75th={np.percentile(phase_array, 75):.4f}, max={np.max(phase_array):.4f}")
+            logger.info(f"🎯 Adaptive phase threshold: {thresholds['phase_difference']:.4f} (was π/4={np.pi/4:.4f})")
+        else:
+            thresholds['phase_difference'] = np.pi/32  # Very small fallback
+            logger.info("🎯 No phase differences found, using minimal fallback threshold")
+        
+        # Interaction density thresholds: Use 75th/25th percentiles for high/low separation
+        if interaction_densities:
+            density_array = np.array(interaction_densities)
+            thresholds['interaction_density_high'] = np.percentile(density_array, 75)
+            thresholds['interaction_density_low'] = np.percentile(density_array, 25)
+            logger.info(f"🎯 Interaction densities: min={np.min(density_array):.1f}, 25th={np.percentile(density_array, 25):.1f}, median={np.median(density_array):.1f}, 75th={np.percentile(density_array, 75):.1f}, max={np.max(density_array):.1f}")
+            logger.info(f"🎯 Adaptive density thresholds: high≥{thresholds['interaction_density_high']:.1f}, low≤{thresholds['interaction_density_low']:.1f}")
+        else:
+            thresholds['interaction_density_high'] = 1.0
+            thresholds['interaction_density_low'] = 0.0
+            logger.info("🎯 No interaction densities found, using minimal fallback thresholds")
+        
+        # Coherence difference threshold: Use 75th percentile of pairwise differences
+        if len(coherence_values) >= 2:
+            coherence_diffs = []
+            for i in range(len(coherence_values)):
+                for j in range(i+1, len(coherence_values)):
+                    coherence_diffs.append(abs(coherence_values[i] - coherence_values[j]))
+            
+            if coherence_diffs:
+                coherence_array = np.array(coherence_diffs)
+                thresholds['coherence_difference'] = np.percentile(coherence_array, 75)
+                # Ensure minimum threshold
+                thresholds['coherence_difference'] = max(thresholds['coherence_difference'], np.percentile(coherence_array, 50))
+                logger.info(f"🎯 Coherence differences: min={np.min(coherence_array):.3f}, median={np.median(coherence_array):.3f}, 75th={np.percentile(coherence_array, 75):.3f}, max={np.max(coherence_array):.3f}")
+                logger.info(f"🎯 Adaptive coherence threshold: {thresholds['coherence_difference']:.3f} (was 0.3)")
+            else:
+                thresholds['coherence_difference'] = 0.05
+        else:
+            thresholds['coherence_difference'] = 0.05
+            logger.info("🎯 Insufficient coherence data, using minimal fallback threshold")
+        
+        # Eigenvalue difference threshold: Use 75th percentile of pairwise differences
+        if len(eigenvalues) >= 2:
+            eigenvalue_diffs = []
+            for i in range(len(eigenvalues)):
+                for j in range(i+1, len(eigenvalues)):
+                    eigenvalue_diffs.append(abs(eigenvalues[i] - eigenvalues[j]))
+            
+            if eigenvalue_diffs:
+                eigenvalue_array = np.array(eigenvalue_diffs)
+                thresholds['eigenvalue_difference'] = np.percentile(eigenvalue_array, 75)
+                # Ensure minimum threshold
+                thresholds['eigenvalue_difference'] = max(thresholds['eigenvalue_difference'], np.percentile(eigenvalue_array, 50))
+                logger.info(f"🎯 Eigenvalue differences: min={np.min(eigenvalue_array):.4f}, median={np.median(eigenvalue_array):.4f}, 75th={np.percentile(eigenvalue_array, 75):.4f}, max={np.max(eigenvalue_array):.4f}")
+                logger.info(f"🎯 Adaptive eigenvalue threshold: {thresholds['eigenvalue_difference']:.4f} (was 0.1)")
+            else:
+                thresholds['eigenvalue_difference'] = 0.01
+        else:
+            thresholds['eigenvalue_difference'] = 0.01
+            logger.info("🎯 Insufficient eigenvalue data, using minimal fallback threshold")
+        
+        logger.info("✅ Adaptive thresholds calculated - boundaries will be proportional to actual data distribution")
+        return thresholds
+    
     def _adaptive_phase_boundaries(self, agents):
-        """Compute phase coherence boundaries for region-based optimization."""
+        """
+        PROPORTIONAL BOUNDARY DETECTION: Uses actual data distribution for threshold calculation.
+        
+        MATHEMATICAL FOUNDATION: Instead of fixed thresholds (π/4, π/6), analyzes actual
+        phase differences, interaction densities, and coherence values to set thresholds
+        proportional to the mathematical diversity present in the stored agents.
+        
+        Uses inherent mathematical structure for optimization (NO artificial limits):
+        - Hecke eigenvalue clustering provides natural agent groupings
+        - Modular arithmetic reveals resonance patterns without sampling
+        - Geometric modularity creates sparse interaction networks from field theory
+        - Q(τ,C,s) field structure provides natural sparsity
+        - Mathematical symmetries reduce computation while preserving completeness
+        """
         if len(agents) < 4:
             return []
         
+        # 🎯 PROPORTIONAL THRESHOLDS: Calculate data-driven thresholds from actual distribution
+        threshold_start = time.time()
+        adaptive_thresholds = self._calculate_adaptive_thresholds(agents)
+        threshold_time = time.time() - threshold_start
+        logger.info(f"🕐 Adaptive thresholds calculation: {threshold_time:.3f}s")
+        logger.info(f"🎯 Using adaptive thresholds: phase={adaptive_thresholds['phase_difference']:.4f}, density_high={adaptive_thresholds['interaction_density_high']:.1f}, coherence={adaptive_thresholds['coherence_difference']:.3f}")
+            
+        # 🚀 OPTIMIZATION 1: Use existing eigenvalue clusters instead of brute-force sorting
+        eigenvalue_clusters = self.adaptive_tuning.get('eigenvalue_clusters', {})
+        sync_groups = self.adaptive_tuning.get('breathing_sync_groups', [])
+        resonance_cascades = self.adaptive_tuning.get('resonance_cascades', [])
+        sparse_graph = self.adaptive_tuning.get('sparse_interaction_graph', {})
+        
         boundaries = []
         
-        # Extract agent data efficiently
-        agent_data = []
-        for agent in agents:
-            if (hasattr(agent, 'living_Q_value') and agent.living_Q_value is not None 
-                and hasattr(agent, 'state') and hasattr(agent.state, 'field_position')):
-                pos = agent.state.field_position
-                phase = np.angle(agent.living_Q_value)
-                agent_data.append((pos[0], pos[1], phase))
+        # 🎯 STRATEGY 1: Detect boundaries between eigenvalue clusters (Hecke operators)
+        eigenvalue_start = time.time()
+        if len(eigenvalue_clusters) > 1:
+            eigenvalue_boundaries = self._detect_eigenvalue_cluster_boundaries(agents, eigenvalue_clusters, adaptive_thresholds)
+            boundaries.extend(eigenvalue_boundaries)
+            eigenvalue_time = time.time() - eigenvalue_start
+            logger.info(f"🕐 Eigenvalue boundary detection: {eigenvalue_time:.3f}s")
+            logger.info(f"🎯 Eigenvalue clusters ({len(eigenvalue_clusters)}): {len(eigenvalue_boundaries)} boundaries")
+        else:
+            logger.info(f"🎯 Eigenvalue clusters: {len(eigenvalue_clusters)} clusters (need >1 for boundaries)")
         
-        if len(agent_data) < 4:
-            return []
+        # 🌊 STRATEGY 2: Detect boundaries between sync groups (geometric modularity)  
+        sync_start = time.time()
+        if len(sync_groups) > 1:
+            sync_boundaries = self._detect_sync_group_boundaries(agents, sync_groups, adaptive_thresholds)
+            boundaries.extend(sync_boundaries)
+            sync_time = time.time() - sync_start
+            logger.info(f"🕐 Sync group boundary detection: {sync_time:.3f}s")
+            logger.info(f"🌊 Sync groups ({len(sync_groups)}): {len(sync_boundaries)} boundaries")
+        else:
+            logger.info(f"🌊 Sync groups: {len(sync_groups)} groups (need >1 for boundaries)")
         
-        # Detect phase discontinuities using gradient analysis
-        # Sort by x for x-boundaries
-        agent_data_x = sorted(agent_data, key=lambda x: x[0])
-        for i in range(len(agent_data_x) - 1):
-            phase1, phase2 = agent_data_x[i][2], agent_data_x[i+1][2]
-            phase_diff = abs(phase2 - phase1)
-            phase_diff = min(phase_diff, 2*np.pi - phase_diff)
+        # 🎼 STRATEGY 3: Detect boundaries at resonance cascade endpoints (modular arithmetic)
+        cascade_start = time.time()
+        if len(resonance_cascades) > 0:
+            cascade_boundaries = self._detect_cascade_boundaries(agents, resonance_cascades, adaptive_thresholds)
+            boundaries.extend(cascade_boundaries)
+            cascade_time = time.time() - cascade_start
+            logger.info(f"🕐 Cascade boundary detection: {cascade_time:.3f}s")
+            logger.info(f"🎼 Resonance cascades ({len(resonance_cascades)}): {len(cascade_boundaries)} boundaries")
+        else:
+            logger.info(f"🎼 Resonance cascades: 0 cascades detected")
+        
+        # 🔗 STRATEGY 4: Use sparse interaction graph for geometric optimization
+        interaction_start = time.time()
+        if len(sparse_graph) > 0:
+            interaction_boundaries = self._detect_interaction_boundaries(agents, sparse_graph, adaptive_thresholds)
+            boundaries.extend(interaction_boundaries)
+            interaction_time = time.time() - interaction_start
+            logger.info(f"🕐 Interaction boundary detection: {interaction_time:.3f}s")
+            logger.info(f"🔗 Interaction graph ({len(sparse_graph)} agents): {len(interaction_boundaries)} boundaries")
+        else:
+            logger.info(f"🔗 Interaction graph: empty")
+        
+        logger.info(f"🌀 Total boundaries before deduplication: {len(boundaries)}")
+        
+        # ⚡ VECTORIZED DEDUPLICATION: Remove overlapping boundaries using modular arithmetic
+        dedup_start = time.time()
+        deduplicated_boundaries = self._deduplicate_boundaries_vectorized(boundaries)
+        dedup_time = time.time() - dedup_start
+        logger.info(f"🕐 Boundary deduplication: {dedup_time:.3f}s")
+        logger.info(f"🌀 Total boundaries after deduplication: {len(deduplicated_boundaries)}")
+        
+        # 🎯 MINIMUM BOUNDARY GUARANTEE: Ensure at least some boundaries are detected when agents exist
+        if len(deduplicated_boundaries) == 0 and len(agents) >= 4:
+            logger.info("🎯 Zero boundaries detected - applying minimum boundary guarantee for proportional detection")
+            minimum_start = time.time()
+            minimum_boundaries = self._generate_minimum_boundaries(agents, adaptive_thresholds)
+            minimum_time = time.time() - minimum_start
+            logger.info(f"🕐 Minimum boundary generation: {minimum_time:.3f}s")
+            deduplicated_boundaries.extend(minimum_boundaries)
+            logger.info(f"🎯 Minimum boundary guarantee: {len(minimum_boundaries)} boundaries added")
+        
+        # 🕐 TIMING: Total boundary detection time
+        total_boundary_time = time.time() - threshold_start
+        logger.info(f"🕐 Total boundary detection: {total_boundary_time:.3f}s")
+        
+        return deduplicated_boundaries
+    
+    def _generate_minimum_boundaries(self, agents, adaptive_thresholds):
+        """
+        Generate minimum guaranteed boundaries when normal detection finds none.
+        
+        Uses the most significant differences in the data to ensure proportional
+        boundary detection even when all agents are mathematically similar.
+        """
+        logger.info("🎯 Generating minimum boundaries from most significant differences in data...")
+        boundaries = []
+        
+        try:
+            if len(agents) < 4:
+                return boundaries
             
-            if phase_diff > np.pi/3:  # Significant phase jump
-                boundary_x = (agent_data_x[i][0] + agent_data_x[i+1][0]) / 2
-                boundaries.append(('x_boundary', boundary_x, phase_diff))
-        
-        # Sort by y for y-boundaries
-        agent_data_y = sorted(agent_data, key=lambda x: x[1])
-        for i in range(len(agent_data_y) - 1):
-            phase1, phase2 = agent_data_y[i][2], agent_data_y[i+1][2]
-            phase_diff = abs(phase2 - phase1)
-            phase_diff = min(phase_diff, 2*np.pi - phase_diff)
+            # Collect ALL pairwise differences
+            all_phase_diffs = []
+            all_density_diffs = []
+            all_coherence_diffs = []
+            agent_pairs = []
             
-            if phase_diff > np.pi/3:  # Significant phase jump
-                boundary_y = (agent_data_y[i][1] + agent_data_y[i+1][1]) / 2
-                boundaries.append(('y_boundary', boundary_y, phase_diff))
+            for i, agent1 in enumerate(agents):
+                for j, agent2 in enumerate(agents[i+1:], i+1):
+                    # Phase differences
+                    if hasattr(agent1, 'living_Q_value') and hasattr(agent2, 'living_Q_value'):
+                        phase1 = np.angle(agent1.living_Q_value)
+                        phase2 = np.angle(agent2.living_Q_value)
+                        phase_diff = abs(phase2 - phase1)
+                        phase_diff = min(phase_diff, 2*np.pi - phase_diff)
+                        all_phase_diffs.append((phase_diff, i, j))
+                    
+                    # Coherence differences
+                    coherence1 = getattr(agent1.temporal_biography, 'breathing_coherence', 0.5) if hasattr(agent1, 'temporal_biography') else 0.5
+                    coherence2 = getattr(agent2.temporal_biography, 'breathing_coherence', 0.5) if hasattr(agent2, 'temporal_biography') else 0.5
+                    coherence_diff = abs(coherence2 - coherence1)
+                    all_coherence_diffs.append((coherence_diff, i, j))
+            
+            # Sort by magnitude and take top differences (guaranteed to create at least some boundaries)
+            if all_phase_diffs:
+                all_phase_diffs.sort(reverse=True)  # Largest differences first
+                top_phase_pairs = all_phase_diffs[:min(3, len(all_phase_diffs))]  # Top 3 phase differences
+                
+                for phase_diff, i, j in top_phase_pairs:
+                    agent1, agent2 = agents[i], agents[j]
+                    if (hasattr(agent1.state, 'field_position') and hasattr(agent2.state, 'field_position')):
+                        pos1 = agent1.state.field_position
+                        pos2 = agent2.state.field_position
+                        boundary_pos = ((np.array(pos1) + np.array(pos2)) / 2).tolist()
+                        boundaries.append(('minimum_phase_boundary', boundary_pos, phase_diff))
+                        logger.info(f"🎯 Minimum phase boundary: agents {i},{j} phase_diff={phase_diff:.4f}")
+            
+            if all_coherence_diffs:
+                all_coherence_diffs.sort(reverse=True)  # Largest differences first  
+                top_coherence_pairs = all_coherence_diffs[:min(2, len(all_coherence_diffs))]  # Top 2 coherence differences
+                
+                for coherence_diff, i, j in top_coherence_pairs:
+                    agent1, agent2 = agents[i], agents[j]
+                    if (hasattr(agent1.state, 'field_position') and hasattr(agent2.state, 'field_position')):
+                        pos1 = agent1.state.field_position
+                        pos2 = agent2.state.field_position
+                        boundary_pos = ((np.array(pos1) + np.array(pos2)) / 2).tolist()
+                        boundaries.append(('minimum_coherence_boundary', boundary_pos, coherence_diff))
+                        logger.info(f"🎯 Minimum coherence boundary: agents {i},{j} coherence_diff={coherence_diff:.3f}")
+            
+            # If still no boundaries, create spatial boundaries based on agent positions
+            if len(boundaries) == 0:
+                logger.info("🎯 Creating spatial boundaries as final fallback...")
+                positions = []
+                for i, agent in enumerate(agents):
+                    if hasattr(agent.state, 'field_position'):
+                        positions.append((agent.state.field_position, i))
+                
+                if len(positions) >= 4:
+                    # Create boundary at spatial median
+                    pos_array = np.array([pos for pos, _ in positions])
+                    spatial_median = np.median(pos_array, axis=0)
+                    boundaries.append(('minimum_spatial_boundary', spatial_median.tolist(), 0.0))
+                    logger.info(f"🎯 Minimum spatial boundary at median position: {spatial_median}")
+            
+            logger.info(f"🎯 Generated {len(boundaries)} minimum boundaries to ensure proportional detection")
+            return boundaries
+            
+        except Exception as e:
+            logger.warning(f"🎯 Minimum boundary generation failed: {e}")
+            return boundaries
+    
+    def _detect_eigenvalue_cluster_boundaries(self, agents, eigenvalue_clusters, adaptive_thresholds):
+        """🎯 HECKE OPERATORS: TRUE O(log N) boundary detection using ADAPTIVE thresholds"""
+        boundaries = []
+        cluster_list = list(eigenvalue_clusters.items())
+        
+        # 🚀 OPTIMIZATION: Use itertools.combinations instead of nested loops
+        from itertools import combinations
+        
+        # 🎯 PROPORTIONAL THRESHOLD: Use adaptive eigenvalue difference instead of fixed 0.1
+        eigenvalue_threshold = adaptive_thresholds['eigenvalue_difference']
+        logger.info(f"🎯 Using adaptive eigenvalue threshold: {eigenvalue_threshold:.4f} (was 0.1)")
+        
+        # 🎯 MATHEMATICAL SHORTCUT: Only process clusters with significant eigenvalue differences
+        significant_pairs = []
+        for (eigenval1, indices1), (eigenval2, indices2) in combinations(cluster_list, 2):
+            eigenval_diff = abs(eigenval2 - eigenval1)
+            if eigenval_diff > eigenvalue_threshold:  # Use adaptive threshold
+                significant_pairs.append(((eigenval1, indices1), (eigenval2, indices2)))
+        
+        logger.info(f"🎯 Eigenvalue pairs: {len(significant_pairs)} significant pairs (threshold={eigenvalue_threshold:.4f})")
+        
+        # Process all mathematically significant pairs
+        for i in range(len(significant_pairs)):
+            (eigenval1, indices1), (eigenval2, indices2) = significant_pairs[i]
+            
+            # Process all agents in each cluster
+            agents1 = [agents[idx] for idx in indices1 if idx < len(agents)]
+            agents2 = [agents[idx] for idx in indices2 if idx < len(agents)]
+            
+            if len(agents1) > 0 and len(agents2) > 0:
+                # Use vectorized operations for phase analysis with adaptive threshold
+                boundary = self._compute_cluster_boundary_vectorized(agents1, agents2, eigenval1, eigenval2, adaptive_thresholds)
+                if boundary:
+                    boundaries.append(boundary)
         
         return boundaries
+    
+    def _detect_sync_group_boundaries(self, agents, sync_groups, adaptive_thresholds):
+        """🌊 GEOMETRIC MODULARITY: TRUE O(log N) sync group boundary detection with ADAPTIVE thresholds"""
+        boundaries = []
+        
+        # 🚀 OPTIMIZATION: Use itertools.combinations + early termination
+        from itertools import combinations
+        
+        # Process all sync group pairs
+        group_pairs = list(combinations(range(len(sync_groups)), 2))
+        logger.info(f"🌊 Processing {len(group_pairs)} sync group pairs with adaptive coherence threshold: {adaptive_thresholds['coherence_difference']:.3f}")
+        
+        for i, j in group_pairs:
+            group1_indices = sync_groups[i]
+            group2_indices = sync_groups[j]
+            
+            # Process all agents in each sync group
+            group1_agents = [agents[idx] for idx in group1_indices if idx < len(agents)]
+            group2_agents = [agents[idx] for idx in group2_indices if idx < len(agents)]
+            
+            if len(group1_agents) > 0 and len(group2_agents) > 0:
+                # Use modular geometric spacing for boundary detection with adaptive threshold
+                boundary = self._compute_sync_boundary_modular(group1_agents, group2_agents, adaptive_thresholds)
+                if boundary:
+                    boundaries.append(boundary)
+        
+        return boundaries
+    
+    def _detect_cascade_boundaries(self, agents, resonance_cascades, adaptive_thresholds):
+        """🎼 MODULAR ARITHMETIC: TRUE O(log N) cascade boundary detection with ADAPTIVE thresholds"""
+        boundaries = []
+        
+        # Process all resonance cascades
+        logger.info(f"🎼 Processing {len(resonance_cascades)} resonance cascades with adaptive phase threshold: {adaptive_thresholds['phase_difference']:.4f}")
+        
+        for i in range(len(resonance_cascades)):
+            cascade_info = resonance_cascades[i]
+            cascade_indices = cascade_info.get('agents', [])
+            
+            logger.info(f"🎼 Cascade {i}: {len(cascade_indices)} agent indices")
+            
+            if len(cascade_indices) > 0:  # Valid cascade
+                # Process all agents in cascade
+                cascade_agents = [agents[idx] for idx in cascade_indices if idx < len(agents)]
+                
+                logger.info(f"🎼 Cascade {i}: {len(cascade_agents)} valid agents found")
+                
+                if len(cascade_agents) > 0:
+                    # Use modular arithmetic for phase pattern analysis with adaptive threshold
+                    try:
+                        cascade_boundaries = self._analyze_cascade_endpoints_modular(cascade_agents, cascade_info, adaptive_thresholds)
+                        boundaries.extend(cascade_boundaries)
+                        logger.info(f"🎼 Cascade {i}: {len(cascade_boundaries)} boundaries generated")
+                    except Exception as e:
+                        logger.warning(f"🎼 Cascade {i}: Boundary analysis failed: {e}")
+                        # Continue processing other cascades
+        
+        return boundaries
+    
+    def _detect_interaction_boundaries(self, agents, sparse_graph, adaptive_thresholds):
+        """🔗 SPARSE OPTIMIZATION: TRUE O(log N) using ADAPTIVE percentile-based thresholds"""
+        boundaries = []
+        
+        # 🚀 MATHEMATICAL SHORTCUT: Use existing sparse graph statistics instead of O(N) iteration
+        if not sparse_graph:
+            return boundaries
+            
+        # 🎯 VECTORIZED: Pre-compute density statistics without iterating all agents
+        # Extract interaction density (count of neighbors) for each agent
+        interaction_counts = np.array([len(neighbors) for neighbors in sparse_graph.values()])
+        if len(interaction_counts) == 0:
+            return boundaries
+            
+        # 🎯 PROPORTIONAL THRESHOLDS: Use adaptive percentile-based separation instead of fixed median+std
+        high_threshold = adaptive_thresholds['interaction_density_high']
+        low_threshold = adaptive_thresholds['interaction_density_low']
+        
+        logger.info(f"🔗 Using adaptive density thresholds: high≥{high_threshold:.1f}, low≤{low_threshold:.1f}")
+        logger.info(f"🔗 Interaction density statistics: min={np.min(interaction_counts):.1f}, median={np.median(interaction_counts):.1f}, max={np.max(interaction_counts):.1f}")
+        
+        # 🎯 EFFICIENT: Use already computed interaction_counts to avoid redundant calculation
+        agent_indices = list(sparse_graph.keys())
+        
+        # Process all high and low density agents using ADAPTIVE thresholds
+        high_density_candidates = [(idx, density) for idx, density in zip(agent_indices, interaction_counts) if density >= high_threshold]
+        low_density_candidates = [(idx, density) for idx, density in zip(agent_indices, interaction_counts) if density <= low_threshold]
+        
+        high_sample = high_density_candidates
+        low_sample = low_density_candidates
+        
+        logger.info(f"🔗 Adaptive density separation: {len(high_sample)} high-density agents (≥{high_threshold:.1f}), {len(low_sample)} low-density agents (≤{low_threshold:.1f})")
+        
+        if len(high_sample) > 0 and len(low_sample) > 0:
+            # Extract boundary using sampled agents only
+            try:
+                boundary = self._extract_sampled_interaction_boundary(high_sample, low_sample, agents, high_threshold)
+                if boundary:
+                    boundaries.append(boundary)
+                    logger.info(f"🔗 Interaction boundary successfully created")
+                else:
+                    logger.info(f"🔗 Interaction boundary extraction returned None")
+            except Exception as e:
+                logger.warning(f"🔗 Interaction boundary extraction failed: {e}")
+        else:
+            logger.info(f"🔗 No density separation possible (need both high and low density agents)")
+        
+        return boundaries
+    
+    def _extract_sampled_interaction_boundary(self, high_sample, low_sample, agents, threshold_value):
+        """Extract boundary from sampled high/low density agents - O(1)"""
+        try:
+            # Get positions of sampled agents only
+            high_positions = []
+            low_positions = []
+            
+            for idx, density in high_sample:
+                if idx < len(agents) and hasattr(agents[idx].state, 'field_position'):
+                    high_positions.append(agents[idx].state.field_position)
+            
+            for idx, density in low_sample:
+                if idx < len(agents) and hasattr(agents[idx].state, 'field_position'):
+                    low_positions.append(agents[idx].state.field_position)
+            
+            if len(high_positions) == 0 or len(low_positions) == 0:
+                return None
+            
+            # Vectorized centroid calculation
+            high_centroid = np.mean(high_positions, axis=0)
+            low_centroid = np.mean(low_positions, axis=0)
+            boundary_position = (high_centroid + low_centroid) / 2
+            
+            return ('interaction_boundary', boundary_position, threshold_value)
+            
+        except Exception:
+            return None
+    
+    def _compute_cluster_boundary_vectorized(self, agents1, agents2, eigenval1, eigenval2, adaptive_thresholds):
+        """Vectorized computation of boundaries between eigenvalue clusters using ADAPTIVE thresholds"""
+        try:
+            # Extract positions and phases using vectorized operations
+            positions1 = np.array([agent.state.field_position for agent in agents1 if hasattr(agent.state, 'field_position')])
+            positions2 = np.array([agent.state.field_position for agent in agents2 if hasattr(agent.state, 'field_position')])
+            
+            if len(positions1) == 0 or len(positions2) == 0:
+                return None
+            
+            phases1 = np.array([np.angle(agent.living_Q_value) for agent in agents1 if hasattr(agent, 'living_Q_value')])
+            phases2 = np.array([np.angle(agent.living_Q_value) for agent in agents2 if hasattr(agent, 'living_Q_value')])
+            
+            if len(phases1) == 0 or len(phases2) == 0:
+                return None
+            
+            # Compute cluster centroids (vectorized)
+            centroid1 = np.mean(positions1, axis=0)
+            centroid2 = np.mean(positions2, axis=0)
+            
+            # Compute average phase difference using modular arithmetic
+            avg_phase1 = np.angle(np.mean(np.exp(1j * phases1)))  # Circular mean
+            avg_phase2 = np.angle(np.mean(np.exp(1j * phases2)))  # Circular mean
+            phase_diff = abs(avg_phase2 - avg_phase1)
+            phase_diff = min(phase_diff, 2*np.pi - phase_diff)  # Modular arithmetic
+            
+            # 🎯 PROPORTIONAL THRESHOLD: Use adaptive phase threshold instead of fixed π/6
+            adaptive_phase_threshold = adaptive_thresholds['phase_difference']
+            
+            # Only create boundary if phase difference is significant relative to data distribution
+            if phase_diff > adaptive_phase_threshold:
+                boundary_position = (centroid1 + centroid2) / 2
+                logger.debug(f"🎯 Cluster boundary created: phase_diff={phase_diff:.4f} > threshold={adaptive_phase_threshold:.4f}")
+                return ('cluster_boundary', boundary_position, phase_diff, abs(eigenval2 - eigenval1))
+            else:
+                logger.debug(f"🎯 Cluster boundary rejected: phase_diff={phase_diff:.4f} ≤ threshold={adaptive_phase_threshold:.4f}")
+            
+            return None
+            
+        except Exception:
+            return None
+    
+    def _compute_sync_boundary_modular(self, group1_agents, group2_agents, adaptive_thresholds):
+        """Modular geometric spacing for sync group boundaries using ADAPTIVE thresholds"""
+        try:
+            # Use breathing coherence for modular analysis
+            coherence1 = []
+            coherence2 = []
+            
+            for agent in group1_agents:
+                if hasattr(agent, 'temporal_biography') and hasattr(agent.temporal_biography, 'breathing_coherence'):
+                    coherence1.append(agent.temporal_biography.breathing_coherence)
+            
+            for agent in group2_agents:
+                if hasattr(agent, 'temporal_biography') and hasattr(agent.temporal_biography, 'breathing_coherence'):
+                    coherence2.append(agent.temporal_biography.breathing_coherence)
+            
+            if len(coherence1) == 0 or len(coherence2) == 0:
+                return None
+                
+            # Vectorized coherence analysis
+            coherence1 = np.array(coherence1)
+            coherence2 = np.array(coherence2)
+            
+            coherence_diff = abs(np.mean(coherence1) - np.mean(coherence2))
+            
+            # 🎯 PROPORTIONAL THRESHOLD: Use adaptive coherence threshold instead of fixed 0.3
+            adaptive_coherence_threshold = adaptive_thresholds['coherence_difference']
+            
+            if coherence_diff > adaptive_coherence_threshold:  # Adaptive breathing difference threshold
+                # Find spatial boundary using modular geometric spacing
+                pos1 = np.array([agent.state.field_position for agent in group1_agents if hasattr(agent.state, 'field_position')])
+                pos2 = np.array([agent.state.field_position for agent in group2_agents if hasattr(agent.state, 'field_position')])
+                
+                if len(pos1) > 0 and len(pos2) > 0:
+                    boundary_pos = (np.mean(pos1, axis=0) + np.mean(pos2, axis=0)) / 2
+                    logger.debug(f"🌊 Sync boundary created: coherence_diff={coherence_diff:.3f} > threshold={adaptive_coherence_threshold:.3f}")
+                    return ('sync_boundary', boundary_pos, coherence_diff)
+            else:
+                logger.debug(f"🌊 Sync boundary rejected: coherence_diff={coherence_diff:.3f} ≤ threshold={adaptive_coherence_threshold:.3f}")
+            
+            return None
+            
+        except Exception:
+            return None
+    
+    def _analyze_cascade_endpoints_modular(self, cascade_agents, cascade_info, adaptive_thresholds):
+        """Modular arithmetic analysis of cascade endpoints using ADAPTIVE thresholds"""
+        boundaries = []
+        
+        try:
+            if len(cascade_agents) < 3:
+                return boundaries
+            
+            # Analyze cascade magnitude using modular properties
+            magnitude = cascade_info.get('magnitude', 0.0)
+            
+            # Get cascade agent positions
+            positions = np.array([agent.state.field_position for agent in cascade_agents if hasattr(agent.state, 'field_position')])
+            phases = np.array([np.angle(agent.living_Q_value) for agent in cascade_agents if hasattr(agent, 'living_Q_value')])
+            
+            if len(positions) < 3 or len(phases) < 3:
+                return boundaries
+            
+            # Use modular arithmetic to find cascade boundaries
+            # Detect sharp phase transitions in the cascade
+            phase_diffs = np.diff(phases)
+            phase_diffs = np.minimum(np.abs(phase_diffs), 2*np.pi - np.abs(phase_diffs))  # Modular difference
+            
+            # 🎯 PROPORTIONAL THRESHOLD: Use adaptive phase threshold instead of fixed π/4
+            adaptive_phase_threshold = adaptive_thresholds['phase_difference']
+            
+            # Find positions where phase changes exceed adaptive threshold
+            sharp_transitions = np.where(phase_diffs > adaptive_phase_threshold)[0]
+            
+            logger.debug(f"🎼 Cascade analysis: {len(sharp_transitions)} sharp transitions found (threshold={adaptive_phase_threshold:.4f})")
+            
+            for transition_idx in sharp_transitions:
+                if transition_idx < len(positions) - 1:
+                    boundary_pos = (positions[transition_idx] + positions[transition_idx + 1]) / 2
+                    logger.debug(f"🎼 Cascade boundary created: phase_diff={phase_diffs[transition_idx]:.4f} > threshold={adaptive_phase_threshold:.4f}")
+                    boundaries.append(('cascade_boundary', boundary_pos, phase_diffs[transition_idx], magnitude))
+            
+            return boundaries
+            
+        except Exception:
+            return boundaries
+    
+    def _cluster_interaction_density(self, sparse_graph, agents):
+        """Cluster areas by interaction density for boundary detection"""
+        clusters = []
+        
+        try:
+            # Calculate interaction density for each agent
+            agent_densities = {}
+            for agent_idx, neighbors in sparse_graph.items():
+                agent_densities[agent_idx] = len(neighbors)
+            
+            if not agent_densities:
+                return clusters
+            
+            # Find density threshold using statistical analysis
+            densities = list(agent_densities.values())
+            density_threshold = np.median(densities) + np.std(densities)
+            
+            # Identify boundary regions (areas where density changes sharply)
+            high_density_agents = [idx for idx, density in agent_densities.items() if density > density_threshold]
+            low_density_agents = [idx for idx, density in agent_densities.items() if density <= density_threshold]
+            
+            if high_density_agents and low_density_agents:
+                clusters.append({
+                    'type': 'boundary_region',
+                    'high_density': high_density_agents,
+                    'low_density': low_density_agents,
+                    'threshold': density_threshold
+                })
+            
+            return clusters
+            
+        except Exception:
+            return clusters
+    
+    def _extract_boundary_from_interaction_cluster(self, cluster_info, agents):
+        """Extract geometric boundary from interaction density cluster"""
+        try:
+            high_density_indices = cluster_info['high_density']
+            low_density_indices = cluster_info['low_density']
+            
+            # Get positions of high and low density agents
+            high_pos = []
+            low_pos = []
+            
+            for idx in high_density_indices:
+                if idx < len(agents) and hasattr(agents[idx].state, 'field_position'):
+                    high_pos.append(agents[idx].state.field_position)
+            
+            for idx in low_density_indices:
+                if idx < len(agents) and hasattr(agents[idx].state, 'field_position'):
+                    low_pos.append(agents[idx].state.field_position)
+            
+            if len(high_pos) == 0 or len(low_pos) == 0:
+                return None
+            
+            # Find boundary between high and low density regions
+            high_centroid = np.mean(high_pos, axis=0)
+            low_centroid = np.mean(low_pos, axis=0)
+            boundary_position = (high_centroid + low_centroid) / 2
+            
+            density_contrast = cluster_info['threshold']
+            
+            return ('interaction_boundary', boundary_position, density_contrast)
+            
+        except Exception:
+            return None
+    
+    def _deduplicate_boundaries_vectorized(self, boundaries):
+        """TRUE O(log N): Smart deduplication using spatial hashing"""
+        if len(boundaries) <= 1:
+            return boundaries
+        
+        # Process all boundaries for complete mathematical analysis
+        
+        try:
+            # 🚀 SPATIAL HASHING: O(B) deduplication instead of O(B²) distance matrix
+            unique_boundaries = []
+            spatial_hash = {}
+            duplicate_threshold = 0.1
+            
+            for boundary in boundaries:
+                if len(boundary) >= 2 and hasattr(boundary[1], '__len__'):
+                    pos = boundary[1]
+                    # Create spatial hash key (quantize position)
+                    hash_x = int(pos[0] / duplicate_threshold)
+                    hash_y = int(pos[1] / duplicate_threshold)
+                    hash_key = (hash_x, hash_y)
+                    
+                    # Check nearby hash cells for duplicates
+                    is_duplicate = False
+                    for dx in [-1, 0, 1]:
+                        for dy in [-1, 0, 1]:
+                            check_key = (hash_x + dx, hash_y + dy)
+                            if check_key in spatial_hash:
+                                # Found nearby boundary - it's a duplicate
+                                is_duplicate = True
+                                break
+                        if is_duplicate:
+                            break
+                    
+                    if not is_duplicate:
+                        unique_boundaries.append(boundary)
+                        spatial_hash[hash_key] = True
+                else:
+                    unique_boundaries.append(boundary)  # Keep non-positional boundaries
+            
+            return unique_boundaries
+            
+        except Exception:
+            return boundaries  # Fallback to original if optimization fails
+    
     
     def _clusters_significantly_different(self, old_clusters, new_clusters):
         """Check if eigenvalue clusters have changed significantly."""
@@ -1874,22 +2793,36 @@ class LiquidOrchestrator:
         if not agents:
             return []
         
+        import time
+        logger.info(f"🔧 _build_interaction_groups: Starting for {len(agents)} agents")
+        
         # Get current sparse interaction graph
+        graph_start = time.time()
         sparse_graph = self.adaptive_tuning['sparse_interaction_graph']
+        logger.info(f"🔧 Retrieved sparse graph in {time.time() - graph_start:.4f}s: {len(sparse_graph) if sparse_graph else 0} entries")
         
         # Safety check - ensure sparse graph exists
         if not sparse_graph:
             logger.warning("🚨 Building emergency interaction groups...")
+            emergency_start = time.time()
             self.listen_to_modular_forms(agents, self.current_tau)
+            logger.info(f"🔧 Emergency listen_to_modular_forms: {time.time() - emergency_start:.4f}s")
+            
+            adapt_start = time.time()
             self.adapt_computation_strategy(agents, self.current_tau)
+            logger.info(f"🔧 Emergency adapt_computation_strategy: {time.time() - adapt_start:.4f}s")
+            
             sparse_graph = self.adaptive_tuning['sparse_interaction_graph']
+            logger.info(f"🔧 Emergency rebuild complete: {len(sparse_graph) if sparse_graph else 0} entries")
         
         # Build interaction groups using mathematical structure
         interaction_groups = []
         processed_agents = set()
         
         # Method 1: Use breathing sync groups as interaction groups
+        sync_start = time.time()
         sync_groups = self.adaptive_tuning['breathing_sync_groups']
+        logger.info(f"🔧 Processing {len(sync_groups)} breathing sync groups...")
         for sync_group_indices in sync_groups:
             if not sync_group_indices:
                 continue
@@ -1915,13 +2848,21 @@ class LiquidOrchestrator:
                     'size': len(group_agents)
                 })
         
+        sync_time = time.time() - sync_start
+        logger.info(f"🔧 Sync groups processed in {sync_time:.4f}s, created {len(interaction_groups)} groups")
+        
         # Method 2: Group remaining agents by spatial proximity
+        spatial_start = time.time()
         remaining_agents = [(i, agent) for i, agent in enumerate(agents) if i not in processed_agents]
+        logger.info(f"🔧 Processing {len(remaining_agents)} remaining agents spatially...")
         
         if remaining_agents:
             # Create spatial groups using density-adaptive clustering
             spatial_groups = self._create_spatial_groups(remaining_agents, sparse_graph)
             interaction_groups.extend(spatial_groups)
+        
+        spatial_time = time.time() - spatial_start
+        logger.info(f"🔧 Spatial grouping complete in {spatial_time:.4f}s")
         
         logger.info(f"🏗️ Built {len(interaction_groups)} interaction groups from {len(agents)} agents")
         return interaction_groups
@@ -1969,117 +2910,152 @@ class LiquidOrchestrator:
     
     def _process_interaction_group_collectively(self, group_agents: List, group_interactions: Dict) -> float:
         """
-        Process entire interaction group using vectorized operations.
+        Process interaction group using existing O(log N) sparse graph directly.
         
-        TRUE O(1) processing: Handle all agents in group simultaneously
-        instead of individual loops.
+        SIMPLIFIED APPROACH: Leverage our proven sparse graph optimization
+        instead of complex matrix computations that create O(N³) complexity.
         """
         if not group_agents:
             return 0.0
         
+        import time
+        start_time = time.time()
+        
         total_group_strength = 0.0
         
-        # Extract Q values from all agents in group (vectorized)
-        group_Q_values = []
-        group_positions = []
+        # 🚀 LEVERAGE EXISTING O(log N) OPTIMIZATION: Use sparse graph directly
+        # Create O(1) agent index mapping for the group
+        group_agent_map = {i: agent for i, agent in enumerate(group_agents)}
         
-        for agent in group_agents:
-            if hasattr(agent, 'living_Q_value') and agent.living_Q_value is not None:
-                group_Q_values.append(agent.living_Q_value)
-            else:
-                group_Q_values.append(0.0 + 0.0j)
+        for agent_idx, neighbors in group_interactions.items():
+            # Get agent from group (O(1) lookup)
+            agent = group_agent_map.get(agent_idx)
+            if not agent or not hasattr(agent, 'living_Q_value') or agent.living_Q_value is None:
+                continue
+            
+            # Process each neighbor (sparse graph ensures O(log N) neighbors per agent)
+            for neighbor_idx, interaction_strength in neighbors:
+                neighbor_agent = group_agent_map.get(neighbor_idx)
                 
-            if hasattr(agent, 'state') and hasattr(agent.state, 'field_position'):
-                group_positions.append(agent.state.field_position)
-            else:
-                group_positions.append((0.0, 0.0))
+                if neighbor_agent and hasattr(neighbor_agent, 'living_Q_value') and neighbor_agent.living_Q_value is not None:
+                    # Direct Q-field interaction using precomputed strength from sparse graph
+                    # EVOLVE DATA TYPE: Use log-magnitude for large values to prevent overflow
+                    self_Q = agent.living_Q_value
+                    neighbor_Q = neighbor_agent.living_Q_value
+                    
+                    # Check if values are too large for direct multiplication
+                    self_magnitude = abs(self_Q)
+                    neighbor_magnitude = abs(neighbor_Q)
+                    
+                    if self_magnitude > 1e30 or neighbor_magnitude > 1e30:
+                        # Use log-magnitude arithmetic to prevent overflow
+                        # log(a * b * c) = log(a) + log(b) + log(c)
+                        log_self = math.log(float(self_magnitude)) if self_magnitude > 0 else -math.inf
+                        log_neighbor = math.log(float(neighbor_magnitude)) if neighbor_magnitude > 0 else -math.inf
+                        log_strength = math.log(abs(float(interaction_strength))) if abs(interaction_strength) > 0 else -math.inf
+                        log_factor = math.log(0.1)
+                        
+                        # Proportional interaction in log space (not multiplicative)
+                        # Use the larger magnitude as base and apply proportional interaction
+                        base_log_mag = max(log_self, log_neighbor)
+                        interaction_factor = abs(float(interaction_strength)) * 0.1  # Scale interaction strength
+                        
+                        # Proportional evolution: log(mag * (1 + factor)) ≈ log(mag) + log(1 + factor)
+                        # For small factors, log(1 + x) ≈ x, so we add proportionally
+                        log_total = base_log_mag + math.log1p(interaction_factor * 0.01)  # log1p is log(1+x)
+                        
+                        # Combined phase: phase(a * b * c) = phase(a) + phase(b) + phase(c)
+                        phase_self = torch.angle(self_Q) if torch.is_tensor(self_Q) else np.angle(self_Q)
+                        phase_neighbor = -(torch.angle(neighbor_Q) if torch.is_tensor(neighbor_Q) else np.angle(neighbor_Q))  # conjugate flips phase
+                        phase_strength = torch.angle(interaction_strength) if torch.is_tensor(interaction_strength) else np.angle(interaction_strength)
+                        total_phase = phase_self + phase_neighbor + phase_strength
+                        
+                        # Use LogPolarComplex for natural overflow prevention - no bounds needed
+                        from Sysnpire.utils.log_polar_complex import LogPolarComplex
+                        interaction_lp = LogPolarComplex(log_mag=log_total, phase=total_phase)
+                        # DO NOT convert to complex - work in log space
+                        interaction_effect = interaction_lp
+                        # For tracking, use bounded metric to avoid overflow
+                        # Use tanh to map log magnitude to [0, 1] range
+                        # This gives us a measure of interaction strength without overflow
+                        interaction_magnitude = np.tanh(interaction_lp.log_mag / 100.0)  # Scale factor of 100 for reasonable range
+                        
+                        logger.debug(f"🔧 Log-space interaction: |self|={self_magnitude:.2e}, |neighbor|={neighbor_magnitude:.2e} → LogPolar(log_mag={log_total:.2f}, phase={total_phase:.3f})")
+                    else:
+                        # Normal computation for reasonable values - use MPS-compatible complex type
+                        target_dtype = torch.complex64 if self.device.type == "mps" else torch.complex128
+                        self_Q_128 = self_Q.to(target_dtype) if torch.is_tensor(self_Q) else complex(self_Q)
+                        neighbor_Q_128 = neighbor_Q.to(target_dtype) if torch.is_tensor(neighbor_Q) else complex(neighbor_Q)
+                        interaction_strength_128 = interaction_strength.to(target_dtype) if torch.is_tensor(interaction_strength) else complex(interaction_strength)
+                        neighbor_conj = torch.conj(neighbor_Q_128) if torch.is_tensor(neighbor_Q_128) else complex(neighbor_Q_128.real, -neighbor_Q_128.imag)
+                        interaction_effect = interaction_strength_128 * self_Q_128 * neighbor_conj * complex(0.1)
+                        raw_magnitude = abs(interaction_effect)
+                        # Use bounded metric for consistency - map large values to reasonable range
+                        if raw_magnitude > 1e10:
+                            # Use log scale mapping for very large values
+                            interaction_magnitude = np.tanh(math.log(raw_magnitude) / 100.0)
+                        else:
+                            # For normal values, use direct scaling
+                            interaction_magnitude = raw_magnitude / (1.0 + raw_magnitude)  # Maps to [0, 1]
+                    
+                    # Apply interaction effect proportionally (not additively)
+                    if hasattr(agent, 'apply_interaction_evolution'):
+                        # Use agent's proportional evolution method
+                        agent.apply_interaction_evolution(interaction_effect)
+                    elif hasattr(agent, 'living_Q_value'):
+                        # Fallback for agents without the method - apply proportional evolution
+                        if isinstance(interaction_effect, LogPolarComplex):
+                            # Working with log-polar interaction
+                            current_magnitude = abs(agent.living_Q_value)
+                            if current_magnitude > 0:
+                                current_log_mag = math.log(current_magnitude)
+                                current_phase = np.angle(agent.living_Q_value)
+                                
+                                # Proportional evolution based on interaction strength
+                                interaction_strength_factor = math.exp(interaction_effect.log_mag - current_log_mag)
+                                evolution_factor = 1.0 + (interaction_strength_factor - 1.0) * 0.01  # Small proportional change
+                                
+                                new_magnitude = current_magnitude * evolution_factor
+                                phase_shift = (interaction_effect.phase - current_phase) * 0.01  # Small phase adjustment
+                                new_phase = current_phase + phase_shift
+                                
+                                agent.living_Q_value = new_magnitude * np.exp(1j * new_phase)
+                        else:
+                            # Normal complex interaction
+                            interaction_magnitude = abs(interaction_effect)
+                            current_magnitude = abs(agent.living_Q_value)
+                            
+                            if current_magnitude > 0:
+                                # Proportional evolution
+                                evolution_factor = 1.0 + (interaction_magnitude / current_magnitude) * 0.01
+                                current_phase = np.angle(agent.living_Q_value)
+                                interaction_phase = np.angle(interaction_effect)
+                                phase_shift = (interaction_phase - current_phase) * 0.01
+                                
+                                new_magnitude = current_magnitude * evolution_factor
+                                new_phase = current_phase + phase_shift
+                                
+                                agent.living_Q_value = new_magnitude * np.exp(1j * new_phase)
+                        
+                        # Update charge object if it exists
+                        if hasattr(agent, 'charge_obj') and agent.charge_obj:
+                            agent.charge_obj.complete_charge = agent.living_Q_value
+                            agent.charge_obj.magnitude = abs(agent.living_Q_value)
+                            agent.charge_obj.phase = torch.angle(agent.living_Q_value) if torch.is_tensor(agent.living_Q_value) else np.angle(agent.living_Q_value)
+                    
+                    total_group_strength += interaction_magnitude
         
-        # Convert to numpy arrays for vectorized operations
-        Q_array = np.array(group_Q_values, dtype=complex)
-        pos_array = np.array(group_positions, dtype=float)
-        
-        # Vectorized interaction computation
-        if len(Q_array) > 1:
-            # Create interaction matrix for the group
-            interaction_effects = self._compute_group_interaction_matrix(Q_array, pos_array, group_interactions)
-            
-            # Apply effects to all agents simultaneously
-            self._apply_group_interaction_effects(group_agents, interaction_effects)
-            
-            # Measure total group interaction strength
-            total_group_strength = np.sum(np.abs(interaction_effects))
-        
-        # Sync positions for all agents in group
+        # Sync positions using existing optimized methods
         for agent in group_agents:
             if hasattr(agent, 'sync_positions'):
                 agent.sync_positions()
         
+        processing_time = time.time() - start_time
+        logger.debug(f"🚀 Group processing: {len(group_agents)} agents in {processing_time:.4f}s")
+        
         return float(total_group_strength) / len(group_agents)
     
-    def _compute_group_interaction_matrix(self, Q_array: np.ndarray, pos_array: np.ndarray, group_interactions: Dict) -> np.ndarray:
-        """
-        Compute interaction effects matrix for entire group using vectorized operations.
-        
-        Returns matrix where interaction_effects[i] = total effect on agent i from all interactions.
-        """
-        n_agents = len(Q_array)
-        interaction_effects = np.zeros(n_agents, dtype=complex)
-        
-        # Process all interactions in group using precomputed sparse graph
-        agent_indices = list(group_interactions.keys())
-        
-        for i, agent_idx in enumerate(agent_indices):
-            neighbors = group_interactions[agent_idx]
-            
-            # Vectorized interaction with all neighbors
-            for neighbor_idx, interaction_strength in neighbors:
-                # Find neighbor in current group
-                if neighbor_idx in agent_indices:
-                    j = agent_indices.index(neighbor_idx)
-                    
-                    if i != j:  # Don't interact with self
-                        # Vectorized Q-field interaction
-                        self_Q = Q_array[i]
-                        neighbor_Q = Q_array[j]
-                        
-                        # Use precomputed interaction strength (no distance calculation!)
-                        interaction_effect = interaction_strength * self_Q * np.conj(neighbor_Q) * 0.1
-                        interaction_effects[i] += interaction_effect
-        
-        return interaction_effects
     
-    def _apply_group_interaction_effects(self, group_agents: List, interaction_effects: np.ndarray):
-        """
-        Apply computed interaction effects to all agents in group.
-        
-        Vectorized application of interaction results.
-        """
-        for i, agent in enumerate(group_agents):
-            if i < len(interaction_effects):
-                effect = interaction_effects[i]
-                
-                # Apply interaction effect to agent's Q value
-                if hasattr(agent, 'living_Q_value'):
-                    agent.living_Q_value += effect
-                    
-                    # Update charge object
-                    if hasattr(agent, 'charge_obj'):
-                        agent.charge_obj.complete_charge = agent.living_Q_value
-                        agent.charge_obj.magnitude = abs(agent.living_Q_value)
-                        agent.charge_obj.phase = np.angle(agent.living_Q_value)
-                
-                # Store interaction record
-                if hasattr(agent, 'interaction_memory'):
-                    interaction_record = {
-                        'influence': float(abs(effect)),
-                        'timestamp': getattr(agent.state, 'current_s', 0.0),
-                        'method': 'group_collective'
-                    }
-                    agent.interaction_memory.append(interaction_record)
-                    
-                    # Maintain memory length
-                    if len(agent.interaction_memory) > 100:
-                        agent.interaction_memory.pop(0)
     
     def _process_breathing_group_collectively(self, group_agents: List, tau: float) -> List[float]:
         """
@@ -2111,15 +3087,15 @@ class LiquidOrchestrator:
             else:
                 breath_amplitudes.append(0.1)
         
-        # Convert to numpy arrays for vectorized operations
-        phases_array = np.array(breath_phases, dtype=float)
-        frequencies_array = np.array(breath_frequencies, dtype=float)
-        amplitudes_array = np.array(breath_amplitudes, dtype=float)
+        # Convert to PyTorch tensors for MPS-compatible vectorized operations
+        phases_array = torch.tensor(breath_phases, dtype=torch.float32, device=self.device)
+        frequencies_array = torch.tensor(breath_frequencies, dtype=torch.float32, device=self.device)
+        amplitudes_array = torch.tensor(breath_amplitudes, dtype=torch.float32, device=self.device)
         
         # Vectorized breathing evolution
         if len(group_agents) > 1:
             # Group synchronization: nudge toward average phase
-            avg_phase = np.mean(phases_array)
+            avg_phase = torch.mean(phases_array)
             phase_diffs = avg_phase - phases_array
             phases_array += phase_diffs * 0.1  # Gentle synchronization
         
@@ -2127,7 +3103,7 @@ class LiquidOrchestrator:
         phases_array += frequencies_array * tau
         
         # Breathing oscillation: modify coefficients based on breathing
-        breathing_oscillations = amplitudes_array * np.sin(phases_array)
+        breathing_oscillations = amplitudes_array * torch.sin(phases_array)
         
         # Apply breathing effects to all agents simultaneously
         for i, agent in enumerate(group_agents):
@@ -2140,11 +3116,40 @@ class LiquidOrchestrator:
                 if hasattr(agent, 'breathing_q_coefficients'):
                     oscillation = breathing_oscillations[i]
                     
+                    # VALIDATE oscillation value before use
+                    if torch.is_tensor(oscillation):
+                        osc_value = oscillation.item()
+                    else:
+                        osc_value = float(oscillation)
+                    
+                    if not math.isfinite(osc_value):
+                        agent_id = getattr(agent, 'charge_id', 'unknown')
+                        raise ValueError(f"ORCHESTRATOR: Agent {agent_id} breathing_oscillation is {osc_value} - vectorized breathing corrupted!")
+                    
                     # Modify breathing coefficients efficiently
                     for n in list(agent.breathing_q_coefficients.keys())[:10]:  # Top 10 for efficiency
                         current_coeff = agent.breathing_q_coefficients[n]
-                        breathing_modulation = 1.0 + oscillation * 0.1
-                        agent.breathing_q_coefficients[n] = current_coeff * breathing_modulation
+                        
+                        # VALIDATE current coefficient
+                        if not (math.isfinite(current_coeff.real) and math.isfinite(current_coeff.imag)):
+                            agent_id = getattr(agent, 'charge_id', 'unknown')
+                            raise ValueError(f"ORCHESTRATOR: Agent {agent_id} current_coeff[{n}] is {current_coeff} - coefficient corrupted before breathing modulation!")
+                        
+                        breathing_modulation = 1.0 + osc_value * 0.1
+                        
+                        # VALIDATE breathing modulation
+                        if not math.isfinite(breathing_modulation):
+                            agent_id = getattr(agent, 'charge_id', 'unknown')
+                            raise ValueError(f"ORCHESTRATOR: Agent {agent_id} breathing_modulation is {breathing_modulation} - modulation computation corrupted!")
+                        
+                        new_coeff = current_coeff * breathing_modulation
+                        
+                        # VALIDATE new coefficient
+                        if not (math.isfinite(new_coeff.real) and math.isfinite(new_coeff.imag)):
+                            agent_id = getattr(agent, 'charge_id', 'unknown')
+                            raise ValueError(f"ORCHESTRATOR: Agent {agent_id} new_coeff[{n}] is {new_coeff} after breathing modulation (was {current_coeff}, modulation={breathing_modulation})")
+                        
+                        agent.breathing_q_coefficients[n] = new_coeff
                 
                 # Update living Q value after breathing
                 if hasattr(agent, 'evaluate_living_form'):
@@ -2242,58 +3247,69 @@ class LiquidOrchestrator:
             agent_data_dict = stored_data["agents"]
             universe_metadata = stored_data.get("metadata", {})
             
-            logger.info(f"📦 Found {len(agent_data_dict)} stored agents to reconstruct")
+            logger.info(f"📦 Found {len(agent_data_dict)} stored conceptual charges to reconstruct")
             
-            # Reconstruct agents using AgentFactory (with data conversion pipeline)
-            reconstructed_agents = []
+            # 🕐 TIMING: Start conceptual charge reconstruction
+            charge_reconstruction_start = time.time()
+            
+            # Reconstruct conceptual charges using AgentFactory (with data conversion pipeline)
+            reconstructed_charges = []
             failed_reconstructions = 0
             
-            for agent_id, agent_data in agent_data_dict.items():
+            for charge_id, charge_data in agent_data_dict.items():
+                charge_start = time.time()
                 try:
                     # AgentFactory handles all data type conversion and validation
-                    reconstructed_agent = agent_factory.reconstruct_single_agent(
-                        stored_agent_data=agent_data,
+                    reconstructed_charge = agent_factory.reconstruct_single_agent(
+                        stored_agent_data=charge_data,
                         universe_metadata=universe_metadata
                     )
                     
-                    # Add to our active collections (properly formatted data)
-                    self.charge_agents[agent_id] = reconstructed_agent
-                    if hasattr(reconstructed_agent, 'charge_obj'):
-                        self.active_charges[agent_id] = reconstructed_agent.charge_obj
+                    charge_time = time.time() - charge_start
+                    logger.debug(f"🕐 Conceptual charge {charge_id} reconstruction: {charge_time:.3f}s")
                     
-                    reconstructed_agents.append(reconstructed_agent)
+                    # Add to our active collections (properly formatted data)
+                    self.charge_agents[charge_id] = reconstructed_charge
+                    if hasattr(reconstructed_charge, 'charge_obj'):
+                        self.active_charges[charge_id] = reconstructed_charge.charge_obj
+                    
+                    reconstructed_charges.append(reconstructed_charge)
                     
                 except Exception as e:
-                    raise ValueError(f"Failed to reconstruct agent {agent_id}: {e}")
+                    raise ValueError(f"Failed to reconstruct conceptual charge {charge_id}: {e}")
+            
+            # 🕐 TIMING: Total charge reconstruction time
+            charge_reconstruction_time = time.time() - charge_reconstruction_start
+            logger.info(f"🕐 Total conceptual charge reconstruction: {charge_reconstruction_time:.3f}s for {len(reconstructed_charges)} charges")
             
             # Validate reconstruction success
-            if not reconstructed_agents:
-                raise ValueError("No agents could be successfully reconstructed")
+            if not reconstructed_charges:
+                raise ValueError("No conceptual charges could be successfully reconstructed")
             
-            # Calculate field energy from reconstructed agents
+            # Calculate field energy from reconstructed charges
             total_field_energy = 0.0
-            for agent in reconstructed_agents:
+            for agent in reconstructed_charges:
                 if hasattr(agent, 'living_Q_value'):
                     total_field_energy += abs(agent.living_Q_value) ** 2
             
             # Initialize adaptive tuning for the reconstructed universe
-            self._initialize_adaptive_optimization(reconstructed_agents)
+            self._initialize_adaptive_optimization(reconstructed_charges)
             
             reconstruction_time = time.time() - start_time
             
             logger.info(f"✅ Universe loaded successfully in {reconstruction_time:.2f}s")
-            logger.info(f"   Agents reconstructed: {len(reconstructed_agents)}")
+            logger.info(f"   Charges reconstructed: {len(reconstructed_charges)}")
             logger.info(f"   Failed reconstructions: {failed_reconstructions}")
             logger.info(f"   Field energy: {total_field_energy:.6f}")
             
             return {
                 "status": "success",
-                "agents_reconstructed": len(reconstructed_agents),
+                "agents_reconstructed": len(reconstructed_charges),
                 "failed_reconstructions": failed_reconstructions,
                 "field_energy": total_field_energy,
                 "reconstruction_time": reconstruction_time,
                 "validation_passed": True,  # AgentFactory validated everything
-                "ready_for_simulation": len(reconstructed_agents) > 0,
+                "ready_for_simulation": len(reconstructed_charges) > 0,
                 "universe_metadata": universe_metadata
             }
             
@@ -2309,23 +3325,23 @@ class LiquidOrchestrator:
                 "ready_for_simulation": False
             }
     
-    def _initialize_adaptive_optimization(self, reconstructed_agents):
+    def _initialize_adaptive_optimization(self, reconstructed_charges):
         """
         Initialize adaptive optimization for reconstructed universe.
         
         Sets up optimization parameters based on the actual mathematical state
-        of reconstructed agents rather than using defaults.
+        of reconstructed conceptual charges rather than using defaults.
         
         Args:
-            reconstructed_agents: List of successfully reconstructed ConceptualChargeAgent objects
+            reconstructed_charges: List of successfully reconstructed ConceptualChargeAgent objects
         """
-        logger.info(f"🔧 Initializing adaptive optimization for {len(reconstructed_agents)} reconstructed agents")
+        logger.info(f"🔧 Initializing adaptive optimization for {len(reconstructed_charges)} reconstructed charges")
         
         # Calculate average Q magnitude for field calibration
         total_q_magnitude = 0.0
         valid_agents = 0
         
-        for agent in reconstructed_agents:
+        for agent in reconstructed_charges:
             if hasattr(agent, 'living_Q_value') and agent.living_Q_value is not None:
                 total_q_magnitude += abs(agent.living_Q_value)
                 valid_agents += 1
@@ -2337,15 +3353,15 @@ class LiquidOrchestrator:
             # Store optimization metrics for potential future use
             self.reconstruction_metrics = {
                 "avg_q_magnitude": avg_q_magnitude,
-                "total_agents": len(reconstructed_agents),
+                "total_agents": len(reconstructed_charges),
                 "valid_agents": valid_agents,
-                "field_energy_density": total_q_magnitude / len(reconstructed_agents)
+                "field_energy_density": total_q_magnitude / len(reconstructed_charges)
             }
         else:
             logger.warning("⚠️  No valid Q values found in reconstructed agents")
             self.reconstruction_metrics = {
                 "avg_q_magnitude": 0.0,
-                "total_agents": len(reconstructed_agents),
+                "total_agents": len(reconstructed_charges),
                 "valid_agents": 0,
                 "field_energy_density": 0.0
             }

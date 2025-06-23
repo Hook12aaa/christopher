@@ -224,6 +224,13 @@ class AgentFactory:
                 if not np.isfinite(abs(temp_momentum)):
                     logger.error(f"💥 Agent {charge_id} - temporal_momentum NaN/INF: {temp_momentum}")
             
+            # CRITICAL: Restore mathematical state from storage (including temporal_momentum)
+            logger.info(f"🔍 DEBUG: Calling restore_mathematical_state for agent {charge_id}")
+            self.restore_mathematical_state(agent, converted_data)
+            
+            # CRITICAL VALIDATION: Ensure temporal_momentum was properly restored
+            self._validate_critical_restoration(agent, charge_id)
+            
             # Validate reconstruction if enabled
             if self.validate_reconstruction:
                 self._validate_reconstructed_agent(agent, stored_agent_data)
@@ -517,8 +524,17 @@ class AgentFactory:
         """
         logger.info("🔧 Restoring mathematical state from storage")
         
-        q_components = stored_data.get("Q_components")
-        agent_state = stored_data.get("agent_state")
+        # CRITICAL: NO DEFAULTS - detect missing components immediately
+        if "Q_components" not in stored_data:
+            raise AgentReconstructionError(f"Agent {agent.charge_id} - Missing Q_components in stored_data - storage incomplete!")
+        if "agent_state" not in stored_data:
+            raise AgentReconstructionError(f"Agent {agent.charge_id} - Missing agent_state in stored_data - storage incomplete!")
+        if "temporal_components" not in stored_data:
+            raise AgentReconstructionError(f"Agent {agent.charge_id} - Missing temporal_components in stored_data - storage incomplete!")
+        
+        q_components = stored_data["Q_components"]
+        agent_state = stored_data["agent_state"]
+        temporal_components = stored_data["temporal_components"]
         
         # Restore Q mathematical components
         if "gamma" in q_components:
@@ -538,8 +554,7 @@ class AgentFactory:
         complex_fields = [
             ("T_tensor", "T_tensor"),
             ("E_trajectory", "E_trajectory"), 
-            ("phi_semantic", "phi_semantic"),
-            ("temporal_momentum", "temporal_momentum")
+            ("phi_semantic", "phi_semantic")
         ]
         
         for stored_name, agent_attr in complex_fields:
@@ -550,7 +565,60 @@ class AgentFactory:
                 complex_val = complex(q_components[real_key], q_components[imag_key])
                 setattr(agent, agent_attr, complex_val)
         
+        # CRITICAL FIX: Restore temporal_momentum from temporal_components (NOT q_components)
+        if "temporal_momentum" in temporal_components:
+            temporal_momentum_val = temporal_components["temporal_momentum"]
+            # Set to correct location: agent.temporal_biography.temporal_momentum
+            if hasattr(agent, 'temporal_biography'):
+                agent.temporal_biography.temporal_momentum = temporal_momentum_val
+                logger.info(f"✅ Agent {agent.charge_id} - Restored temporal_momentum: {temporal_momentum_val}")
+            else:
+                logger.error(f"❌ CRITICAL: Agent {agent.charge_id} - No temporal_biography to restore temporal_momentum to!")
+                raise AgentReconstructionError(f"Agent {agent.charge_id} missing temporal_biography - cannot restore temporal_momentum")
+        else:
+            logger.error(f"❌ CRITICAL: Agent {agent.charge_id} - No temporal_momentum found in temporal_components!")
+            logger.error(f"   Available temporal_components keys: {list(temporal_components.keys()) if temporal_components else 'None'}")
+            raise AgentReconstructionError(f"Agent {agent.charge_id} missing temporal_momentum - storage restoration failed!")
+        
         logger.info("✅ Mathematical state restoration complete")
+    
+    def _validate_critical_restoration(self, agent: ConceptualChargeAgent, agent_id: str) -> None:
+        """
+        CRITICAL VALIDATION: Ensure all required data was properly restored from storage.
+        
+        This catches storage/restoration bugs that would otherwise be masked by defaults.
+        """
+        errors = []
+        
+        # CRITICAL: temporal_momentum must exist (this was our main bug)
+        if not hasattr(agent, 'temporal_biography'):
+            errors.append("Missing temporal_biography object")
+        elif not hasattr(agent.temporal_biography, 'temporal_momentum'):
+            errors.append("Missing temporal_momentum in temporal_biography")
+        else:
+            temp_momentum = agent.temporal_biography.temporal_momentum
+            if temp_momentum is None:
+                errors.append("temporal_momentum is None")
+            else:
+                # Check for LogPolarComplex type
+                from Sysnpire.utils.log_polar_complex import LogPolarComplex
+                if not isinstance(temp_momentum, LogPolarComplex):
+                    errors.append(f"temporal_momentum wrong type: {type(temp_momentum)}, expected LogPolarComplex")
+        
+        # CRITICAL: Q_components must exist
+        if not hasattr(agent, 'Q_components') or agent.Q_components is None:
+            errors.append("Missing Q_components")
+        
+        # CRITICAL: living_Q_value must exist
+        if not hasattr(agent, 'living_Q_value') or agent.living_Q_value is None:
+            errors.append("Missing living_Q_value")
+        
+        if errors:
+            error_msg = f"CRITICAL RESTORATION FAILURE for agent {agent_id}:\n" + "\n".join(f"  • {err}" for err in errors)
+            logger.error(f"❌ {error_msg}")
+            raise AgentReconstructionError(error_msg)
+        else:
+            logger.info(f"✅ CRITICAL VALIDATION PASSED for agent {agent_id}")
     
     def rebuild_interaction_patterns(self, agents: List[ConceptualChargeAgent],
                                    interaction_data: Dict[str, Any] = None) -> None:
