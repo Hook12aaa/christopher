@@ -17,3 +17,4 @@ foundation_manifold/
 wisdom.md
 liquid_universes/**/*.h5
 *.h5
+liquid_universes/**/*.parquet
