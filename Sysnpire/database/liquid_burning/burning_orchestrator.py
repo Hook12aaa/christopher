@@ -144,7 +144,7 @@ class BurningOrchestrator:
 
                 if not metrics.mathematical_validation_passed:
                     logger.warning("⚠️ Mathematical validation failed - proceeding with warnings")
-                    logger.warning(f"   Validation errors: {validation_results.get('errors', [])}")
+                    logger.warning(f"   Validation errors: {validation_results.get('errors')}")
 
             # STEP 3: Storage coordination
             logger.info("💾 Step 3: Coordinating hybrid storage...")
@@ -172,9 +172,9 @@ class BurningOrchestrator:
 
             # STEP 4: Final consistency validation
             logger.info("🔍 Step 4: Final consistency validation...")
-            consistency_check = storage_results.get("consistency_check", {})
+            consistency_check = storage_results.get("consistency_check")
 
-            if consistency_check.get("consistent", False):
+            if consistency_check.get("consistent"):
                 logger.info("✅ Storage consistency verified")
             else:
                 logger.warning("⚠️ Storage consistency issues detected")
@@ -249,15 +249,15 @@ class BurningOrchestrator:
         Returns:
             Estimation results
         """
-        num_agents = liquid_results.get("num_agents", 0)
-        field_stats = liquid_results.get("field_statistics", {})
+        num_agents = liquid_results.get("num_agents")
+        field_stats = liquid_results.get("field_statistics")
 
         # Rough estimation based on agent count and field complexity
         estimated_processing_time = num_agents * 0.01  # ~10ms per agent
         estimated_storage_mb = num_agents * 0.5  # ~500KB per agent
 
         # Adjust for field complexity
-        field_energy = field_stats.get("field_energy", 0.0)
+        field_energy = field_stats.get("field_energy")
         if field_energy > 0.01:  # High field energy
             estimated_processing_time *= 1.5
             estimated_storage_mb *= 1.2

@@ -140,22 +140,22 @@ class AgentFactory:
             agent.living_Q_value = stored_q_value
             
             # Create Q_components from stored data instead of computing new ones
-            q_data = converted_data.get("Q_components", {})
+            q_data = converted_data.get("Q_components")
             agent.Q_components = QMathematicalComponents(
-                gamma=q_data.get("gamma", 1.0),
-                T_tensor=q_data.get("T_tensor", complex(1.0, 0.0)),
-                E_trajectory=q_data.get("E_trajectory", complex(1.0, 0.0)),
-                phi_semantic=q_data.get("phi_semantic", complex(1.0, 0.0)),
+                gamma=q_data.get("gamma"),
+                T_tensor=q_data.get("T_tensor"),
+                E_trajectory=q_data.get("E_trajectory"),
+                phi_semantic=q_data.get("phi_semantic"),
                 theta_components=ThetaComponents(0.0, 0.0, 0.0, 0.0, 0.0, 0.0),  # Default
-                phase_factor=q_data.get("phase_factor", complex(1.0, 0.0)),
-                psi_persistence=q_data.get("psi_persistence", 1.0),
-                psi_gaussian=q_data.get("psi_gaussian", 1.0),
-                psi_exponential_cosine=q_data.get("psi_exponential_cosine", 1.0),
+                phase_factor=q_data.get("phase_factor"),
+                psi_persistence=q_data.get("psi_persistence"),
+                psi_gaussian=q_data.get("psi_gaussian"),
+                psi_exponential_cosine=q_data.get("psi_exponential_cosine"),
                 Q_value=stored_q_value
             )
             
             # CRITICAL FIX: Manually ensure evolution parameters are Python floats (additional safety net)
-            agent_state_data = converted_data.get("agent_state", {})
+            agent_state_data = converted_data.get("agent_state")
             evolution_params = ["sigma_i", "alpha_i", "lambda_i", "beta_i"]
             for param in evolution_params:
                 if param in agent_state_data:
@@ -243,7 +243,7 @@ class AgentFactory:
             return agent
             
         except Exception as e:
-            charge_id = stored_agent_data.get("agent_metadata", {}).get("charge_id", "unknown")
+            charge_id = stored_agent_data.get("agent_metadata").get("charge_id")
             logger.error(f"❌ Agent reconstruction failed for {charge_id}")
             logger.error(f"   Error type: {type(e).__name__}")
             logger.error(f"   Error message: {str(e)}")
@@ -289,7 +289,7 @@ class AgentFactory:
         # Reconstruct field components with flexible name mapping - SAFE from tensor boolean evaluation
         # Try multiple possible names for each component to handle storage inconsistencies
         
-        charge_id = metadata.get("charge_id", "unknown")
+        charge_id = metadata.get("charge_id")
         logger.debug(f"🔍 Debugging field component access for agent {charge_id}")
         logger.debug(f"   Available field_components keys: {list(field_components.keys()) if field_components else 'None'}")
         
@@ -373,7 +373,7 @@ class AgentFactory:
                     obs_persist = 0.5
             logger.debug(f"Computed missing observational_persistence: {obs_persist}")
         
-        charge_id = metadata.get("charge_id", "unknown")
+        charge_id = metadata.get("charge_id")
         logger.debug(f"Field component values for {charge_id}:")
         logger.debug(f"  trajectory_operators: {type(traj_ops)} = {traj_ops}")
         logger.debug(f"  emotional_trajectory: {type(emot_traj)} = {emot_traj}")

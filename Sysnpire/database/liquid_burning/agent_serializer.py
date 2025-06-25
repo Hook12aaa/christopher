@@ -157,18 +157,18 @@ class AgentSerializer:
         agent_group = hdf5_group.create_group(agent_id)
 
         # Serialize each component
-        self._serialize_agent_metadata(agent_group, agent_data.get("agent_metadata", {}), metrics)
-        self._serialize_q_components(agent_group, agent_data.get("Q_components", {}), metrics)
+        self._serialize_agent_metadata(agent_group, agent_data.get("agent_metadata"), metrics)
+        self._serialize_q_components(agent_group, agent_data.get("Q_components"), metrics)
         self._serialize_field_components(
-            agent_group, agent_data.get("field_components", {}), metrics
+            agent_group, agent_data.get("field_components"), metrics
         )
         self._serialize_temporal_components(
-            agent_group, agent_data.get("temporal_components", {}), metrics
+            agent_group, agent_data.get("temporal_components"), metrics
         )
         self._serialize_emotional_components(
-            agent_group, agent_data.get("emotional_components", {}), metrics
+            agent_group, agent_data.get("emotional_components"), metrics
         )
-        self._serialize_agent_state(agent_group, agent_data.get("agent_state", {}), metrics)
+        self._serialize_agent_state(agent_group, agent_data.get("agent_state"), metrics)
 
     def _serialize_agent_metadata(
         self, agent_group: h5py.Group, metadata: Dict[str, Any], metrics: SerializationMetrics

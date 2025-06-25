@@ -120,18 +120,18 @@ class FieldUniverse:
         start_time = time.time()
 
         # Extract the nested liquid_results containing actual universe data
-        nested_liquid_results = liquid_results.get("liquid_results", {})
+        nested_liquid_results = liquid_results.get("liquid_results")
 
         # Extract key metrics for logging from nested structure
-        num_agents = nested_liquid_results.get("num_agents", 0)
-        field_stats = nested_liquid_results.get("field_statistics", {})
+        num_agents = nested_liquid_results.get("num_agents")
+        field_stats = nested_liquid_results.get("field_statistics")
 
         logger.info(f"   🌊 Burning {num_agents} liquid agents")
-        logger.info(f"   ⚡ Field energy: {field_stats.get('field_energy', 0):.6f}")
+        logger.info(f"   ⚡ Field energy: {field_stats.get('field_energy'):.6f}")
 
         # Include vocab context in burning process
-        vocab_mappings = liquid_results.get("vocab_mappings", {})
-        logger.info(f"   📚 Vocab context: {len(vocab_mappings.get('id_to_token', {}))} tokens")
+        vocab_mappings = liquid_results.get("vocab_mappings")
+        logger.info(f"   📚 Vocab context: {len(vocab_mappings.get('id_to_token'))} tokens")
 
         # Delegate to burning orchestrator (pass full structure for vocab access)
         burning_results = self.burning_orchestrator.burn_universe(liquid_results)
@@ -148,7 +148,7 @@ class FieldUniverse:
             "burning_results": burning_results,
             "field_statistics": field_stats,
             "vocab_context": {
-                "tokens_count": len(vocab_mappings.get("id_to_token", {})),
+                "tokens_count": len(vocab_mappings.get("id_to_token")),
                 "has_model_info": "model_info" in vocab_mappings,
             },
             "timestamp": time.time(),
@@ -157,7 +157,7 @@ class FieldUniverse:
         logger.info(f"🔥 Liquid universe burned successfully in {burn_time:.2f}s")
         logger.info(f"   📁 Storage: {self.storage_path}")
         logger.info(f"   🎯 Agents burned: {num_agents}")
-        logger.info(f"   📚 Vocab tokens: {len(vocab_mappings.get('id_to_token', {}))}")
+        logger.info(f"   📚 Vocab tokens: {len(vocab_mappings.get('id_to_token'))}")
 
         return results
 

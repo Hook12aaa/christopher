@@ -99,7 +99,7 @@ class LiquidProcessor:
         metrics = LiquidExtractionMetrics()
 
         # Extract the nested liquid_results containing agent_pool
-        nested_liquid_results = liquid_results.get("liquid_results", {})
+        nested_liquid_results = liquid_results.get("liquid_results")
 
         # Extract universe metadata (using nested structure)
         universe_metadata = self._extract_universe_metadata(nested_liquid_results)
@@ -112,7 +112,7 @@ class LiquidProcessor:
 
         # Extract model information (use full liquid_results for vocab_mappings)
         model_info = self._extract_model_information(liquid_results)
-        metrics.model_type_detected = model_info.get("model_type", "unknown")
+        metrics.model_type_detected = model_info.get("model_type")
 
         logger.info(f"   🤖 Model type: {metrics.model_type_detected}")
 
@@ -123,12 +123,12 @@ class LiquidProcessor:
         collective_properties = self._extract_collective_properties(nested_liquid_results)
 
         # Extract field statistics (using nested structure)
-        field_statistics = nested_liquid_results.get("field_statistics", {})
+        field_statistics = nested_liquid_results.get("field_statistics")
 
         # Extract vocabulary mappings (from top level)
-        vocab_mappings = liquid_results.get("vocab_mappings", {})
+        vocab_mappings = liquid_results.get("vocab_mappings")
         logger.info(
-            f"   📚 Vocabulary mappings: {len(vocab_mappings.get('id_to_token', {}))} tokens"
+            f"   📚 Vocabulary mappings: {len(vocab_mappings.get('id_to_token'))} tokens"
         )
 
         # Finalize metrics
@@ -144,7 +144,7 @@ class LiquidProcessor:
         logger.info(f"   🎯 Agents processed: {metrics.agents_processed}")
         logger.info(f"   🧮 Q components extracted: {metrics.q_components_extracted}")
         logger.info(f"   📊 Field arrays extracted: {metrics.field_arrays_extracted}")
-        logger.info(f"   📚 Vocab tokens extracted: {len(vocab_mappings.get('id_to_token', {}))}")
+        logger.info(f"   📚 Vocab tokens extracted: {len(vocab_mappings.get('id_to_token'))}")
 
         return ExtractedLiquidData(
             universe_metadata=universe_metadata,
@@ -161,8 +161,8 @@ class LiquidProcessor:
 
         metadata = {
             "creation_timestamp": time.time(),
-            "num_agents": liquid_results.get("num_agents", 0),
-            "ready_for_simulation": liquid_results.get("ready_for_simulation", False),
+            "num_agents": liquid_results.get("num_agents"),
+            "ready_for_simulation": liquid_results.get("ready_for_simulation"),
             "field_resolution": (
                 getattr(orchestrator, "field_resolution", None) if orchestrator else None
             ),
@@ -183,7 +183,7 @@ class LiquidProcessor:
             Field dimension count or None if cannot be detected
         """
         # Try to get from agent_pool first
-        agent_pool = liquid_results.get("agent_pool", {})
+        agent_pool = liquid_results.get("agent_pool")
 
         if agent_pool:
             # Get first agent to check dimensionality
@@ -220,13 +220,13 @@ class LiquidProcessor:
         model_info = {}
 
         # Check if vocab_mappings contains model info (at top level from ChargeFactory)
-        vocab_mappings = liquid_results.get("vocab_mappings", {})
+        vocab_mappings = liquid_results.get("vocab_mappings")
         if "model_info" in vocab_mappings:
             model_info.update(vocab_mappings["model_info"])
 
         # Try to infer from agent structure (using nested liquid_results)
-        nested_liquid_results = liquid_results.get("liquid_results", {})
-        agent_pool = nested_liquid_results.get("agent_pool", {})
+        nested_liquid_results = liquid_results.get("liquid_results")
+        agent_pool = nested_liquid_results.get("agent_pool")
         if agent_pool:
             first_agent = next(iter(agent_pool.values()))
             if hasattr(first_agent, "device"):
@@ -252,7 +252,7 @@ class LiquidProcessor:
         Returns:
             Dictionary mapping agent IDs to extracted agent data
         """
-        agent_pool = liquid_results.get("agent_pool", {})
+        agent_pool = liquid_results.get("agent_pool")
         agent_data = {}
 
         for agent_id, agent in agent_pool.items():

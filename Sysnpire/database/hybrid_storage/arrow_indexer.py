@@ -17,10 +17,9 @@ import time
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple, Union
 
-import numpy as np
+
 import pandas as pd
-import pyarrow as pa
-import pyarrow.parquet as pq
+
 
 logger = logging.getLogger(__name__)
 

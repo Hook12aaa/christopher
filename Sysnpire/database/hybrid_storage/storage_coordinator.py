@@ -21,7 +21,6 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 import numpy as np
-import torch
 
 from .arrow_indexer import ArrowIndexer
 
@@ -136,7 +135,7 @@ class StorageCoordinator:
                 
                 # Verify Arrow storage succeeded
                 if arrow_result.get("status") != "success":
-                    logger.error(f"❌ Arrow storage failed: {arrow_result.get('error', 'Unknown error')}")
+                    logger.error(f"❌ Arrow storage failed: {arrow_result.get('error')}")
                     logger.error(f"   Universe ID: {universe_id}")
                     logger.error(f"   Metadata keys: {list(metadata.keys())}")
                     if metadata.get("agent_metadata"):
@@ -225,8 +224,8 @@ class StorageCoordinator:
 
         # Extract agent metadata for fast queries
         for agent_id, agent_data in extracted_data.agent_data.items():
-            agent_metadata = agent_data.get("agent_metadata", {})
-            q_components = agent_data.get("Q_components", {})
+            agent_metadata = agent_data.get("agent_metadata")
+            q_components = agent_data.get("Q_components")
 
             # Create queryable agent record with device serialization fix
             agent_record = {
@@ -255,7 +254,7 @@ class StorageCoordinator:
                     agent_record["Q_phase"] = 0.0
 
             # Add field position if available (for spatial queries)
-            field_components = agent_data.get("field_components", {})
+            field_components = agent_data.get("field_components")
             if "field_position" in field_components:
                 pos = field_components["field_position"]
                 if isinstance(pos, (list, tuple)) and len(pos) >= 2:
@@ -515,7 +514,7 @@ class StorageCoordinator:
             if hdf5_present:
                 try:
                     hdf5_data = self.hdf5_manager.load_universe(universe_id)
-                    hdf5_count = len(hdf5_data.get("agents", {}))
+                    hdf5_count = len(hdf5_data.get("agents"))
                 except:
                     hdf5_count = 0
             else:
@@ -524,7 +523,7 @@ class StorageCoordinator:
             if arrow_present:
                 try:
                     arrow_metadata = self.arrow_indexer.get_universe_metadata(universe_id)
-                    arrow_count = len(arrow_metadata.get("agent_metadata", []))
+                    arrow_count = len(arrow_metadata.get("agent_metadata"))
                 except:
                     arrow_count = 0
 
@@ -611,12 +610,12 @@ class StorageCoordinator:
                     metadata = self.arrow_indexer.get_universe_metadata(universe_id)
                     universe_info.update(
                         {
-                            "num_agents": len(metadata.get("agent_metadata", [])),
-                            "creation_time": metadata.get("universe_metadata", {}).get(
+                            "num_agents": len(metadata.get("agent_metadata")),
+                            "creation_time": metadata.get("universe_metadata").get(
                                 "storage_timestamp"
                             ),
-                            "model_type": metadata.get("universe_metadata", {}).get("model_type"),
-                            "field_dimensions": metadata.get("universe_metadata", {}).get(
+                            "model_type": metadata.get("universe_metadata").get("model_type"),
+                            "field_dimensions": metadata.get("universe_metadata").get(
                                 "field_dimensions"
                             ),
                         }
@@ -626,7 +625,7 @@ class StorageCoordinator:
 
             universe_list.append(universe_info)
 
-        return sorted(universe_list, key=lambda x: x.get("creation_time", 0), reverse=True)
+        return sorted(universe_list, key=lambda x: x.get("creation_time"), reverse=True)
 
     def get_universe_metadata(self, universe_id: str) -> Dict[str, Any]:
         """Get universe metadata from Arrow storage."""
@@ -673,7 +672,7 @@ class StorageCoordinator:
         universe_data = self.hdf5_manager.load_universe(universe_id)
 
         # Extract specific charge
-        agents = universe_data.get("agents", {})
+        agents = universe_data.get("agents")
         if charge_id not in agents:
             raise KeyError(f"Charge {charge_id} not found in universe {universe_id}")
 
@@ -732,8 +731,8 @@ class StorageCoordinator:
             "hdf5_storage": hdf5_stats,
             "arrow_storage": arrow_stats,
             "combined_statistics": {
-                "total_storage_mb": hdf5_stats.get("total_size_mb", 0)
-                + arrow_stats.get("total_size_mb", 0),
+                "total_storage_mb": hdf5_stats.get("total_size_mb")
+                + arrow_stats.get("total_size_mb"),
                 "universe_consistency": self._check_universe_consistency(),
             },
         }

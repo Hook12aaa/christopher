@@ -129,11 +129,11 @@ class MathematicalValidator:
         results = ValidationResults()
         
         # Validate reconstructed components using same patterns as saving validation
-        self._validate_reconstructed_metadata(converted_data.get("agent_metadata", {}), results, agent_id)
-        self._validate_reconstructed_q_components(converted_data.get("Q_components", {}), results, agent_id)
-        self._validate_reconstructed_field_components(converted_data.get("field_components", {}), results, agent_id)
-        self._validate_reconstructed_temporal_components(converted_data.get("temporal_components", {}), results, agent_id)
-        self._validate_reconstructed_emotional_components(converted_data.get("emotional_components", {}), results, agent_id)
+        self._validate_reconstructed_metadata(converted_data.get("agent_metadata"), results, agent_id)
+        self._validate_reconstructed_q_components(converted_data.get("Q_components"), results, agent_id)
+        self._validate_reconstructed_field_components(converted_data.get("field_components"), results, agent_id)
+        self._validate_reconstructed_temporal_components(converted_data.get("temporal_components"), results, agent_id)
+        self._validate_reconstructed_emotional_components(converted_data.get("emotional_components"), results, agent_id)
         
         # Determine overall validation status
         results.validation_passed = results.failed_checks == 0
@@ -176,7 +176,7 @@ class MathematicalValidator:
 
         # Validate agent count consistency
         results.total_checks += 1
-        expected_agents = metadata.get("num_agents", 0)
+        expected_agents = metadata.get("num_agents")
         actual_agents = len(extracted_data.agent_data)
 
         if expected_agents == actual_agents:
@@ -199,19 +199,19 @@ class MathematicalValidator:
     ):
         """Validate a single agent's mathematical components."""
         # Validate Q components
-        self._validate_q_components(agent_id, agent_data.get("Q_components", {}), results)
+        self._validate_q_components(agent_id, agent_data.get("Q_components"), results)
 
         # Validate field components
-        self._validate_field_components(agent_id, agent_data.get("field_components", {}), results)
+        self._validate_field_components(agent_id, agent_data.get("field_components"), results)
 
         # Validate temporal components
         self._validate_temporal_components(
-            agent_id, agent_data.get("temporal_components", {}), results
+            agent_id, agent_data.get("temporal_components"), results
         )
 
         # Validate emotional components
         self._validate_emotional_components(
-            agent_id, agent_data.get("emotional_components", {}), results
+            agent_id, agent_data.get("emotional_components"), results
         )
 
     def _validate_q_components(
@@ -383,7 +383,7 @@ class MathematicalValidator:
             results.total_checks += 1
 
             # Check for reasonable field energy
-            field_energy = field_stats.get("field_energy", 0.0)
+            field_energy = field_stats.get("field_energy")
             if isinstance(field_energy, (int, float)) and field_energy >= 0:
                 results.passed_checks += 1
             else:

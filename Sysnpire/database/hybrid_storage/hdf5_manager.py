@@ -1088,23 +1088,24 @@ class HDF5Manager:
             
             # Convert to dictionary mapping agent_id -> metadata
             for _, row in df.iterrows():
-                agent_id = row.get('agent_id', row.get('charge_id', 'unknown'))
+                agent_id = row.get('agent_id')
                 arrow_metadata[agent_id] = {
-                    'text_source': row.get('text_source', f'agent_{agent_id}'),
-                    'charge_id': row.get('charge_id', agent_id),
-                    'vocab_token_string': row.get('vocab_token_string', ''),
-                    'vocab_token_id': row.get('vocab_token_id', ''),
-                    'Q_magnitude': row.get('Q_magnitude', 0.0),
-                    'Q_phase': row.get('Q_phase', 0.0),
-                    'creation_timestamp': row.get('creation_timestamp', 0.0),
-                    'last_updated': row.get('last_updated', 0.0)
+                    'text_source': row.get('text_source'),
+                    'charge_id': row.get('charge_id'),
+                    'vocab_token_string': row.get('vocab_token_string'),
+                    'vocab_token_id': row.get('vocab_token_id'),
+                    'Q_magnitude': row.get('Q_magnitude'),
+                    'Q_phase': row.get('Q_phase'),
+                    'creation_timestamp': row.get('creation_timestamp'),
+                    'last_updated': row.get('last_updated')
                 }
             
             logger.info(f"✅ Loaded Arrow metadata for {len(arrow_metadata)} agents")
             
         except Exception as e:
-            logger.warning(f"Failed to load Arrow metadata: {e}")
-            logger.info("Continuing without Arrow metadata - will use fallbacks")
+            raise ValueError(
+                f"Error loading Arrow metadata for universe {universe_id}: {e}"
+            )
         
         return arrow_metadata
 
