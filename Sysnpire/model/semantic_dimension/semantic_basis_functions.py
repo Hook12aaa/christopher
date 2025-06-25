@@ -158,7 +158,7 @@ class DTFSemanticBasisExtractor:
                 if neighbor_idx == central_index:
                     continue  # Skip self
                     
-                neighbor_token = id_to_token.get(neighbor_idx, f"<UNK_{neighbor_idx}>")
+                neighbor_token = id_to_token.get(neighbor_idx)
                 neighbor_embedding = all_embeddings[neighbor_idx]
                 neighbor_distance = neighbor_distances[i]
                 
@@ -173,12 +173,12 @@ class DTFSemanticBasisExtractor:
             # Create DTF lateral interaction kernel from BGE neighborhoods
             kernel = self._build_dtf_kernel_from_neighbors(semantic_neighbors, central_embedding)
             
-            logger.debug(f"Extracted lateral kernel for token {id_to_token.get(central_index, 'UNK')} "
+            logger.debug(f"Extracted lateral kernel for token {id_to_token.get(central_index)} "
                         f"with {len(semantic_neighbors)} neighbors")
             
             return {
                 'central_index': central_index,
-                'central_token': id_to_token.get(central_index, f"<UNK_{central_index}>"),
+                'central_token': id_to_token.get(central_index),
                 'semantic_neighbors': semantic_neighbors,
                 'lateral_kernel': kernel,
                 'neighborhood_size': len(semantic_neighbors),
@@ -448,7 +448,7 @@ class DTFSemanticBasisExtractor:
             
             basis_functions[i] = {
                 'function': create_basis_function(lateral_kernels[i], i),
-                'center_token': id_to_token.get(basis_idx, f"<UNK_{basis_idx}>"),
+                'center_token': id_to_token.get(basis_idx),
                 'center_embedding': all_embeddings[basis_idx],
                 'semantic_kernel': kernel_data,
                 'dtf_based': True
