@@ -61,6 +61,18 @@ class EmotionalDimensionHelper:
     ARCHITECTURE: Simple interface to our proven analytics - no complex scaffolding.
     """
     
+    def compute_emotional_trajectory(self, emotional_mod):
+        """
+        Compute emotional trajectory from emotional modulation for cusp form integration.
+        
+        Extracts the semantic modulation tensor as the emotional trajectory
+        for use in cusp form-based emotional field computations.
+        """
+        if hasattr(emotional_mod, 'semantic_modulation_tensor'):
+            return emotional_mod.semantic_modulation_tensor
+        else:
+            raise ValueError("EmotionalModulation missing semantic_modulation_tensor, using zeros")
+
     def __init__(self, from_base: bool = True, model_info: dict = None, helper = None):
         """Initialize emotional field conductor with clean analytics."""
         self.from_base = from_base
@@ -70,9 +82,9 @@ class EmotionalDimensionHelper:
         # Get embedding dimension
         if self.from_base and hasattr(self.helper, 'info'):
             model_info = self.helper.info()
-            self.embedding_dim = model_info.get('dimension', 1024)
+            self.embedding_dim = model_info.get('dimension')
         else:
-            self.embedding_dim = self.model_info.get('dimension', 1024) if self.model_info else 1024
+            self.embedding_dim = self.model_info.get('dimension')
         
         # Initialize our clean analytics
         self.emotional_analyzer = BGEEmotionalAnalyzer(self.embedding_dim)
@@ -106,7 +118,7 @@ class EmotionalDimensionHelper:
         # Extract embedding vectors for analytics
         embedding_vectors = []
         for emb_dict in individual_embeddings:
-            vector = emb_dict.get('vector', emb_dict.get('embedding'))
+            vector = emb_dict.get('vector')
             if vector is not None:
                 embedding_vectors.append(vector)
         
@@ -169,7 +181,7 @@ class EmotionalDimensionHelper:
                 phase_shift = complex(np.cos(unified_phase), np.sin(unified_phase))
             else:
                 # Calculate phase from THIS embedding's vector properties
-                emb_vector = emb_dict.get('vector', emb_dict.get('embedding'))
+                emb_vector = emb_dict.get('vector')
                 if emb_vector is not None:
                     # Use embedding-specific vector properties for uniqueness
                     real_part = np.mean(emb_vector[:len(emb_vector)//2])
@@ -185,7 +197,7 @@ class EmotionalDimensionHelper:
                     phase_shift = complex(0.1 + 0.05 * i, 0.1 + 0.03 * i)
             
             # 🔧 FIX: Create unique modulation tensor for each embedding
-            emb_vector = emb_dict.get('vector', emb_dict.get('embedding'))
+            emb_vector = emb_dict.get('vector')
             if emb_vector is not None and len(emb_vector) >= self.embedding_dim:
                 # Use embedding-specific modulation based on vector properties
                 vector_influence = np.array(emb_vector[:self.embedding_dim])
@@ -215,7 +227,7 @@ class EmotionalDimensionHelper:
                 base_attractor = attractors[base_attractor_idx]
                 
                 # Add embedding-specific variation based on vector properties
-                emb_vector = emb_dict.get('vector', emb_dict.get('embedding'))
+                emb_vector = emb_dict.get('vector')
                 if emb_vector is not None and len(emb_vector) >= 10:
                     # Use first 10 components for attractor variation
                     vector_variation = np.array(emb_vector[:10]) * 0.1
@@ -226,7 +238,7 @@ class EmotionalDimensionHelper:
                     trajectory_attractor = base_attractor + index_variation
             else:
                 # Calculate unique attractors from THIS embedding's properties
-                emb_vector = emb_dict.get('vector', emb_dict.get('embedding'))
+                emb_vector = emb_dict.get('vector')
                 if emb_vector is not None:
                     # Use embedding dimensions to create trajectory attractors
                     step_size = max(1, len(emb_vector) // 10)
@@ -246,8 +258,8 @@ class EmotionalDimensionHelper:
                 resonance_frequencies=frequencies,
                 field_modulation_strength=signature.field_modulation_strength,
                 pattern_confidence=signature.pattern_confidence,
-                coupling_strength=warping_params.get('coupling_strength', max(0.01, signature.field_modulation_strength * 0.5)),
-                gradient_magnitude=warping_params.get('gradient_magnitude', max(0.01, signature.pattern_confidence * 0.3)),
+                coupling_strength=warping_params.get('coupling_strength'),
+                gradient_magnitude=warping_params.get('gradient_magnitude'),
                 n_embeddings_analyzed=signature.n_embeddings_analyzed,
                 analysis_complete=True
             )

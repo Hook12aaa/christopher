@@ -135,9 +135,9 @@ class OptimizedBGEOperations:
         JAX handles complex mathematical transformations well.
         """
         # Extract field parameters
-        breathing_freq = field_parameters.get('breathing_frequency', 1.0)
-        phase_shift = field_parameters.get('phase_shift', 0.0)
-        amplitude = field_parameters.get('amplitude', 1.0)
+        breathing_freq = field_parameters.get('breathing_frequency')
+        phase_shift = field_parameters.get('phase_shift')
+        amplitude = field_parameters.get('amplitude')
         
         # Breathing modulation
         modulation = amplitude * np.cos(breathing_freq * np.arange(len(embedding)) + phase_shift)

@@ -303,7 +303,7 @@ class ChargeFactory:
                 "token_to_id": {},
                 "embedding_indices": [],
             }
-        logger.info(f"📚 Threading vocab context: {len(vocab_mappings.get('id_to_token', {}))} tokens available")
+        logger.info(f"📚 Threading vocab context: {len(vocab_mappings.get('id_to_token'))} tokens available")
 
         # STEP 1: Convert embeddings to semantic fields with vocab context
         semantic_results = self.semantic_helper.convert_vector_to_field_respentation(all, vocab_mappings)

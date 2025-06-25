@@ -201,7 +201,7 @@ class PhaseEvolutionEngine:
         coupling_matrix = np.zeros((n_phases, n_phases))
         
         # Magnitude-dependent coupling
-        magnitudes = np.array([field_magnitudes.get(name, 1.0) for name in phase_names])
+        magnitudes = np.array([field_magnitudes.get(name) for name in phase_names])
         
         for i in range(n_phases):
             for j in range(n_phases):
@@ -263,7 +263,7 @@ class PhaseEvolutionEngine:
                     coupling_term += state.coupling_matrix[i, j] * np.sin(phase_diff)
             
             # External forcing from observational state
-            magnitude = field_magnitudes.get(name, 1.0)
+            magnitude = field_magnitudes.get(name)
             external_force = self.evolution_rate * magnitude * np.sin(observational_state * np.pi)
             
             # Damping term
@@ -364,7 +364,7 @@ class PhaseEvolutionEngine:
         attractors = []
         for name in phase_names:
             final_phase = final_phases[name]
-            final_velocity_trend = velocity_trends.get(name, 0)
+            final_velocity_trend = velocity_trends.get(name)
             if abs(final_velocity_trend) < 0.01:  # Converged
                 attractor_strength = 1.0 / (1.0 + abs(final_velocity_trend))
                 attractors.append((final_phase, attractor_strength))

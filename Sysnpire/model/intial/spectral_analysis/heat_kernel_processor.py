@@ -158,9 +158,9 @@ class HeatKernelEvolutionEngine:
         normalized = embeddings / np.linalg.norm(embeddings, axis=1, keepdims=True)
         
         # Extract evolution parameters
-        time_param = evolution_params.get('time', 1.0)
-        temperature = evolution_params.get('temperature', 0.1)
-        frequency_cutoff = evolution_params.get('frequency_cutoff', 0.1)
+        time_param = evolution_params.get('time')
+        temperature = evolution_params.get('temperature')
+        frequency_cutoff = evolution_params.get('frequency_cutoff')
         
         # Determine active eigenmodes via frequency filtering
         active_modes = laplacian_eigenvals <= frequency_cutoff

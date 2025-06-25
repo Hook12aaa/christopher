@@ -170,7 +170,7 @@ def cupy_optimize(fallback_to_numpy: bool = True, profile: bool = True):
                 
                 # Replace numpy references in the function's global namespace
                 func_globals = func.__globals__.copy()
-                original_np = func_globals.get('np', np)
+                original_np = func_globals.get('np')
                 func_globals['np'] = cp
                 
                 # Create new function with cupy globals

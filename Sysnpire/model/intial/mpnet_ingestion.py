@@ -360,7 +360,7 @@ class MPNetIngestion():
         
         for i, idx in enumerate(top_indices):
             embedding = all_embeddings[idx]
-            token = id_to_token.get(idx, f"<UNK_{idx}>")
+            token = id_to_token.get(idx)
             similarity = similarities[idx]
             
             # Extract manifold properties using enterprise geometry processor
@@ -751,7 +751,7 @@ if __name__ == "__main__":
     
     logger.info("Sample tokens and embedding info:")
     for i in range(min(10, len(embeddings))):
-        token = id_to_token.get(i, f"<UNK_{i}>")
+        token = id_to_token.get(i)
         embedding_norm = np.linalg.norm(embeddings[i])
         logger.info(f"Token {i}: '{token}' | Embedding norm: {embedding_norm:.4f}")
     
@@ -759,7 +759,7 @@ if __name__ == "__main__":
 
     # Example field theory search using embedding vector (for iterating through total embeddings)
     query_embedding = embeddings[40]
-    token_name = id_to_token.get(40, f"<UNK_40>")
+    token_name = id_to_token.get(40)
     search_results = mpnet_ingestion.search_embeddings(query=query_embedding, top_k=5)
     logger.info(f"Field theory search results for token '{token_name}' embedding:")
     for result in search_results['embeddings']:

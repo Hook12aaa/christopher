@@ -124,7 +124,7 @@ class FieldTheoryPerformanceProfiler:
         # Enhanced logging with mathematical compliance
         if accuracy_verified:
             # Track optimization metrics
-            self._optimization_counts[func_name] = self._optimization_counts.get(func_name, 0) + 1
+            self._optimization_counts[func_name] = self._optimization_counts.get(func_name) + 1
             if func_name not in self._optimization_times:
                 self._optimization_times[func_name] = []
                 self._optimization_speedups[func_name] = []
