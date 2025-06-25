@@ -47,8 +47,8 @@ class ChargeAPI:
                     return jsonify({'error': 'Missing required field: text'}), 400
                 
                 text = data['text']
-                observational_state = data.get('observational_state', 1.0)
-                gamma = data.get('gamma', 1.0)
+                observational_state = data.get('observational_state')
+                gamma = data.get('gamma')
                 
                 # Create charge
                 result = self.factory.create_charge(text, observational_state, gamma)

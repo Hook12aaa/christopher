@@ -21,10 +21,10 @@ class ResonanceRequest:
     async def from_request(cls):
         data = await request.get_json()
         return cls(
-            field_id=data.get("field_id", ""),
+            field_id=data.get("field_id"),
             query=data.get("query"),
             charge_ids=data.get("charge_ids"),
-            threshold=data.get("threshold", 0.7)
+            threshold=data.get("threshold")
         )
 
 @dataclass

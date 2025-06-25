@@ -60,8 +60,8 @@ async def analyze_movement(request: TextInput):
         embedding = best_result['embedding']
         manifold_properties = bge_ingestion.extract_manifold_properties(
             embedding=embedding,
-            index=best_result.get('index', 0),
-            all_embeddings=search_results.get('embeddings', np.array([embedding]))
+            index=best_result.get('index'),
+            all_embeddings=search_results.get('embeddings'))
         )
         
         # Create enhanced charge with trajectory data
@@ -74,7 +74,7 @@ async def analyze_movement(request: TextInput):
         
         metadata = {
             'text': request.text,
-            'token': best_result.get('token', 'unknown'),
+            'token': best_result.get('token'),
             'analysis_type': 'movement_analysis'
         }
         
@@ -285,7 +285,7 @@ async def generate_batch_charges():
     """
     try:
         data = await request.get_json()
-        texts = data.get("texts", [])
+        texts = data.get("texts")
         emotional_contexts = data.get("emotional_contexts")
         temporal_contexts = data.get("temporal_contexts")
         
@@ -326,8 +326,8 @@ async def analyze_charge():
     """
     try:
         data = await request.get_json()
-        text = data.get("text", "")
-        time_steps = data.get("time_steps", [0.0, 1.0, 2.0, 5.0, 10.0])
+        text = data.get("text")
+        time_steps = data.get("time_steps")
         
         # Generate charge for analysis
         charge = charge_generator.create_conceptual_charge(text=text)

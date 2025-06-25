@@ -78,7 +78,7 @@ async def verify_api_key(credentials: HTTPAuthorizationCredentials = Security(se
     return token
 
 
-@app.get("/", response_model=APIStatus, tags=["System"])
+@app.get("/")
 async def root():
     """
     Root endpoint returning API status and available endpoints.
@@ -101,7 +101,7 @@ async def root():
     )
 
 
-@app.get("/health", response_model=HealthCheck, tags=["System"])
+@app.get("/health")
 async def health_check():
     """
     Health check endpoint for monitoring and uptime verification.

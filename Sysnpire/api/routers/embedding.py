@@ -21,9 +21,9 @@ class EmbeddingRequest:
     async def from_request(cls):
         data = await request.get_json()
         return cls(
-            text=data.get("text", ""),
-            model=data.get("model", "default"),
-            dimensions=data.get("dimensions", 768)
+            text=data.get("text"),
+            model=data.get("model"),
+            dimensions=data.get("dimensions")
         )
 
 @blueprint.route("/embed", methods=["POST"])

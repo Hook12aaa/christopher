@@ -246,14 +246,14 @@ async def compare_models(request: ModelComparisonRequest):
             magnitudes = {model: result.magnitude for model, result in model_results.items()}
             comparison_metrics["magnitude_comparison"] = magnitudes
             comparison_metrics["magnitude_ratio"] = (
-                magnitudes.get("bge", 1.0) / magnitudes.get("mpnet", 1.0) 
+                magnitudes.get("bge") / magnitudes.get("mpnet") 
                 if "bge" in magnitudes and "mpnet" in magnitudes else 1.0
             )
         
         if "social_score" in request.comparison_metrics:
             social_scores = {}
             for model, result in model_results.items():
-                social_score = result.metadata.get("social_score", 0.0)
+                social_score = result.metadata.get("social_score")
                 social_scores[model] = social_score
             comparison_metrics["social_score_comparison"] = social_scores
         
@@ -261,7 +261,7 @@ async def compare_models(request: ModelComparisonRequest):
         if "bge" in model_results and "mpnet" in model_results:
             bge_magnitude = model_results["bge"].magnitude
             mpnet_magnitude = model_results["mpnet"].magnitude
-            mpnet_social = model_results["mpnet"].metadata.get("social_score", 0.0)
+            mpnet_social = model_results["mpnet"].metadata.get("social_score")
             
             if mpnet_social > 0.1:
                 recommendations["best_for_social_analysis"] = "mpnet"

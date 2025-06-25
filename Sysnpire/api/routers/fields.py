@@ -20,9 +20,9 @@ class FieldRequest:
     async def from_request(cls):
         data = await request.get_json()
         return cls(
-            charges=data.get("charges", []),
-            resolution=data.get("resolution", 32),
-            dimensions=data.get("dimensions", 3)
+            charges=data.get("charges"),
+            resolution=data.get("resolution"),
+            dimensions=data.get("dimensions")
         )
 
 @dataclass
@@ -100,9 +100,9 @@ async def get_potential_at_point(field_id):
     Get the potential value at a specific point in the field.
     """
     # Extract query parameters
-    x = float(request.args.get("x", 0.0))
-    y = float(request.args.get("y", 0.0))
-    z = float(request.args.get("z", 0.0))
+    x = float(request.args.get("x"))
+    y = float(request.args.get("y"))
+    z = float(request.args.get("z"))
     
     # Placeholder for potential calculation
     if not field_id.startswith("field_"):

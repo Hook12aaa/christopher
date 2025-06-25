@@ -22,11 +22,11 @@ class VisualizationRequest:
     async def from_request(cls):
         data = await request.get_json()
         return cls(
-            type=data.get("type", ""),
-            source_id=data.get("source_id", ""),
-            dimensions=data.get("dimensions", 3),
-            color_scheme=data.get("color_scheme", "default"),
-            format=data.get("format", "json")
+            type=data.get("type"),
+            source_id=data.get("source_id"),
+            dimensions=data.get("dimensions"),
+            color_scheme=data.get("color_scheme"),
+            format=data.get("format")
         )
 
 @dataclass
