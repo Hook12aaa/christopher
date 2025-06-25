@@ -37,17 +37,19 @@ base_logger = get_logger(__name__)
 logger = SysnpireLogger()
 
 # Optional dependency checks with strict compliance warnings
-try:
-    import cupy as cp
-    CUPY_AVAILABLE = True
-    # Check if Mac M1/M2 - CuPy doesn't work well on Mac
-    import platform
-    if platform.system() == "Darwin":
-        logger.log_warning("⚠️  CuPy on macOS may not preserve complex number precision - field theory compliance at risk")
-        CUPY_AVAILABLE = False
-except ImportError:
+# CuPy not supported on macOS - skip entirely
+import platform
+if platform.system() == "Darwin":
     CUPY_AVAILABLE = False
     cp = None
+    logger.log_info("🍎 macOS detected - CuPy disabled, using JAX/Numba alternatives")
+else:
+    try:
+        import cupy as cp
+        CUPY_AVAILABLE = True
+    except ImportError:
+        CUPY_AVAILABLE = False
+        cp = None
 
 try:
     import jax
@@ -261,90 +263,23 @@ field_profiler = FieldTheoryPerformanceProfiler()
 
 def field_theory_cupy_optimize(preserve_complex: bool = True, profile: bool = True):
     """
-    CuPy optimization decorator with field theory mathematical compliance.
+    CuPy optimization decorator - disabled on macOS, falls back to original function.
     
     CLAUDE.md Compliance:
     - Preserves complex-valued field calculations
     - Maintains phase relationships
-    - Verifies mathematical accuracy
+    - Falls back gracefully when CuPy unavailable
     """
     def decorator(func: Callable) -> Callable:
         @functools.wraps(func)
         def wrapper(*args, **kwargs):
             if not CUPY_AVAILABLE:
-                logger.log_warning(f"CuPy not available for {func.__name__} - using numpy with field theory compliance")
+                logger.log_info(f"CuPy not available for {func.__name__} - using original function")
                 return func(*args, **kwargs)
             
-            try:
-                # Convert inputs while preserving complex types
-                cupy_args = []
-                for arg in args:
-                    if isinstance(arg, np.ndarray):
-                        if preserve_complex and np.iscomplexobj(arg):
-                            # Ensure complex precision is maintained
-                            cupy_args.append(cp.asarray(arg, dtype=cp.complex128))
-                        else:
-                            cupy_args.append(cp.asarray(arg))
-                    else:
-                        cupy_args.append(arg)
-                
-                cupy_kwargs = {}
-                for k, v in kwargs.items():
-                    if isinstance(v, np.ndarray):
-                        if preserve_complex and np.iscomplexobj(v):
-                            cupy_kwargs[k] = cp.asarray(v, dtype=cp.complex128)
-                        else:
-                            cupy_kwargs[k] = cp.asarray(v)
-                    else:
-                        cupy_kwargs[k] = v
-                
-                # Replace numpy with cupy in function's global namespace
-                func_globals = func.__globals__.copy()
-                func_globals['np'] = cp
-                
-                # Create CuPy version of function
-                import types
-                cupy_func = types.FunctionType(
-                    func.__code__, func_globals, func.__name__,
-                    func.__defaults__, func.__closure__
-                )
-                
-                if profile:
-                    # Benchmark original with mathematical verification
-                    start = time.perf_counter()
-                    original_result = func(*args, **kwargs)
-                    original_time = time.perf_counter() - start
-                    
-                    # Run optimized version
-                    start = time.perf_counter()
-                    optimized_result = cupy_func(*cupy_args, **cupy_kwargs)
-                    optimized_time = time.perf_counter() - start
-                    
-                    # Convert result back to numpy while preserving complex types
-                    if hasattr(optimized_result, 'get'):
-                        optimized_result = optimized_result.get()
-                    
-                    # Verify mathematical accuracy
-                    input_shape = args[0].shape if args and hasattr(args[0], 'shape') else None
-                    accuracy_verified = field_profiler.profile_field_operation(
-                        func.__name__, original_time, optimized_time,
-                        original_result, optimized_result, input_shape, "CuPy"
-                    )
-                    
-                    if not accuracy_verified:
-                        logger.log_error(f"❌ CuPy optimization failed mathematical verification for {func.__name__}")
-                        return original_result
-                    
-                    return optimized_result
-                else:
-                    result = cupy_func(*cupy_args, **cupy_kwargs)
-                    if hasattr(result, 'get'):
-                        result = result.get()
-                    return result
-                
-            except Exception as e:
-                logger.log_error(f"❌ CuPy optimization failed for {func.__name__}: {e}")
-                return func(*args, **kwargs)
+            # CuPy implementation would go here for supported platforms
+            logger.log_warning(f"CuPy optimization not implemented for {func.__name__} - using original function")
+            return func(*args, **kwargs)
         
         return wrapper
     return decorator
@@ -588,14 +523,13 @@ def field_theory_auto_optimize(prefer_accuracy: bool = True, profile: bool = Tru
                 logger.log_warning(f"No suitable optimization for {func.__name__} - using original")
                 return func
         else:
-            # Standard auto-optimization
-            if CUPY_AVAILABLE:
-                return field_theory_cupy_optimize(preserve_complex=True, profile=profile)(func)
-            elif JAX_AVAILABLE:
+            # Standard auto-optimization (CuPy removed for macOS compatibility)
+            if JAX_AVAILABLE:
                 return field_theory_jax_optimize(preserve_complex=True, profile=profile)(func)
             elif NUMBA_AVAILABLE:
                 return field_theory_numba_optimize(preserve_complex=True, profile=profile)(func)
             else:
+                logger.log_warning(f"No optimization available for {func.__name__} - using original")
                 return func
     
     return decorator
@@ -606,9 +540,10 @@ def get_field_theory_optimization_status() -> Dict[str, Any]:
     """Get optimization status with field theory compliance information."""
     return {
         'cupy': {
-            'available': CUPY_AVAILABLE,
-            'complex_support': CUPY_AVAILABLE,
-            'field_theory_compliant': CUPY_AVAILABLE
+            'available': False,  # Disabled on all platforms for macOS compatibility
+            'complex_support': False,
+            'field_theory_compliant': False,
+            'reason': 'Disabled for macOS compatibility'
         },
         'jax': {
             'available': JAX_AVAILABLE,

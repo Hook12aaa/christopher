@@ -16,7 +16,6 @@ from .logger import (
 )
 
 from .performance_optimizers import (
-    cupy_optimize,
     jax_optimize,
     numba_jit,
     auto_optimize,
@@ -28,7 +27,6 @@ from .performance_optimizers import (
 )
 
 from .field_theory_optimizers import (
-    field_theory_cupy_optimize,
     field_theory_jax_optimize,
     field_theory_numba_optimize,
     field_theory_trajectory_optimize,
@@ -50,7 +48,6 @@ __all__ = [
     'SysnpireLogger',
     
     # Performance optimization decorators
-    'cupy_optimize',
     'jax_optimize', 
     'numba_jit',
     'auto_optimize',
@@ -61,7 +58,6 @@ __all__ = [
     'PerformanceProfiler',
     
     # Field theory optimization decorators (CLAUDE.md compliant)
-    'field_theory_cupy_optimize',
     'field_theory_jax_optimize',
     'field_theory_numba_optimize', 
     'field_theory_trajectory_optimize',

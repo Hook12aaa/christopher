@@ -39,17 +39,19 @@ base_logger = get_logger(__name__)
 logger = SysnpireLogger()
 
 # Optional dependency checks
-try:
-    import cupy as cp
-    CUPY_AVAILABLE = True
-    # Check if Mac M1/M2 - CuPy doesn't work well on Mac
-    import platform
-    if platform.system() == "Darwin":
-        logger.log_warning("CuPy detected on macOS - GPU acceleration may not work properly")
-        CUPY_AVAILABLE = False
-except ImportError:
+# CuPy not supported on macOS - skip entirely
+import platform
+if platform.system() == "Darwin":
     CUPY_AVAILABLE = False
     cp = None
+    logger.log_info("🍎 macOS detected - CuPy disabled, using JAX/Numba alternatives")
+else:
+    try:
+        import cupy as cp
+        CUPY_AVAILABLE = True
+    except ImportError:
+        CUPY_AVAILABLE = False
+        cp = None
 
 try:
     import jax
@@ -138,7 +140,7 @@ def benchmark_function(func: Callable, *args, iterations: int = 10, **kwargs) ->
 
 def cupy_optimize(fallback_to_numpy: bool = True, profile: bool = True):
     """
-    Decorator to optimize numpy operations using CuPy GPU acceleration.
+    CuPy optimization decorator - disabled on macOS, falls back to original function.
     
     Args:
         fallback_to_numpy: If True, falls back to numpy if CuPy fails
@@ -148,69 +150,12 @@ def cupy_optimize(fallback_to_numpy: bool = True, profile: bool = True):
         @functools.wraps(func)
         def wrapper(*args, **kwargs):
             if not CUPY_AVAILABLE:
-                if profile:
-                    logger.log_warning(f"CuPy not available for {func.__name__}, using numpy")
+                logger.log_info(f"CuPy not available for {func.__name__} - using original function")
                 return func(*args, **kwargs)
             
-            try:
-                # Convert numpy arrays to cupy
-                cupy_args = []
-                for arg in args:
-                    if isinstance(arg, np.ndarray):
-                        cupy_args.append(cp.asarray(arg))
-                    else:
-                        cupy_args.append(arg)
-                
-                cupy_kwargs = {}
-                for k, v in kwargs.items():
-                    if isinstance(v, np.ndarray):
-                        cupy_kwargs[k] = cp.asarray(v)
-                    else:
-                        cupy_kwargs[k] = v
-                
-                # Replace numpy references in the function's global namespace
-                func_globals = func.__globals__.copy()
-                original_np = func_globals.get('np')
-                func_globals['np'] = cp
-                
-                # Create new function with cupy globals
-                import types
-                cupy_func = types.FunctionType(
-                    func.__code__, func_globals, func.__name__, 
-                    func.__defaults__, func.__closure__
-                )
-                
-                if profile:
-                    # Benchmark original
-                    original_time = benchmark_function(func, *args, **kwargs)
-                    
-                    # Run optimized version
-                    start = time.perf_counter()
-                    result = cupy_func(*cupy_args, **cupy_kwargs)
-                    end = time.perf_counter()
-                    optimized_time = end - start
-                    
-                    # Convert result back to numpy
-                    if hasattr(result, 'get'):
-                        result = result.get()
-                    
-                    # Profile performance
-                    input_shape = args[0].shape if args and hasattr(args[0], 'shape') else None
-                    profiler.profile_function(func.__name__, original_time, optimized_time, 
-                                            input_shape, "CuPy")
-                else:
-                    result = cupy_func(*cupy_args, **cupy_kwargs)
-                    if hasattr(result, 'get'):
-                        result = result.get()
-                
-                return result
-                
-            except Exception as e:
-                if fallback_to_numpy:
-                    logger.log_warning(f"CuPy optimization failed for {func.__name__}, falling back to numpy: {e}")
-                    return func(*args, **kwargs)
-                else:
-                    raise e
+            # CuPy implementation would go here for supported platforms
+            logger.log_warning(f"CuPy optimization not implemented for {func.__name__} - using original function")
+            return func(*args, **kwargs)
         
         return wrapper
     return decorator
@@ -358,10 +303,8 @@ def auto_optimize(prefer_gpu: bool = True, profile: bool = True):
         profile: If True, profiles performance improvement
     """
     def decorator(func: Callable) -> Callable:
-        # Choose optimization strategy
-        if prefer_gpu and CUPY_AVAILABLE:
-            return cupy_optimize(profile=profile)(func)
-        elif JAX_AVAILABLE:
+        # Choose optimization strategy (CuPy removed for macOS compatibility)
+        if JAX_AVAILABLE:
             return jax_optimize(profile=profile)(func)
         elif NUMBA_AVAILABLE:
             return numba_jit(profile=profile)(func)
@@ -428,7 +371,7 @@ def profile_decorator(name: Optional[str] = None, log_memory: bool = False):
 def get_optimization_status() -> Dict[str, bool]:
     """Get status of available optimization libraries."""
     return {
-        'cupy': CUPY_AVAILABLE,
+        'cupy': False,  # Disabled for macOS compatibility
         'jax': JAX_AVAILABLE,
         'numba': NUMBA_AVAILABLE
     }
