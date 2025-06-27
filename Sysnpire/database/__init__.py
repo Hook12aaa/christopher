@@ -37,7 +37,6 @@ from .liquid_burning import (
     AgentSerializer,
     BurningOrchestrator,
     ExtractedLiquidData,
-    FieldCompressor,
     LiquidProcessor,
     MathematicalValidator,
 )
@@ -59,7 +58,6 @@ __all__ = [
     "LiquidProcessor",
     "ExtractedLiquidData",
     "AgentSerializer",
-    "FieldCompressor",
     "MathematicalValidator",
     "BurningOrchestrator",
     # Hybrid storage

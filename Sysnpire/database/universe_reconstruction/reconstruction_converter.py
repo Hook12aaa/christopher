@@ -21,6 +21,8 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 import numpy as np
 import torch
 
+from Sysnpire.utils.log_polar_cdf import LogPolarCDF
+
 logger = logging.getLogger(__name__)
 
 
@@ -228,8 +230,7 @@ class ReconstructionConverter:
         logger.info(f"🔍 DEBUG: temporal_components keys: {list(temporal_components.keys())}")
         converted = {}
         
-        # MATHEMATICAL INTEGRITY: Convert temporal_momentum to LogPolarComplex representation
-        from Sysnpire.utils.log_polar_complex import LogPolarComplex
+        # MATHEMATICAL INTEGRITY: Convert temporal_momentum to LogPolarCDF representation
         
         # Check for new log-polar storage format first
         if "temporal_momentum_log_mag" in temporal_components and "temporal_momentum_phase" in temporal_components:
@@ -243,7 +244,7 @@ class ReconstructionConverter:
             if not math.isfinite(phase):
                 raise ReconstructionConversionError(f"temporal_momentum_phase is {phase} - storage corrupted!")
             
-            converted["temporal_momentum"] = LogPolarComplex(log_mag, phase)
+            converted["temporal_momentum"] = LogPolarCDF(log_mag, phase)
             logger.info(f"✅ temporal_momentum loaded from log-polar: exp({log_mag:.3f}) * exp(i*{phase:.3f})")
         
         # Legacy format: convert (real, imag) to log-polar
@@ -254,7 +255,7 @@ class ReconstructionConverter:
             
             # NO GRACEFUL HANDLING - let LogPolarComplex.from_real_imag validate and fail if needed
             try:
-                converted["temporal_momentum"] = LogPolarComplex.from_real_imag(real_part, imag_part)
+                converted["temporal_momentum"] = LogPolarCDF.from_real_imag(real_part, imag_part)
                 logger.info(f"✅ temporal_momentum converted from legacy format: {real_part}+{imag_part}j → {converted['temporal_momentum']}")
             except ValueError as e:
                 # NO DEFAULTS - if conversion fails, storage is corrupted
@@ -280,6 +281,10 @@ class ReconstructionConverter:
             elif key not in ["temporal_momentum_real", "temporal_momentum_imag", "temporal_momentum"]:
                 # Skip the real/imag components we already processed, and the combined one
                 converted[key] = value
+                
+                # 🔍 TRACE: Debug breathing_coherence value as it flows through converter
+                if key == "breathing_coherence":
+                    logger.info(f"🔍 RECONSTRUCTION_CONVERTER: breathing_coherence = {value} (type: {type(value)}, finite: {np.isfinite(value) if hasattr(value, '__array__') or isinstance(value, (int, float)) else 'unknown'})")
         
         return converted
     

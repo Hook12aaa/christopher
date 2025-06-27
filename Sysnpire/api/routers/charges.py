@@ -62,7 +62,6 @@ async def analyze_movement(request: TextInput):
             embedding=embedding,
             index=best_result.get('index'),
             all_embeddings=search_results.get('embeddings'))
-        )
         
         # Create enhanced charge with trajectory data
         from ...model.charge_factory import ChargeParameters

@@ -18,6 +18,7 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 import torch
 import numpy as np
 
+from Sysnpire.utils.log_polar_cdf import LogPolarCDF
 from Sysnpire.model.liquid.conceptual_charge_agent import ConceptualChargeAgent, QMathematicalComponents, ThetaComponents
 from Sysnpire.database.conceptual_charge_object import ConceptualChargeObject, FieldComponents
 from Sysnpire.database.universe_reconstruction.reconstruction_converter import ReconstructionConverter
@@ -543,7 +544,7 @@ class AgentFactory:
         # Restore evolution parameters
         for param in ["sigma_i", "alpha_i", "lambda_i", "beta_i"]:
             if param in agent_state:
-                setattr(agent, param, agent_state[param])
+                setattr(agent, param, float(agent_state[param]))
         
         # Restore breathing parameters
         for param in ["breath_frequency", "breath_amplitude", "breath_phase"]:
@@ -600,10 +601,9 @@ class AgentFactory:
             if temp_momentum is None:
                 errors.append("temporal_momentum is None")
             else:
-                # Check for LogPolarComplex type
-                from Sysnpire.utils.log_polar_complex import LogPolarComplex
-                if not isinstance(temp_momentum, LogPolarComplex):
-                    errors.append(f"temporal_momentum wrong type: {type(temp_momentum)}, expected LogPolarComplex")
+                # Check for LogPolarCDF type
+                if not isinstance(temp_momentum, LogPolarCDF):
+                    errors.append(f"temporal_momentum wrong type: {type(temp_momentum)}, expected LogPolarCDF")
         
         # CRITICAL: Q_components must exist
         if not hasattr(agent, 'Q_components') or agent.Q_components is None:

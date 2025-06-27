@@ -5,15 +5,21 @@ We are taking preivous emeddings from models such as mpnet, bge and others other
 
 import sys
 from pathlib import Path
+import argparse
 
 project_root = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(project_root))
 
 
-# Reduce Jax spam
+# Reduce Jax spam and optimize MPS memory usage
 import os
 
 os.environ["JAX_LOG_COMPILE"] = "0"
+
+# MPS MEMORY OPTIMIZATION: Set high watermark ratio for better memory management
+# This allows more aggressive memory allocation for large field theory computations
+if not os.environ.get("PYTORCH_MPS_HIGH_WATERMARK_RATIO"):
+    os.environ["PYTORCH_MPS_HIGH_WATERMARK_RATIO"] = "0.0"  # Disable upper limit for large computations
 
 # Model that are supported, these are our helper classes that will extract our key information from the model.
 from Sysnpire.model.intial.bge_ingestion import BGEIngestion
@@ -27,6 +33,42 @@ import time
 from Sysnpire.utils.logger import get_logger
 
 logger = get_logger(__name__)
+
+
+def parse_arguments():
+    """
+    Parse command-line arguments for the foundation manifold builder.
+
+    Returns:
+        argparse.Namespace: Parsed command-line arguments
+    """
+    parser = argparse.ArgumentParser(
+        description="Build universal manifold from foundation models",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  python foundation_manifold_builder.py --total 1000
+  python foundation_manifold_builder.py --range 550 580
+  python foundation_manifold_builder.py --range 550 580 --model mpnet
+  python foundation_manifold_builder.py --total 500 --storage-path ./my_universe
+        """,
+    )
+
+    parser.add_argument("--model", default="bge", choices=["bge", "mpnet"], help="Model to use (default: bge)")
+
+    parser.add_argument("--total", type=int, help="Total number of embeddings to process from the beginning")
+
+    parser.add_argument(
+        "--range",
+        nargs=2,
+        type=int,
+        metavar=("START", "END"),
+        help="Range of embeddings to process (start end). Example: --range 550 580",
+    )
+
+    parser.add_argument("--storage-path", type=str, help="Path for database storage (default: timestamped directory)")
+
+    return parser.parse_args()
 
 
 def _search_embedding_worker(args):
@@ -70,9 +112,7 @@ class FoundationManifoldBuilder:
 
         self.model = self.select_model(model)
         self.model_info = self.model.info()
-        self.charge_factory = ChargeFactory(
-            from_base=True, model_info=self.model_info, model=self.model
-        )
+        self.charge_factory = ChargeFactory(from_base=True, model_info=self.model_info, model=self.model)
         self.__readout_info()
 
         logger.info(f"💾 Database storage configured: {self.storage_path}")
@@ -86,9 +126,7 @@ class FoundationManifoldBuilder:
             None
         """
         # Log the model information
-        logger.info(
-            f"Reading out information from model: {self.model_info['model_name']}"
-        )
+        logger.info(f"Reading out information from model: {self.model_info['model_name']}")
         for key, value in (self.model.info()).items():
             logger.info(f"{key}: {value}")
 
@@ -96,9 +134,7 @@ class FoundationManifoldBuilder:
         loaded_model = self.model.load_total_embeddings()
 
         if loaded_model is None:
-            raise ValueError(
-                "Model embeddings could not be loaded. Please check the model and try again."
-            )
+            raise ValueError("Model embeddings could not be loaded. Please check the model and try again.")
 
         if int(loaded_model["embedding_dim"]) != int(self.model_info["dimension"]):
             raise ValueError(
@@ -126,34 +162,77 @@ class FoundationManifoldBuilder:
         if model_name == "bge":
             return BGEIngestion(model_name="BAAI/bge-large-en-v1.5", random_seed=42)
         if model_name == "mpnet":
-            return MPNetIngestion(
-                model_name="sentence-transformers/all-mpnet-base-v2", random_seed=42
-            )
+            return MPNetIngestion(model_name="sentence-transformers/all-mpnet-base-v2", random_seed=42)
         else:
-            raise ValueError(
-                f"Model {model_name} is not supported. Please choose 'bge' or 'mpnet'."
-            )
+            raise ValueError(f"Model {model_name} is not supported. Please choose 'bge' or 'mpnet'.")
 
-    def build_manifold(self):
+    def build_manifold(self, start_idx=None, end_idx=None, total=None):
+        """
+        Build the universal manifold from the selected model.
 
+        Args:
+            start_idx (int, optional): Starting index for embedding range
+            end_idx (int, optional): Ending index for embedding range
+            total (int, optional): Total number of embeddings to process from beginning
+        """
         logger.info("Building the universal manifold from the selected model.")
 
         model_loaded = self.__load_model_and_check()
 
-        # STEP 1: LOAD MODEL AND EMBEDDINGS, Smaller Embeddings for Testing
-        test_embeddings = model_loaded["embeddings"][:10000]  # First 10000 embeddings
-        logger.info(
-            f"🧪 Testing with {len(test_embeddings)} embeddings"
-        )
+        # Get all available embeddings
+        all_embeddings = model_loaded["embeddings"]
+        total_available = len(all_embeddings)
+
+        # STEP 1: DETERMINE EMBEDDING SLICE BASED ON PARAMETERS
+        if start_idx is not None and end_idx is not None:
+            # Validate range parameters
+            if start_idx < 0:
+                raise ValueError(f"Start index must be >= 0, got {start_idx}")
+            if end_idx <= start_idx:
+                raise ValueError(f"End index ({end_idx}) must be greater than start index ({start_idx})")
+            if start_idx >= total_available:
+                raise ValueError(f"Start index ({start_idx}) exceeds available embeddings ({total_available})")
+            if end_idx > total_available:
+                logger.warning(
+                    f"End index ({end_idx}) exceeds available embeddings ({total_available}), using {total_available}"
+                )
+                end_idx = total_available
+
+            test_embeddings = all_embeddings[start_idx:end_idx]
+            embedding_indices = list(range(start_idx, end_idx))
+            logger.info(f"🎯 Processing embedding range {start_idx}-{end_idx-1} ({len(test_embeddings)} embeddings)")
+
+        elif total is not None:
+            # Validate total parameter
+            if total <= 0:
+                raise ValueError(f"Total must be > 0, got {total}")
+            if total > total_available:
+                logger.warning(
+                    f"Requested total ({total}) exceeds available embeddings ({total_available}), using {total_available}"
+                )
+                total = total_available
+
+            test_embeddings = all_embeddings[:total]
+            embedding_indices = list(range(total))
+            logger.info(f"🔢 Processing first {total} embeddings")
+
+        else:
+            # Default behavior - first 100 embeddings for safety
+            default_count = min(100, total_available)
+            test_embeddings = all_embeddings[:default_count]
+            embedding_indices = list(range(default_count))
+            logger.info(
+                f"🧪 Default mode: Processing first {default_count} embeddings (use --total or --range for more)"
+            )
+
+        logger.info(f"📊 Selected {len(test_embeddings)} embeddings from {total_available} available")
 
         # 🚀 OPTIMIZED SEQUENTIAL: Fast sequential processing with progress updates
-        logger.info(
-            f"🚀 Starting optimized BGE search for {len(test_embeddings)} embeddings..."
-        )
+        logger.info(f"🚀 Starting optimized BGE search for {len(test_embeddings)} embeddings...")
 
         # ⚡ PERFORMANCE FIX: Pre-load model data once instead of reloading for each search
         logger.info("⚡ Pre-loading model data to avoid repeated loading...")
-        if not hasattr(self.model, '_embedding_data'):
+        if not hasattr(self.model, "_embedding_data"):
             self.model._embedding_data = self.model.load_total_embeddings()
         logger.info("✅ Model data cached for batch processing")
 
@@ -161,65 +240,64 @@ class FoundationManifoldBuilder:
         for i, embedding in enumerate(test_embeddings):
             try:
                 # ⚡ DIRECT LOOKUP: Skip expensive search since we know the index
-                actual_index = i  # We're using embeddings in order, so index matches
-                token = model_loaded['id_to_token'].get(actual_index, f"<UNK_{actual_index}>")
-                
+                actual_index = embedding_indices[i]  # Use the correct index from our range/selection
+                token = model_loaded["id_to_token"].get(actual_index)
+
                 # Create result structure directly without search
                 result = {
-                    'query': embedding,
-                    'query_embedding': embedding,
-                    'top_k': 1,
-                    'embeddings': [{
-                        'index': actual_index,
-                        'token': token,
-                        'vector': embedding.tolist(),
-                        'similarity': 1.0,  # Perfect match since it's the same embedding
-                        'manifold_properties': {}  # Will be computed by ChargeFactory if needed
-                    }]
+                    "query": embedding,
+                    "query_embedding": embedding,
+                    "top_k": 1,
+                    "embeddings": [
+                        {
+                            "index": actual_index,
+                            "token": token,
+                            "vector": embedding.tolist(),
+                            "similarity": 1.0,  # Perfect match since it's the same embedding
+                            "manifold_properties": {},  # Will be computed by ChargeFactory if needed
+                        }
+                    ],
                 }
                 enriched_e.append(result)
 
                 # Progress updates every 10 completions
                 if (i + 1) % 10 == 0:
                     progress_pct = ((i + 1) / len(test_embeddings)) * 100
-                    logger.info(
-                        f"   ✅ Completed {i + 1}/{len(test_embeddings)} searches ({progress_pct:.1f}%)"
-                    )
+                    logger.info(f"   ✅ Completed {i + 1}/{len(test_embeddings)} searches ({progress_pct:.1f}%)")
 
             except Exception as exc:
                 logger.error(f"   ❌ BGE search {i} failed: {exc}")
                 # Provide fallback result
-                enriched_e.append([{"embedding": embedding, "token": f"<ERROR_{i}>"}])
+                enriched_e.append(
+                    [{"embedding": embedding, "token": f"<ERROR_{actual_index if 'actual_index' in locals() else i}>"}]
+                )
 
-        logger.info(
-            f"🎉 Sequential BGE search completed: {len(enriched_e)} results processed"
-        )
+        logger.info(f"🎉 Sequential BGE search completed: {len(enriched_e)} results processed")
 
         # 🧬 EXTRACT VOCAB MAPPINGS: Get actual vocabulary words for our embeddings
         id_to_token = model_loaded.get("id_to_token")
         token_to_id = model_loaded.get("token_to_id")
-        embedding_indices = list(range(len(test_embeddings)))
+        # embedding_indices already defined above based on range/total parameters
 
         # 🔍 Extract actual vocabulary words for our embedding indices (optimized)
-        vocab_words = [
-            id_to_token.get(idx, f"<UNK_{idx}>") for idx in embedding_indices
-        ]
+        vocab_words = [id_to_token.get(idx) for idx in embedding_indices]
 
-        logger.info(f"📚 BGE Vocabulary tokens for indices 5000-5099:")
+        # Display range information
+        start_idx_display = embedding_indices[0] if embedding_indices else 0
+        end_idx_display = embedding_indices[-1] if embedding_indices else 0
+        logger.info(f"📚 BGE Vocabulary tokens for indices {start_idx_display}-{end_idx_display}:")
+
         # Log first 10 and last 10 to avoid spam
-        sample_tokens = [
-            (idx, token) for idx, token in zip(embedding_indices[:10], vocab_words[:10])
-        ]
-        sample_tokens += [
-            (idx, token)
-            for idx, token in zip(embedding_indices[-10:], vocab_words[-10:])
-        ]
+        sample_tokens = [(idx, token) for idx, token in zip(embedding_indices[:10], vocab_words[:10])]
+        if len(embedding_indices) > 20:
+            sample_tokens += [(idx, token) for idx, token in zip(embedding_indices[-10:], vocab_words[-10:])]
 
         for idx, token in sample_tokens[:10]:
             logger.info(f"   Index {idx}: '{token}'")
-        logger.info(f"   ... [skipped {len(vocab_words)-20} tokens] ...")
-        for idx, token in sample_tokens[10:]:
-            logger.info(f"   Index {idx}: '{token}'")
+        if len(sample_tokens) > 10:
+            logger.info(f"   ... [skipped {len(vocab_words)-20} tokens] ...")
+            for idx, token in sample_tokens[10:]:
+                logger.info(f"   Index {idx}: '{token}'")
 
         vocab_mappings = {
             "id_to_token": id_to_token,
@@ -227,14 +305,10 @@ class FoundationManifoldBuilder:
             "embedding_indices": embedding_indices,
             "vocab_words": vocab_words,  # Actual tokens for our embeddings
         }
-        logger.info(
-            f"📚 Extracted vocab mappings: {len(vocab_mappings['id_to_token'])} tokens available"
-        )
+        logger.info(f"📚 Extracted vocab mappings: {len(vocab_mappings['id_to_token'])} tokens available")
 
         # 🚀 BUILD THE COMPLETE PIPELINE WITH LIQUID RESULTS AND VOCAB!
-        complete_results = self.charge_factory.build(
-            enriched_e, model_loaded, vocab_mappings
-        )
+        complete_results = self.charge_factory.build(enriched_e, model_loaded, vocab_mappings)
 
         # 🎉 WE NOW HAVE BOTH combined_results AND liquid_results!
         combined_results = {
@@ -256,9 +330,7 @@ class FoundationManifoldBuilder:
             """Recursively dump object structure to readable text."""
             spaces = "  " * indent
             if isinstance(obj, dict):
-                lines = [
-                    f"{spaces}{k}: {dump_object(v, indent+1)}" for k, v in obj.items()
-                ]
+                lines = [f"{spaces}{k}: {dump_object(v, indent+1)}" for k, v in obj.items()]
                 return "{\n" + "\n".join(lines) + f"\n{spaces}" + "}"
             elif isinstance(obj, list):
                 if len(obj) > 3:  # Truncate long lists
@@ -283,9 +355,7 @@ class FoundationManifoldBuilder:
                 return str(obj)
 
         # 📄 DUMP combined_results
-        combined_path = os.path.join(
-            project_root, "Sysnpire", "combined_results_example_all.txt"
-        )
+        combined_path = os.path.join(project_root, "Sysnpire", "combined_results_example_all.txt")
         with open(combined_path, "w") as f:
             f.write("=== combined_results RESULTS DUMP ===\n\n")
             f.write(dump_object(combined_results))
@@ -293,9 +363,7 @@ class FoundationManifoldBuilder:
         logger.info(f"✅ Combined results dumped to {combined_path}")
 
         # 🌊 DUMP liquid_results
-        liquid_path = os.path.join(
-            project_root, "Sysnpire", "liquid_results_example_all.txt"
-        )
+        liquid_path = os.path.join(project_root, "Sysnpire", "liquid_results_example_all.txt")
         with open(liquid_path, "w") as f:
             f.write("=== LIQUID RESULTS DUMP ===\n\n")
             f.write(f"🚀 REVOLUTIONARY O(log N) LIQUID UNIVERSE CREATED!\n\n")
@@ -304,17 +372,13 @@ class FoundationManifoldBuilder:
         logger.info(f"🌊 Liquid results dumped to {liquid_path}")
 
         # 📊 LOG SUCCESS METRICS
-        num_agents = liquid_results.get("num_agents", 0)
-        optimization_stats = liquid_results.get("optimization_stats", {})
+        num_agents = liquid_results.get("num_agents")
+        optimization_stats = liquid_results.get("optimization_stats")
 
         logger.info(f"🎉 LIQUID UNIVERSE PIPELINE SUCCESS!")
         logger.info(f"   🚀 Created {num_agents} living Q(τ,C,s) agents")
-        logger.info(
-            f"   ⚡ Performance mode: {optimization_stats.get('performance_mode', 'Unknown')}"
-        )
-        logger.info(
-            f"   📈 Optimization factor: {optimization_stats.get('complexity_reduction', 'Unknown')}"
-        )
+        logger.info(f"   ⚡ Performance mode: {optimization_stats.get('performance_mode')}")
+        logger.info(f"   📈 Optimization factor: {optimization_stats.get('complexity_reduction')}")
 
         # 💾 STEP 5: BURN TO PERSISTENT DATABASE (MANDATORY)
         logger.info("💾 STEP 5: Burning liquid universe to persistent database...")
@@ -326,9 +390,7 @@ class FoundationManifoldBuilder:
             logger.info(f"🔥 Universe burned successfully!")
             logger.info(f"   📁 Storage: {burning_results['storage_path']}")
             logger.info(f"   🎯 Agents: {burning_results['agents_burned']}")
-            logger.info(
-                f"   📚 Vocab tokens: {burning_results['vocab_context']['tokens_count']}"
-            )
+            logger.info(f"   📚 Vocab tokens: {burning_results['vocab_context']['tokens_count']}")
             logger.info(f"   ⏱️ Burn time: {burning_results['burn_time_seconds']:.2f}s")
 
             # Include database results in return
@@ -344,6 +406,56 @@ class FoundationManifoldBuilder:
 
 
 if __name__ == "__main__":
+    # Parse command-line arguments
+    args = parse_arguments()
 
-    builder = FoundationManifoldBuilder(model="bge")
-    builder.build_manifold()
+    # Validate arguments
+    if args.range and args.total:
+        logger.error("❌ Cannot specify both --range and --total. Choose one.")
+        sys.exit(1)
+
+    # Additional validation for range
+    if args.range:
+        start, end = args.range
+        if start >= end:
+            logger.error(f"❌ Range start ({start}) must be less than end ({end})")
+            sys.exit(1)
+        if start < 0:
+            logger.error(f"❌ Range start must be >= 0, got {start}")
+            sys.exit(1)
+
+    # Additional validation for total
+    if args.total and args.total <= 0:
+        logger.error(f"❌ Total must be > 0, got {args.total}")
+        sys.exit(1)
+
+    # Log the configuration
+    logger.info("🚀 Foundation Manifold Builder Starting")
+    logger.info(f"   Model: {args.model}")
+    if args.range:
+        logger.info(f"   Range: {args.range[0]}-{args.range[1]-1} ({args.range[1] - args.range[0]} embeddings)")
+    elif args.total:
+        logger.info(f"   Total: {args.total} embeddings")
+    else:
+        logger.info("   Mode: Default (100 embeddings)")
+    if args.storage_path:
+        logger.info(f"   Storage: {args.storage_path}")
+
+    # Create builder with specified model and storage path
+    builder = FoundationManifoldBuilder(model=args.model, storage_path=args.storage_path)
+
+    # Execute build with appropriate parameters
+    try:
+        if args.range:
+            start, end = args.range
+            builder.build_manifold(start_idx=start, end_idx=end)
+        elif args.total:
+            builder.build_manifold(total=args.total)
+        else:
+            builder.build_manifold()  # Default behavior
+
+        logger.info("🎉 Foundation manifold build completed successfully!")
+
+    except Exception as e:
+        logger.error(f"❌ Foundation manifold build failed: {e}")
+        sys.exit(1)
