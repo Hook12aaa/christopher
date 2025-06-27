@@ -313,13 +313,14 @@ class LiquidOrchestrator:
             # DIRECT AGENT CREATION - NO ERROR MASKING
             logger.info(f"Creating agent {i}")
 
-            # Create agent using factory method WITH VOCAB CONTEXT
+            # Create agent using factory method WITH VOCAB CONTEXT AND REGULATION
             vocab_mappings = self.combined_results.get("vocab_mappings")
             agent = ConceptualChargeAgent.from_charge_factory_results(
                 combined_results=self.combined_results,
                 charge_index=i,
                 device=str(self.device),
                 vocab_mappings=vocab_mappings,  # 📚 Pass vocab context for agent identification
+                regulation_liquid=self.regulation_liquid,  # 🌊 Pass regulation system for field stabilization
             )
 
             # Store both agent and charge object
@@ -4630,6 +4631,10 @@ class LiquidOrchestrator:
                     self.charge_agents[charge_id] = reconstructed_charge
                     if hasattr(reconstructed_charge, "charge_obj"):
                         self.active_charges[charge_id] = reconstructed_charge.charge_obj
+
+                    # 🌊 CRITICAL: Set regulation_liquid reference for reconstructed agents
+                    if hasattr(reconstructed_charge, "regulation_liquid"):
+                        reconstructed_charge.regulation_liquid = self.regulation_liquid
 
                     reconstructed_charges.append(reconstructed_charge)
 

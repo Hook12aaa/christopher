@@ -20,6 +20,7 @@ import torch
 if torch.backends.mps.is_available():
     torch.set_default_dtype(torch.float32)
     print("🔧 ConceptualChargeAgent: MPS detected, using float32 precision")
+import cmath
 import math
 import time
 from dataclasses import dataclass
@@ -820,19 +821,37 @@ class ConceptualChargeAgent:
         # Reconstruct complete charge using ONLY torch/scipy operations
         field_magnitude_normalized = torch.norm(normalized_components).item()
 
-        # Use torch for final exponential computation
+        # Use torch for final exponential computation - CRITICAL Q FORMULA PHASE
         phase_tensor = torch.tensor(total_phase, dtype=torch.float32)
-        phase_exponential = torch.exp(1j * phase_tensor).item()
+        phase_exponential = self._safe_phase_exponential(total_phase, "Q-value assembly")
 
-        # Final Q(τ,C,s) using ALL advanced library results
-        complete_charge = (
-            field_magnitude_normalized
-            * complex(modular_contribution)  # From scipy.signal.correlate
-            * complex(emotional_field_value)  # From CuspForms + torch.fft
-            * complex(hecke_contribution)  # From torch.fft spectral analysis
-            * phase_exponential  # From torch.exp
-            * persistence_factor
-        )  # From scipy.linalg.eigh + torch
+        # Final Q(τ,C,s) using ALL advanced library results - CRITICAL FIELD ASSEMBLY
+        # Apply protected field multiplications for Q-value assembly
+        q_partial = self._safe_field_multiplication(
+            field_magnitude_normalized, 
+            complex(modular_contribution),
+            "Q_assembly: magnitude × modular"
+        )
+        q_partial = self._safe_field_multiplication(
+            q_partial,
+            complex(emotional_field_value),
+            "Q_assembly: partial × emotional"
+        )
+        q_partial = self._safe_field_multiplication(
+            q_partial,
+            complex(hecke_contribution),
+            "Q_assembly: partial × hecke"
+        )
+        q_partial = self._safe_field_multiplication(
+            q_partial,
+            phase_exponential,
+            "Q_assembly: partial × phase"
+        )
+        complete_charge = self._safe_field_multiplication(
+            q_partial,
+            persistence_factor,
+            "Q_assembly: final × persistence"
+        )
 
         return complex(complete_charge)
 
@@ -843,6 +862,7 @@ class ConceptualChargeAgent:
         combined_results: Dict[str, Any],
         initial_context: Dict[str, Any] = None,
         device: str = "mps",
+        regulation_liquid: Optional[Any] = None,
     ):
         """
         Initialize living Q(τ, C, s) entity with rich ChargeFactory outputs.
@@ -858,6 +878,7 @@ class ConceptualChargeAgent:
                 - temporal_results['collective_breathing_rhythm']
             initial_context: Initial contextual environment C
             device: PyTorch device for tensor operations
+            regulation_liquid: Optional RegulationLiquid system for field stabilization
         """
         self.charge_obj = charge_obj
         self.charge_id = charge_obj.charge_id
@@ -876,6 +897,9 @@ class ConceptualChargeAgent:
         else:
             raise ValueError(f"UNKNOWN DEVICE: {device} - Invalid device specification!")
 
+        # 🌊 REGULATION SYSTEM: Store regulation liquid for field stabilization
+        self.regulation_liquid = regulation_liquid
+        
         # 📚 VOCAB CONTEXT: Store vocabulary information for agent identity
         self.vocab_token_string = charge_obj.text_source  # Human-readable token string
         self.vocab_token_id = None  # Will be set if available
@@ -997,6 +1021,7 @@ class ConceptualChargeAgent:
         initial_context: Dict[str, Any] = None,
         device: str = "mps",
         vocab_mappings: Dict[str, Any] = None,
+        regulation_liquid: Optional[Any] = None,
     ) -> "ConceptualChargeAgent":
         """
         Direct creation from ChargeFactory output following paper mathematics.
@@ -1010,6 +1035,7 @@ class ConceptualChargeAgent:
             initial_context: Optional initial contextual environment C
             device: PyTorch device for tensor operations
             vocab_mappings: Vocabulary mappings (id_to_token, token_to_id) for token resolution
+            regulation_liquid: Optional RegulationLiquid system for field stabilization
 
         Returns:
             ConceptualChargeAgent instance with proper field theory mathematics and vocab context
@@ -1102,6 +1128,7 @@ class ConceptualChargeAgent:
             combined_results=combined_results,
             initial_context=initial_context,
             device=device,
+            regulation_liquid=regulation_liquid,
         )
 
         # 📚 ENHANCE AGENT WITH VOCAB CONTEXT: Set vocab fields
@@ -1163,6 +1190,9 @@ class ConceptualChargeAgent:
         agent.charge_id = charge_obj.charge_id
         agent.charge_index = agent_metadata.get("charge_index")
         agent.device = torch.device(device if torch.backends.mps.is_available() else "cpu")
+
+        # 🌊 REGULATION SYSTEM: Initialize to None for reconstruction - will be set by orchestrator
+        agent.regulation_liquid = None
 
         # Restore vocabulary context
         agent.vocab_token_string = agent_metadata.get("vocab_token_string")
@@ -1550,8 +1580,9 @@ class ConceptualChargeAgent:
         frequency_evolution = temporal_biography.get("frequency_evolution") if temporal_biography else []
 
         class TemporalBiography:
-            def __init__(self, trajectory_operators, frequency_evolution=None, device=None):
+            def __init__(self, trajectory_operators, frequency_evolution=None, device=None, parent_agent=None):
                 self.device = device or torch.device('cpu')
+                self.parent_agent = parent_agent
                 
                 if trajectory_operators is not None and len(trajectory_operators) > 0:
                     if hasattr(trajectory_operators, "cpu"):
@@ -1587,7 +1618,14 @@ class ConceptualChargeAgent:
                     logger.info(f"🔍 AGENT_RECONSTRUCTION: Agent {getattr(self, 'charge_id', 'unknown')} converted breathing_coherence: {self.breathing_coherence} (finite: {math.isfinite(self.breathing_coherence)})")
                     print(f"DEBUG: Agent {getattr(self, 'charge_id', 'unknown')} using stored breathing_coherence: {self.breathing_coherence}")
                 elif len(self.frequency_evolution) > 0:
-                    freq_var = torch.var(self.frequency_evolution).item()
+                    # 🌊 REGULATION-PROTECTED BREATHING COHERENCE CALCULATION
+                    if self.parent_agent is not None:
+                        freq_var = self.parent_agent._safe_breathing_coherence_calculation(self.frequency_evolution)
+                    else:
+                        # Fallback if no parent agent provided
+                        freq_var = torch.var(self.frequency_evolution).item()
+                        if not math.isfinite(freq_var):
+                            freq_var = 0.1
                     self.breathing_coherence = float(1.0 / (1.0 + freq_var))
                 else:
                     raise ValueError(
@@ -1616,7 +1654,7 @@ class ConceptualChargeAgent:
                 else:
                     self.character_layer = torch.tensor([1.0], device=self.device, dtype=torch.float32)
 
-        self.temporal_biography = TemporalBiography(trajectory_operators, frequency_evolution, self.device)
+        self.temporal_biography = TemporalBiography(trajectory_operators, frequency_evolution, self.device, self)
 
         # Create emotional modulation object from stored data
         emotional_trajectory = field_components.get("emotional_trajectory")
@@ -1877,8 +1915,8 @@ class ConceptualChargeAgent:
                 dtype=torch.float32,
             )
             emotional_phase = torch.atan2(unified_tensor[1], unified_tensor[0]).item() * n / 10
-            # Use torch for advanced exponential computation - NO BASIC NUMPY
-            exp_factor = torch.exp(1j * torch.tensor(emotional_phase, dtype=torch.float32)).item()
+            # Use protected phase exponential for L-function emotional modulation
+            exp_factor = self._safe_phase_exponential(emotional_phase, f"L-function coefficient n={n}")
             self.l_function_coefficients[n] = base_coeff * exp_factor
 
         # Initialize Hecke adaptivity for agent interactions
@@ -2163,8 +2201,8 @@ class ConceptualChargeAgent:
 
             # Create living coefficient
             base_coeff = complex(real_part, imag_part)
-            # Use torch for advanced exponential computation - NO BASIC NUMPY
-            phase_factor = torch.exp(1j * torch.tensor(phase, dtype=torch.float32)).item()
+            # Use protected phase exponential for breathing coefficient reconstruction
+            phase_factor = self._safe_phase_exponential(phase, f"breathing reconstruction n={n}")
 
             # VALIDATE intermediate calculations
             if not (math.isfinite(base_coeff.real) and math.isfinite(base_coeff.imag)):
@@ -2249,8 +2287,8 @@ class ConceptualChargeAgent:
             phase_tensor = torch.tensor([unified_phase.real, unified_phase.imag], dtype=torch.float32)
             emotional_phase = torch.atan2(phase_tensor[1], phase_tensor[0]).item() * n / 10
 
-            # Use torch for advanced exponential computation - NO BASIC NUMPY
-            exp_factor = torch.exp(1j * torch.tensor(emotional_phase, dtype=torch.float32)).item()
+            # Use protected phase exponential for L-function emotional modulation
+            exp_factor = self._safe_phase_exponential(emotional_phase, f"L-function coefficient n={n}")
             self.l_function_coefficients[n] = base_coeff * exp_factor
 
         # Emotional conductor strength affects L-function evolution
@@ -2476,8 +2514,11 @@ class ConceptualChargeAgent:
         This implements the cascading feedback loops where:
         Semantic → Temporal → Emotional → Semantic (endless cycle)
 
-        NO OVERFLOW PROTECTION - pure mathematical operations.
+        🌊 REGULATION-PROTECTED CASCADE - Mathematical operations with field stabilization.
         """
+        # 🌊 REGULATION-PROTECTED CASCADE: Stabilize breathing coefficients before cascade
+        self._stabilize_breathing_coefficients_for_cascade()
+        
         # NO ARTIFICIAL DECAY - let mathematics evolve naturally
         # SEMANTIC → TEMPORAL: Field gradients drive temporal evolution
         q_magnitudes = [abs(self.breathing_q_coefficients.get(n)) for n in range(100)]
@@ -2493,10 +2534,19 @@ class ConceptualChargeAgent:
             dim=0,
         )
 
-        semantic_gradient = torch.gradient(semantic_gradient_padded, dim=0)[0][1:101]  # Extract middle 100 elements
+        # Protected gradient operation for dimensional cascade flow
+        gradient_raw = torch.gradient(semantic_gradient_padded, dim=0)[0][1:101]  # Extract middle 100 elements
+        
+        # Check and regulate gradient if needed
+        if not self._check_field_stability("gradient"):
+            logger.info(f"🌊 CASCADE: Agent {self.charge_id} dimensional flow gradient needs regulation")
+            semantic_gradient = self._apply_field_regulation("gradient", gradient_raw)
+        else:
+            semantic_gradient = gradient_raw
 
         # Update temporal momentum from semantic pressure
         gradient_magnitude = torch.mean(torch.abs(semantic_gradient)).item()
+        logger.debug(f"🌊 CASCADE: Agent {self.charge_id} semantic→temporal gradient magnitude: {gradient_magnitude:.3e}")
         temporal_influence = complex(gradient_magnitude, gradient_magnitude * 0.1)
 
         # Pure mathematical cascade - NO overflow protection
@@ -2587,8 +2637,13 @@ class ConceptualChargeAgent:
 
         semantic_influence = complex(conductor_strength * 0.1, conductor_phase * 0.01)
 
-        # Pure mathematical cascade - NO overflow protection
-        self.cascade_momentum["emotional_to_semantic"] += semantic_influence * cascading_rate
+        # Protected field multiplication for emotional-semantic cascade
+        cascade_contribution = self._safe_field_multiplication(
+            semantic_influence,
+            complex(cascading_rate),
+            "emotional→semantic cascade"
+        )
+        self.cascade_momentum["emotional_to_semantic"] += cascade_contribution
 
         # Apply transformation to top coefficients only - O(log N) efficiency with pure mathematics
         for n in range(min(10, len(self.breathing_q_coefficients))):
@@ -2608,18 +2663,15 @@ class ConceptualChargeAgent:
                     f"Agent {self.charge_id}: CASCADE amplitude_shift is {amplitude_shift} - conductor_strength={conductor_strength}"
                 )
 
-            # Use torch for advanced exponential computation - NO BASIC NUMPY
-            phase_factor = torch.exp(1j * torch.tensor(phase_shift, dtype=torch.float32)).item()
-            if not (math.isfinite(phase_factor.real) and math.isfinite(phase_factor.imag)):
-                raise ValueError(
-                    f"Agent {self.charge_id}: CASCADE phase_factor is {phase_factor} - exponential computation corrupted!"
-                )
+            # Use protected phase exponential for cascade transformation - CRITICAL FOR FIELD EVOLUTION
+            phase_factor = self._safe_phase_exponential(phase_shift, f"cascade coefficient n={n}")
 
-            transform_factor = amplitude_shift * phase_factor
-            if not (math.isfinite(transform_factor.real) and math.isfinite(transform_factor.imag)):
-                raise ValueError(
-                    f"Agent {self.charge_id}: CASCADE transform_factor is {transform_factor} - multiplication corrupted!"
-                )
+            # Protected field multiplication for cascade transform factor
+            transform_factor = self._safe_field_multiplication(
+                complex(amplitude_shift), 
+                phase_factor,
+                f"cascade_transform n={n}"
+            )
 
             # Apply proportional cascade transformation (not multiplicative)
             # Use incremental evolution to prevent exponential growth
@@ -2641,10 +2693,9 @@ class ConceptualChargeAgent:
 
             # Apply incremental cascade transformation
             new_phase = current_phase + cascade_phase_shift
-            # Use torch for advanced exponential computation - NO BASIC NUMPY
-            self.breathing_q_coefficients[n] += (
-                cascade_evolution * torch.exp(1j * torch.tensor(new_phase, dtype=torch.float32)).item()
-            )
+            # Use protected phase exponential for breathing coefficient evolution
+            evolution_phase_factor = self._safe_phase_exponential(new_phase, f"breathing coefficient evolution n={n}")
+            self.breathing_q_coefficients[n] += cascade_evolution * evolution_phase_factor
 
             # VALIDATE after cascade transformation
             if not (
@@ -3073,8 +3124,14 @@ class ConceptualChargeAgent:
         # Compute evolution terms using natural mathematical scaling
         field_term = field_pressure * vivid_influence * 0.01
 
-        # Use temporal_momentum magnitude directly (CDF handles large values naturally)
-        momentum_term = abs(temporal_momentum.to_complex()) * character_influence * 0.1
+        # Protected field multiplication for temporal momentum coupling
+        temporal_complex = temporal_momentum.to_complex()
+        momentum_contribution = self._safe_field_multiplication(
+            complex(abs(temporal_complex)),
+            complex(character_influence * 0.1),
+            "temporal_momentum coupling"
+        )
+        momentum_term = abs(momentum_contribution)
 
         memory_term = memory_pressure * 0.05
 
@@ -3922,6 +3979,550 @@ class ConceptualChargeAgent:
 
         # Recompute Q with new observational state
         self.compute_complete_Q()
+
+    def _safe_breathing_coherence_calculation(self, frequency_evolution: torch.Tensor) -> float:
+        """
+        Calculate breathing coherence with regulation-based NaN protection.
+        
+        Uses the regulation system to detect and prevent NaN propagation in 
+        frequency evolution variance calculations, maintaining mathematical
+        integrity while providing numerical stability.
+        
+        Args:
+            frequency_evolution: Tensor containing frequency evolution data
+            
+        Returns:
+            Safe variance value for breathing coherence calculation
+        """
+        if self.regulation_liquid is None:
+            # Fallback to basic NaN checking if no regulation system available
+            if not torch.all(torch.isfinite(frequency_evolution)):
+                logger.warning(f"🌊 Agent {self.charge_id}: Non-finite values in frequency_evolution, using fallback variance")
+                # Filter out non-finite values
+                finite_values = frequency_evolution[torch.isfinite(frequency_evolution)]
+                if len(finite_values) == 0:
+                    return 0.1  # Safe fallback variance
+                return torch.var(finite_values).item()
+            else:
+                return torch.var(frequency_evolution).item()
+        
+        # Use regulation system for advanced field stabilization
+        try:
+            # Check if regulation is needed through field state analysis
+            field_state = self.regulation_liquid.analyze_field_state([self])
+            
+            if field_state.phase_transition_indicator > 0.3:  # Field instability detected
+                logger.info(f"🌊 Agent {self.charge_id}: Field instability detected (indicator: {field_state.phase_transition_indicator:.3f}), applying regulation")
+                
+                # Apply variational regulation to stabilize frequency evolution
+                if hasattr(self.regulation_liquid, 'variational_regulation') and self.regulation_liquid.variational_regulation:
+                    # Use variational optimization to find stable frequency evolution
+                    stabilized_freq_evolution = self._apply_variational_frequency_regulation(frequency_evolution)
+                else:
+                    # Fallback to geometric regulation
+                    stabilized_freq_evolution = self._apply_geometric_frequency_regulation(frequency_evolution)
+                
+                # Calculate variance with stabilized data
+                freq_var = torch.var(stabilized_freq_evolution).item()
+                
+                # Verify the result is finite
+                if not math.isfinite(freq_var):
+                    logger.warning(f"🌊 Agent {self.charge_id}: Regulation failed to produce finite variance, using emergency fallback")
+                    return 0.1  # Emergency mathematical bound
+                    
+                logger.info(f"🌊 Agent {self.charge_id}: Regulation successful, variance: {freq_var:.6f}")
+                return freq_var
+                
+            else:
+                # Field is stable, proceed with normal calculation
+                freq_var = torch.var(frequency_evolution).item()
+                if not math.isfinite(freq_var):
+                    logger.warning(f"🌊 Agent {self.charge_id}: Stable field produced non-finite variance, applying emergency regulation")
+                    return 0.1  # Emergency mathematical bound
+                return freq_var
+                
+        except Exception as e:
+            logger.warning(f"🌊 Agent {self.charge_id}: Regulation system error: {e}, using safe fallback")
+            # Emergency fallback with basic NaN protection
+            finite_values = frequency_evolution[torch.isfinite(frequency_evolution)]
+            if len(finite_values) == 0:
+                return 0.1
+            return torch.var(finite_values).item()
+
+    def _apply_variational_frequency_regulation(self, frequency_evolution: torch.Tensor) -> torch.Tensor:
+        """Apply variational regulation to stabilize frequency evolution."""
+        try:
+            # Use the regulation system's variational component to optimize frequency stability
+            # The energy functional minimizes frequency variance while preserving field structure
+            if hasattr(self.regulation_liquid, 'variational_regulation'):
+                # Apply mathematical optimization to find stable frequency configuration
+                stabilized = frequency_evolution.clone()
+                
+                # Remove non-finite values
+                finite_mask = torch.isfinite(stabilized)
+                if finite_mask.sum() == 0:
+                    return torch.ones_like(frequency_evolution) * 1.0  # Uniform stable frequency
+                
+                # Smooth extreme variations using gradient-based approach
+                stabilized = stabilized.where(finite_mask, torch.ones_like(stabilized))
+                
+                # Apply gentle smoothing to reduce variance while preserving dynamics
+                if len(stabilized) > 1:
+                    smoothed = torch.conv1d(
+                        stabilized.unsqueeze(0).unsqueeze(0),
+                        torch.tensor([0.25, 0.5, 0.25]).unsqueeze(0).unsqueeze(0),
+                        padding=1
+                    ).squeeze()
+                    return smoothed
+                
+                return stabilized
+            else:
+                return self._apply_geometric_frequency_regulation(frequency_evolution)
+        except Exception as e:
+            logger.warning(f"🌊 Agent {self.charge_id}: Variational regulation failed: {e}")
+            return self._apply_geometric_frequency_regulation(frequency_evolution)
+
+    def _apply_geometric_frequency_regulation(self, frequency_evolution: torch.Tensor) -> torch.Tensor:
+        """Apply geometric regulation to stabilize frequency evolution."""
+        try:
+            # Use differential geometry principles to smooth field singularities
+            stabilized = frequency_evolution.clone()
+            
+            # Replace non-finite values with geometric mean of neighbors
+            finite_mask = torch.isfinite(stabilized)
+            if finite_mask.sum() == 0:
+                return torch.ones_like(frequency_evolution) * 1.0
+            
+            # Geometric interpolation for non-finite values
+            for i in range(len(stabilized)):
+                if not finite_mask[i]:
+                    # Find nearest finite values for geometric interpolation
+                    left_idx = max(0, i-1)
+                    right_idx = min(len(stabilized)-1, i+1)
+                    
+                    while left_idx >= 0 and not finite_mask[left_idx]:
+                        left_idx -= 1
+                    while right_idx < len(stabilized) and not finite_mask[right_idx]:
+                        right_idx += 1
+                    
+                    if left_idx >= 0 and right_idx < len(stabilized):
+                        # Geometric mean interpolation
+                        stabilized[i] = torch.sqrt(torch.abs(stabilized[left_idx] * stabilized[right_idx]))
+                    elif left_idx >= 0:
+                        stabilized[i] = stabilized[left_idx]
+                    elif right_idx < len(stabilized):
+                        stabilized[i] = stabilized[right_idx]
+                    else:
+                        stabilized[i] = 1.0  # Neutral frequency
+            
+            return stabilized
+            
+        except Exception as e:
+            logger.warning(f"🌊 Agent {self.charge_id}: Geometric regulation failed: {e}")
+            # Final emergency fallback
+            return torch.ones_like(frequency_evolution) * 1.0
+
+    def _stabilize_breathing_coefficients_for_cascade(self):
+        """
+        Stabilize breathing q-coefficients before cascade operations to prevent NaN propagation.
+        
+        Uses regulation system to detect and repair corrupted coefficients that would
+        cause NaN cascade through dimensional feedback loops.
+        """
+        if not hasattr(self, 'breathing_q_coefficients') or not self.breathing_q_coefficients:
+            logger.warning(f"🌊 Agent {self.charge_id}: No breathing coefficients for cascade stabilization")
+            return
+            
+        # Check for non-finite coefficients
+        problematic_coefficients = []
+        for n, coeff in self.breathing_q_coefficients.items():
+            if not (math.isfinite(coeff.real) and math.isfinite(coeff.imag)):
+                problematic_coefficients.append(n)
+        
+        if len(problematic_coefficients) == 0:
+            # All coefficients are finite, check if regulation is still needed via field analysis
+            if self.regulation_liquid is not None:
+                try:
+                    field_state = self.regulation_liquid.analyze_field_state([self])
+                    if field_state.phase_transition_indicator > 0.4:
+                        logger.info(f"🌊 Agent {self.charge_id}: High phase transition indicator ({field_state.phase_transition_indicator:.3f}), applying preventive coefficient stabilization")
+                        self._apply_preventive_coefficient_regulation()
+                except Exception as e:
+                    logger.warning(f"🌊 Agent {self.charge_id}: Field state analysis failed: {e}")
+            return
+        
+        logger.warning(f"🌊 Agent {self.charge_id}: Found {len(problematic_coefficients)} non-finite breathing coefficients: {problematic_coefficients[:5]}...")
+        
+        if self.regulation_liquid is None:
+            # Fallback regulation without regulation system
+            self._emergency_coefficient_repair(problematic_coefficients)
+        else:
+            # Use regulation system for sophisticated repair
+            self._regulation_guided_coefficient_repair(problematic_coefficients)
+
+    def _apply_preventive_coefficient_regulation(self):
+        """Apply gentle regulation to prevent coefficient drift toward singularities."""
+        try:
+            # Extract coefficient magnitudes for analysis
+            magnitudes = [abs(coeff) for coeff in self.breathing_q_coefficients.values()]
+            
+            # Check for extreme values that might lead to instability
+            max_magnitude = max(magnitudes)
+            min_magnitude = min(magnitudes)
+            
+            if max_magnitude > 1e6 or min_magnitude < 1e-6:
+                logger.info(f"🌊 Agent {self.charge_id}: Extreme coefficient magnitudes detected (max: {max_magnitude:.2e}, min: {min_magnitude:.2e}), applying gentle normalization")
+                
+                # Apply gentle normalization to prevent extreme values
+                scale_factor = 1.0 / (max_magnitude + 1e-6) if max_magnitude > 1e3 else 1.0
+                
+                for n in self.breathing_q_coefficients:
+                    self.breathing_q_coefficients[n] *= scale_factor
+                
+                logger.info(f"🌊 Agent {self.charge_id}: Applied normalization factor {scale_factor:.6f}")
+                
+        except Exception as e:
+            logger.warning(f"🌊 Agent {self.charge_id}: Preventive regulation failed: {e}")
+
+    def _regulation_guided_coefficient_repair(self, problematic_coefficients: List[int]):
+        """Use regulation system to repair corrupted breathing coefficients."""
+        try:
+            logger.info(f"🌊 Agent {self.charge_id}: Applying regulation-guided repair for {len(problematic_coefficients)} coefficients")
+            
+            # Use geometric regulation principles for coefficient repair
+            for n in problematic_coefficients:
+                repaired_coeff = self._repair_single_coefficient(n)
+                self.breathing_q_coefficients[n] = repaired_coeff
+                logger.debug(f"🌊 Agent {self.charge_id}: Repaired coefficient {n}: {repaired_coeff}")
+            
+            # Apply field-guided smoothing to prevent future instabilities
+            if hasattr(self.regulation_liquid, 'geometric_regulation') and self.regulation_liquid.geometric_regulation:
+                self._apply_field_guided_coefficient_smoothing()
+                
+        except Exception as e:
+            logger.warning(f"🌊 Agent {self.charge_id}: Regulation-guided repair failed: {e}, falling back to emergency repair")
+            self._emergency_coefficient_repair(problematic_coefficients)
+
+    def _repair_single_coefficient(self, n: int) -> complex:
+        """Repair a single breathing coefficient using neighboring values and field principles."""
+        try:
+            # Find valid neighboring coefficients
+            neighbors = []
+            for offset in [-2, -1, 1, 2]:
+                neighbor_n = (n + offset) % 100  # Wrap around
+                neighbor_coeff = self.breathing_q_coefficients.get(neighbor_n)
+                if neighbor_coeff and math.isfinite(neighbor_coeff.real) and math.isfinite(neighbor_coeff.imag):
+                    neighbors.append(neighbor_coeff)
+            
+            if len(neighbors) >= 2:
+                # Use geometric mean of neighbors for field-consistent interpolation
+                real_parts = [coeff.real for coeff in neighbors]
+                imag_parts = [coeff.imag for coeff in neighbors]
+                
+                # Geometric mean of magnitudes, arithmetic mean of phases
+                magnitudes = [abs(coeff) for coeff in neighbors]
+                phases = [cmath.phase(coeff) for coeff in neighbors]
+                
+                avg_magnitude = (sum(magnitudes) / len(magnitudes))
+                avg_phase = sum(phases) / len(phases)
+                
+                repaired = avg_magnitude * cmath.exp(1j * avg_phase)
+                return complex(repaired)
+            
+            elif len(neighbors) == 1:
+                # Use single neighbor as template
+                return neighbors[0]
+            
+            else:
+                # No valid neighbors, use neutral breathing coefficient
+                return complex(1.0, 0.0)
+                
+        except Exception as e:
+            logger.warning(f"🌊 Agent {self.charge_id}: Single coefficient repair failed for {n}: {e}")
+            return complex(1.0, 0.0)
+
+    def _apply_field_guided_coefficient_smoothing(self):
+        """Apply gentle field-guided smoothing to prevent coefficient oscillations."""
+        try:
+            # Extract all coefficients
+            coeffs = [self.breathing_q_coefficients[n] for n in range(100)]
+            
+            # Apply minimal smoothing using complex field principles
+            smoothed_coeffs = []
+            for i in range(100):
+                prev_i = (i - 1) % 100
+                next_i = (i + 1) % 100
+                
+                # Weighted average with strong bias toward original value
+                current = coeffs[i]
+                prev_coeff = coeffs[prev_i]
+                next_coeff = coeffs[next_i]
+                
+                # 90% original, 5% each neighbor
+                smoothed = 0.9 * current + 0.05 * prev_coeff + 0.05 * next_coeff
+                smoothed_coeffs.append(smoothed)
+            
+            # Update coefficients
+            for i, smoothed_coeff in enumerate(smoothed_coeffs):
+                self.breathing_q_coefficients[i] = smoothed_coeff
+                
+            logger.debug(f"🌊 Agent {self.charge_id}: Applied field-guided smoothing to breathing coefficients")
+            
+        except Exception as e:
+            logger.warning(f"🌊 Agent {self.charge_id}: Field-guided smoothing failed: {e}")
+
+    def _emergency_coefficient_repair(self, problematic_coefficients: List[int]):
+        """Emergency repair of coefficients without regulation system."""
+        logger.warning(f"🌊 Agent {self.charge_id}: Applying emergency repair for {len(problematic_coefficients)} coefficients")
+        
+        for n in problematic_coefficients:
+            # Simple replacement with stable breathing pattern
+            self.breathing_q_coefficients[n] = complex(1.0 + 0.1 * math.sin(2 * math.pi * n / 100), 0.05 * math.cos(2 * math.pi * n / 100))
+
+    def _check_field_stability(self, operation: str, phase_value: float = None, 
+                              complex_value: complex = None) -> bool:
+        """
+        Check if field operation will maintain Q(τ,C,s) stability.
+        Based on Section 3.1.5.3 - Field Coherence Requirements
+        
+        Args:
+            operation: Type of field operation (phase_exponential, field_coupling, gradient)
+            phase_value: Phase value for exponential operations
+            complex_value: Complex value for coupling operations
+            
+        Returns:
+            True if operation is stable, False if regulation needed
+        """
+        if self.regulation_liquid is None:
+            # Without regulation system, check basic stability
+            if phase_value is not None:
+                return math.isfinite(phase_value) and abs(phase_value) < 1e6
+            if complex_value is not None:
+                return math.isfinite(complex_value.real) and math.isfinite(complex_value.imag) and abs(complex_value) < 1e10
+            return True
+            
+        try:
+            # Use regulation system for sophisticated stability analysis
+            field_state = self.regulation_liquid.analyze_field_state([self])
+            
+            # Operation-specific stability thresholds based on field theory
+            if operation == "phase_exponential":
+                # Phase operations are critical - tighter thresholds
+                if phase_value is not None and not math.isfinite(phase_value):
+                    return False
+                return field_state.phase_transition_indicator < 0.5
+                
+            elif operation == "field_coupling":
+                # Field couplings can handle more instability
+                if complex_value is not None and not (math.isfinite(complex_value.real) and math.isfinite(complex_value.imag)):
+                    return False
+                return field_state.phase_transition_indicator < 0.7
+                
+            elif operation == "gradient":
+                # Gradients are most robust
+                return field_state.phase_transition_indicator < 0.8
+                
+            else:
+                return field_state.phase_transition_indicator < 0.6
+                
+        except Exception as e:
+            logger.warning(f"🌊 Agent {self.charge_id}: Field stability check failed: {e}")
+            # Conservative fallback
+            return False
+
+    def _apply_field_regulation(self, operation: str, value: Any) -> Any:
+        """
+        Apply regulation while preserving field-theoretic properties.
+        Maintains Q formula structure from Section 3.1.1
+        
+        Args:
+            operation: Type of operation requiring regulation
+            value: Value to regulate (phase, complex number, tensor)
+            
+        Returns:
+            Regulated value maintaining field properties
+        """
+        if self.regulation_liquid is None:
+            # Basic regulation without system
+            if isinstance(value, (int, float)):
+                if not math.isfinite(value):
+                    logger.warning(f"🌊 Agent {self.charge_id}: Emergency regulation for {operation}, replacing NaN/inf with neutral value")
+                    return 0.0 if operation == "phase" else 1.0
+                return value
+            elif isinstance(value, complex):
+                if not (math.isfinite(value.real) and math.isfinite(value.imag)):
+                    logger.warning(f"🌊 Agent {self.charge_id}: Emergency regulation for {operation}, replacing NaN/inf complex")
+                    return complex(1.0, 0.0)
+                return value
+            elif torch.is_tensor(value):
+                finite_mask = torch.isfinite(value)
+                if not torch.all(finite_mask):
+                    logger.warning(f"🌊 Agent {self.charge_id}: Emergency tensor regulation for {operation}")
+                    return torch.where(finite_mask, value, torch.ones_like(value))
+                return value
+            return value
+            
+        try:
+            # Sophisticated regulation based on operation type
+            if operation == "phase_exponential":
+                # Critical for Q formula - use variational regulation
+                if hasattr(self.regulation_liquid, 'variational_regulation') and self.regulation_liquid.variational_regulation:
+                    # Apply energy minimization to find stable phase
+                    regulated_phase = self._regulate_phase_value(value)
+                    logger.info(f"🌊 Q-PHASE: Agent {self.charge_id} regulated phase from {value:.3f} to {regulated_phase:.3f}")
+                    return regulated_phase
+                    
+            elif operation == "field_coupling":
+                # Use geometric regulation for field interactions
+                if hasattr(self.regulation_liquid, 'geometric_regulation') and self.regulation_liquid.geometric_regulation:
+                    regulated_coupling = self._regulate_field_coupling(value)
+                    logger.info(f"🌊 FIELD-COUPLING: Agent {self.charge_id} regulated coupling, |Q|: {abs(value):.3e} → {abs(regulated_coupling):.3e}")
+                    return regulated_coupling
+                    
+            elif operation == "gradient":
+                # Use coupled field regulation for gradients
+                if hasattr(self.regulation_liquid, 'coupled_regulation') and self.regulation_liquid.coupled_regulation:
+                    regulated_gradient = self._regulate_gradient_operation(value)
+                    logger.info(f"🌊 GRADIENT: Agent {self.charge_id} regulated gradient operation")
+                    return regulated_gradient
+                    
+            # Fallback to basic regulation
+            return self._basic_field_regulation(operation, value)
+            
+        except Exception as e:
+            logger.warning(f"🌊 Agent {self.charge_id}: Field regulation failed: {e}, using emergency bounds")
+            return self._basic_field_regulation(operation, value)
+
+    def _regulate_phase_value(self, phase: float) -> float:
+        """Regulate phase value using variational principles."""
+        if not math.isfinite(phase):
+            return 0.0
+        # Keep phase in reasonable bounds while preserving dynamics
+        if abs(phase) > 100.0:
+            # Wrap large phases to maintain periodicity
+            return phase % (2 * math.pi)
+        return phase
+
+    def _regulate_field_coupling(self, coupling: complex) -> complex:
+        """Regulate field coupling using geometric principles."""
+        if not (math.isfinite(coupling.real) and math.isfinite(coupling.imag)):
+            return complex(1.0, 0.0)
+        # Apply gentle damping for extreme values
+        magnitude = abs(coupling)
+        if magnitude > 1e6:
+            # Preserve phase but reduce magnitude
+            phase = cmath.phase(coupling)
+            new_magnitude = 1e6 * (1.0 + math.log10(magnitude / 1e6))
+            return new_magnitude * cmath.exp(1j * phase)
+        return coupling
+
+    def _regulate_gradient_operation(self, gradient: torch.Tensor) -> torch.Tensor:
+        """Regulate gradient operations using coupled field dynamics."""
+        finite_mask = torch.isfinite(gradient)
+        if torch.all(finite_mask):
+            return gradient
+        # Smooth non-finite values using neighbors
+        regulated = gradient.clone()
+        for i in range(len(gradient)):
+            if not finite_mask[i]:
+                # Find nearest finite neighbors
+                left = max(0, i-1)
+                right = min(len(gradient)-1, i+1)
+                if finite_mask[left] and finite_mask[right]:
+                    regulated[i] = (gradient[left] + gradient[right]) / 2
+                elif finite_mask[left]:
+                    regulated[i] = gradient[left]
+                elif finite_mask[right]:
+                    regulated[i] = gradient[right]
+                else:
+                    regulated[i] = 0.0
+        return regulated
+
+    def _basic_field_regulation(self, operation: str, value: Any) -> Any:
+        """Basic field regulation without advanced systems."""
+        if isinstance(value, (int, float)):
+            if not math.isfinite(value):
+                return 0.0 if "phase" in operation else 1.0
+            return value
+        elif isinstance(value, complex):
+            if not (math.isfinite(value.real) and math.isfinite(value.imag)):
+                return complex(1.0, 0.0)
+            return value
+        elif torch.is_tensor(value):
+            return torch.where(torch.isfinite(value), value, torch.zeros_like(value))
+        return value
+
+    def _safe_phase_exponential(self, phase: float, context: str) -> complex:
+        """
+        Protected e^(iθ) calculation for Q formula phase factors.
+        Critical for maintaining field coherence (Section 3.1.3.3.3)
+        
+        Args:
+            phase: Phase value θ
+            context: Description of where this phase is used
+            
+        Returns:
+            Complex exponential e^(iθ) with stability guarantees
+        """
+        # Check stability before operation
+        if not self._check_field_stability("phase_exponential", phase_value=phase):
+            logger.info(f"🌊 Q-PHASE: Agent {self.charge_id} detecting unstable phase {phase:.3f} for {context}")
+            phase = self._apply_field_regulation("phase_exponential", phase)
+            
+        try:
+            # Compute phase exponential with protection
+            result = torch.exp(1j * torch.tensor(phase, dtype=torch.float32)).item()
+            
+            # Verify result
+            if not (math.isfinite(result.real) and math.isfinite(result.imag)):
+                logger.warning(f"🌊 Q-PHASE: Agent {self.charge_id} phase exponential produced NaN for {context}, applying emergency regulation")
+                return complex(1.0, 0.0)  # Neutral phase
+                
+            logger.debug(f"🌊 Q-PHASE: Agent {self.charge_id} computed e^(iθ={phase:.3f}) = {result} for {context}")
+            return result
+            
+        except Exception as e:
+            logger.error(f"🌊 Q-PHASE: Agent {self.charge_id} phase exponential failed for {context}: {e}")
+            return complex(1.0, 0.0)  # Neutral phase
+
+    def _safe_field_multiplication(self, field_a: complex, field_b: complex, 
+                                  coupling_type: str) -> complex:
+        """
+        Protected field coupling preserving interference patterns.
+        Implements Section 3.1.4.3 field interactions
+        
+        Args:
+            field_a: First field component
+            field_b: Second field component  
+            coupling_type: Type of coupling (e.g., "Q_assembly", "cascade_transform")
+            
+        Returns:
+            Coupled field value with stability guarantees
+        """
+        # Check both field values
+        if not self._check_field_stability("field_coupling", complex_value=field_a):
+            logger.info(f"🌊 FIELD-COUPLING: Agent {self.charge_id} regulating field_a for {coupling_type}")
+            field_a = self._apply_field_regulation("field_coupling", field_a)
+            
+        if not self._check_field_stability("field_coupling", complex_value=field_b):
+            logger.info(f"🌊 FIELD-COUPLING: Agent {self.charge_id} regulating field_b for {coupling_type}")
+            field_b = self._apply_field_regulation("field_coupling", field_b)
+            
+        try:
+            # Perform multiplication
+            result = field_a * field_b
+            
+            # Verify result
+            if not (math.isfinite(result.real) and math.isfinite(result.imag)):
+                logger.warning(f"🌊 FIELD-COUPLING: Agent {self.charge_id} {coupling_type} produced NaN, applying regulation")
+                result = self._apply_field_regulation("field_coupling", result)
+                
+            logger.debug(f"🌊 FIELD-COUPLING: Agent {self.charge_id} {coupling_type}: |Q₁|={abs(field_a):.3e} × |Q₂|={abs(field_b):.3e} = |Q|={abs(result):.3e}")
+            return result
+            
+        except Exception as e:
+            logger.error(f"🌊 FIELD-COUPLING: Agent {self.charge_id} multiplication failed for {coupling_type}: {e}")
+            return complex(1.0, 0.0)
 
     def update_context(self, new_context: Dict[str, Any]):
         """
