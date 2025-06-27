@@ -55,10 +55,21 @@ This isn't just another embedding model - it's a complete field-theoretic framew
 ### Prerequisites
 
 Sysnpire requires:
-- Python 3.8+
+- Python 3.8+ OR SageMath (for advanced symbolic mathematics)
 - PyTorch (with MPS support for Apple Silicon)
 - NumPy, SciPy for mathematical operations
 - Transformers library for foundation models
+- SageMath for liquid universe symbolic computations
+
+**Recommended Setup**: Use Miniforge with SageMath installation for optimal mathematical computing support:
+```bash
+# Install Miniforge
+curl -L -O "https://github.com/conda-forge/miniforge/releases/latest/download/Miniforge3-$(uname)-$(uname -m).sh"
+bash Miniforge3-$(uname)-$(uname -m).sh
+
+# Install SageMath via conda-forge
+conda install -c conda-forge sage
+```
 
 ### Basic Usage
 
@@ -147,8 +158,6 @@ Sysnpire/
 │   │   └── TemporalDimensionHelper.py # Trajectory operators & breathing
 │   ├── emotional_dimension/         # Emotional Field Components
 │   │   └── EmotionalDimensionHelper.py # Field conductor (not categories)
-│   ├── shared_dimensions/           # Cross-Dimensional Components
-│   │   └── phase_dimension/         # 5-component phase integration
 │   ├── initial/                     # Foundation Model Integration
 │   │   ├── bge_ingestion.py        # BGE Large v1.5 processing
 │   │   └── mpnet_ingestion.py      # MPNet base v2 processing
@@ -302,7 +311,13 @@ for agent in restored_orchestrator.get_active_agents():
 git clone <repository-url>
 cd christopher
 
-# Install Python dependencies (requirements.txt not yet created)
+# Option 1: Regular Python installation
+pip install -r requirements.txt
+
+# Option 2: SageMath installation (for symbolic mathematics)
+sage -pip install -r requirements.txt
+
+# Manual installation if needed:
 pip install torch torchvision torchaudio  # PyTorch with MPS support
 pip install transformers sentence-transformers  # Foundation models
 pip install numpy scipy  # Mathematical operations
@@ -312,6 +327,18 @@ pip install pandas  # Data manipulation
 ```
 
 ### Working with Liquid Universes
+
+#### Running Universe Operations
+
+To run universe operations and evolution:
+
+```bash
+# Run universe_runner with Python
+python Sysnpire/model/universe_runner.py --load universe_130103de_1750282761 --evolve --steps 1
+
+# Or if the script has executable permissions:
+./Sysnpire/model/universe_runner.py --load universe_130103de_1750282761 --evolve --steps 1
+```
 
 #### Create and Explore Living Agents
 
@@ -502,7 +529,7 @@ print(f"Agent interactions: O(log {len(liquid_results['agent_pool'])})")
 ### ⚠️ **Partially Implemented**
 - **Visualization Dashboard**: Framework exists, needs more development
 - **Advanced Analytics**: Mathematical framework present, UI limited
-- **Documentation**: CLAUDE.md comprehensive, but no requirements.txt
+- **Documentation**: CLAUDE.md comprehensive, requirements.txt now available
 
 ### 🔄 **Ready for Enhancement**
 - **Performance Optimization**: Some O(N²) interactions remain

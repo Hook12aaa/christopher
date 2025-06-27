@@ -21,3 +21,4 @@ torch==2.6.0
 torch_geometric==2.6.1
 uvicorn==0.34.3
 validation_framework==0.1.2
+PyWavelets==1.8.0
