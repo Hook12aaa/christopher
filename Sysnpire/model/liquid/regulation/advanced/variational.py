@@ -443,15 +443,13 @@ class VariationalRegulation:
         optimal_params, energy_components = self.optimize_regulation_parameters(agents)
 
         if len(optimal_params) == 0:
-            return current_interaction_strength, {
-                "variational_regulation_applied": False,
-                "reason": "No valid field state",
-            }
+            raise ValueError("Variational optimization failed - no optimal parameters found - mathematical system underdetermined")
 
         regulation_strength = float(jnp.mean(optimal_params))
         regulation_factor = 1.0 - regulation_strength
-
-        regulation_factor = max(0.01, min(1.0, regulation_factor))
+        
+        if regulation_factor <= 0 or regulation_factor > 1.0:
+            raise ValueError(f"Regulation factor {regulation_factor:.6f} violates mathematical constraints [0, 1] - field instability detected")
 
         regulated_strength = current_interaction_strength * regulation_factor
 

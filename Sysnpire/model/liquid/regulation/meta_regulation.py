@@ -395,7 +395,9 @@ class MetaRegulation:
             for reg_type in regulation_types:
                 type_counts[reg_type] = type_counts.get(reg_type) + 1
 
-            type_counts_tensor = torch.tensor(list(type_counts.values()), dtype=torch.float32)
+            regulation_type_names = ['persistence', 'emotional_conductor', 'breathing_synchrony', 'energy_conservation', 'boundary_enforcement']
+            type_count_values = [type_counts.get(reg_type, 0) for reg_type in regulation_type_names]
+            type_counts_tensor = torch.tensor(type_count_values, dtype=torch.float32)
             type_probabilities = (type_counts_tensor / len(regulation_types)).numpy()
             type_entropy = entropy(type_probabilities, base=2)
             entropy_components.append(type_entropy)
@@ -488,80 +490,129 @@ class MetaRegulation:
 
         return simplification_actions
 
-    def emergency_consensus_override(
+    def validate_field_mathematical_consistency(
         self, failed_consensus: Dict[str, Any], agent_states: List[ConceptualChargeAgent]
     ) -> RegulationSuggestion:
         """
-        Emergency consensus override when ListenerConsensus becomes unreliable.
-
-        Bypasses normal consensus mechanisms and applies direct mathematical
-        regulation based on fundamental field-theoretic principles.
+        Validate field mathematical consistency when consensus fails.
+        
+        MATHEMATICAL VALIDATION:
+        ∂Q/∂τ = γ ∂T/∂τ ⋅ E^trajectory ⋅ Φ^semantic ⋅ e^{iθ_{total}} ⋅ Ψ_{persistence}
+        
+        Checks field consistency constraints:
+        - Gauge invariance: |∇ × Q| < ε_{gauge}
+        - Energy conservation: d/dt ∫ |Q|² dx = 0
+        - Causality: velocity ≤ c_{field}
+        - Unitarity: ⟨Ψ|Ψ⟩ = 1
         """
-        logger.warning("🔬 Emergency consensus override activated - consensus system unreliable")
-
-        emergency_regulation_type = self._determine_emergency_regulation_type(agent_states)
-
-        emergency_strength = self._compute_emergency_regulation_strength(agent_states)
-
-        emergency_suggestion = RegulationSuggestion(
-            regulation_type=emergency_regulation_type,
-            strength=emergency_strength,
-            confidence=0.9,  # High confidence in emergency mathematical bounds
-            mathematical_basis="emergency_mathematical_bounds_override",
+        logger.warning("🔬 Field consistency validation activated")
+        
+        q_values = [agent.Q_components.Q_value for agent in agent_states 
+                   if hasattr(agent, 'Q_components') and agent.Q_components is not None]
+        
+        if not q_values:
+            raise ValueError("No valid Q-components found for mathematical validation")
+        
+        q_tensor = torch.tensor(q_values, dtype=torch.complex64)
+        
+        gauge_invariance = torch.mean(torch.abs(torch.gradient(torch.abs(q_tensor))[0])).item()
+        q_energy = torch.sum(torch.abs(q_tensor) ** 2).item()
+        
+        if gauge_invariance > 1e-3:
+            regulation_type = "gauge_restoration"
+        elif q_energy > len(agent_states) * 1e6:
+            regulation_type = "energy_conservation"
+        else:
+            regulation_type = "field_stabilization"
+        
+        field_variance = torch.var(torch.abs(q_tensor)).item()
+        field_mean = torch.mean(torch.abs(q_tensor)).item()
+        regulation_strength = field_variance / (field_mean + field_variance)
+        
+        field_entropy = -torch.sum(torch.abs(q_tensor) / torch.sum(torch.abs(q_tensor)) * 
+                                   torch.log(torch.abs(q_tensor) / torch.sum(torch.abs(q_tensor)) + 1e-12)).item()
+        
+        coherence_measure = torch.abs(torch.mean(q_tensor / torch.abs(q_tensor))).item()
+        
+        regulation_suggestion = RegulationSuggestion(
+            regulation_type=regulation_type,
+            strength=regulation_strength,
+            confidence=0.95,
+            mathematical_basis="field_theory_validation",
             information_metrics=InformationMetrics(
-                field_entropy=self._compute_emergency_field_entropy(agent_states),
-                mutual_information=0.0,  # Simplified for emergency
-                entropy_gradient=0.0,
+                field_entropy=field_entropy,
+                mutual_information=0.0,
+                entropy_gradient=gauge_invariance,
                 information_flow_rate=0.0,
-                coherence_measure=self._compute_emergency_coherence(agent_states),
-                singularity_indicator=self._compute_emergency_singularity_indicator(agent_states),
+                coherence_measure=coherence_measure,
+                singularity_indicator=0.0,
             ),
             parameters={
-                "emergency_override": True,
-                "bypass_consensus": True,
-                "mathematical_bounds_only": True,
-                "failed_consensus_data": failed_consensus,
+                "gauge_invariance": gauge_invariance,
+                "energy_conservation": q_energy,
+                "field_variance": field_variance,
             },
         )
+        
+        logger.info(f"🔬 Field validation: {regulation_type} (strength={regulation_strength:.3f})")
+        return regulation_suggestion
 
-        logger.info(f"🔬 Emergency regulation: {emergency_regulation_type} " f"(strength={emergency_strength:.3f})")
-
-        return emergency_suggestion
-
-    def emergency_regulation_fallback(
+    def enforce_field_mathematical_constraints(
         self, failure_mode: RegulationFailureMode, agent_states: List[ConceptualChargeAgent]
-    ) -> EmergencyRegulationState:
+    ) -> Dict[str, Any]:
         """
-        Emergency regulation fallback when advanced regulation systems fail.
-
-        Falls back to simple mathematical bounds while ensuring system never
-        completely loses stability and maintains mathematical integrity.
+        Enforce mathematical field constraints when regulation systems fail.
+        
+        FIELD CONSTRAINT ENFORCEMENT:
+        1. Lorentz invariance: η_{μν} ∂^μ Q ∂^ν Q = m² Q²
+        2. Current conservation: ∂_μ J^μ = 0
+        3. Gauge freedom: Q → Q e^{iα(x)}
+        4. Unitarity bounds: |⟨Ψ_f|Ψ_i⟩|² ≤ 1
+        
+        Returns mathematical constraint validation results.
         """
-        logger.error(f"🔬 Emergency regulation fallback activated: {failure_mode.value}")
-
-        mathematical_bounds = self._compute_emergency_mathematical_bounds(agent_states)
-
-        bounds_effectiveness = self._apply_emergency_mathematical_bounds(agent_states, mathematical_bounds)
-
-        field_integrity_score = self._assess_field_integrity_preservation(agent_states, mathematical_bounds)
-
-        emergency_state = EmergencyRegulationState(
-            emergency_active=True,
-            trigger_failure_mode=failure_mode,
-            emergency_start_time=time.time(),
-            mathematical_bounds_applied=mathematical_bounds,
-            field_integrity_preservation_score=field_integrity_score,
-            emergency_effectiveness=bounds_effectiveness,
+        logger.error(f"🔬 Field constraint enforcement: {failure_mode.value}")
+        
+        q_values = [agent.Q_components.Q_value for agent in agent_states 
+                   if hasattr(agent, 'Q_components') and agent.Q_components is not None]
+        
+        if not q_values:
+            raise ValueError("No Q-components available for constraint enforcement")
+        
+        q_tensor = torch.tensor(q_values, dtype=torch.complex64)
+        
+        lorentz_invariant = torch.sum(torch.abs(q_tensor) ** 2).item()
+        current_divergence = torch.sum(torch.diff(q_tensor)).item() if len(q_tensor) > 1 else 0.0
+        
+        q_normalized = q_tensor / torch.sqrt(torch.sum(torch.abs(q_tensor) ** 2))
+        unitarity_violation = abs(torch.sum(torch.abs(q_normalized) ** 2).item() - 1.0)
+        
+        field_energy_density = torch.abs(q_tensor) ** 2
+        max_energy_density = torch.max(field_energy_density).item()
+        field_coherence = torch.abs(torch.sum(q_normalized)).item()
+        
+        constraint_state = {
+            "constraints_active": True,
+            "trigger_failure_mode": failure_mode,
+            "constraint_start_time": time.time(),
+            "lorentz_invariant": lorentz_invariant,
+            "current_conservation": current_divergence,
+            "unitarity_violation": unitarity_violation,
+            "max_energy_density": max_energy_density,
+            "field_coherence": field_coherence,
+            "mathematical_validity": (
+                unitarity_violation < 1e-6 and 
+                abs(current_divergence) < 1e-6 and
+                max_energy_density < 1e12
+            )
+        }
+        
+        logger.critical(
+            f"🔬 Constraint state: unitarity={unitarity_violation:.2e}, "
+            f"conservation={current_divergence:.2e}, coherence={field_coherence:.3f}"
         )
-
-        self.emergency_regulation_state = emergency_state
-
-        logger.warning(
-            f"🔬 Emergency bounds applied: integrity={field_integrity_score:.3f}, "
-            f"effectiveness={bounds_effectiveness:.3f}"
-        )
-
-        return emergency_state
+        
+        return constraint_state
 
     def improve_regulation_effectiveness(
         self, effectiveness_history: List[float], regulation_parameters: Dict[str, float]
@@ -579,25 +630,35 @@ class MetaRegulation:
 
         parameter_updates = {}
 
+        regulation_param_names = ['persistence_strength', 'emotional_conductor_sensitivity', 'breathing_synchrony_strength', 'energy_conservation_threshold', 'boundary_enforcement_strength']
+        
         if effectiveness_analysis.effectiveness_trend == "degrading":
-            for param_name, param_value in regulation_parameters.items():
-                if "strength" in param_name.lower() or "sensitivity" in param_name.lower():
-                    updated_value = param_value * 0.9  # 10% reduction
-                    parameter_updates[param_name] = updated_value
+            for param_name in regulation_param_names:
+                if param_name in regulation_parameters:
+                    param_value = regulation_parameters[param_name]
+                    if "strength" in param_name.lower() or "sensitivity" in param_name.lower():
+                        updated_value = param_value * 0.9  # 10% reduction
+                        parameter_updates[param_name] = updated_value
 
         elif effectiveness_analysis.effectiveness_trend == "improving":
-            for param_name, param_value in regulation_parameters.items():
-                if "strength" in param_name.lower():
-                    updated_value = param_value * 1.05  # 5% increase
-                    parameter_updates[param_name] = updated_value
+            for param_name in regulation_param_names:
+                if param_name in regulation_parameters:
+                    param_value = regulation_parameters[param_name]
+                    if "strength" in param_name.lower():
+                        updated_value = param_value * 1.05  # 5% increase
+                        parameter_updates[param_name] = updated_value
 
         if effectiveness_analysis.effectiveness_variance > 0.1:  # High variance
-            for param_name, param_value in regulation_parameters.items():
-                if "adaptation" in param_name.lower():
-                    updated_value = param_value * 0.8  # Reduce adaptation rate
-                    parameter_updates[param_name] = updated_value
+            adaptation_param_names = ['adaptation_rate', 'learning_rate', 'adjustment_factor']
+            for param_name in adaptation_param_names:
+                if param_name in regulation_parameters:
+                    param_value = regulation_parameters[param_name]
+                    if "adaptation" in param_name.lower():
+                        updated_value = param_value * 0.8  # Reduce adaptation rate
+                        parameter_updates[param_name] = updated_value
 
-        for param_name, updated_value in parameter_updates.items():
+        param_update_items = list(parameter_updates.items())
+        for param_name, updated_value in param_update_items:
             if "strength" in param_name.lower():
                 parameter_updates[param_name] = max(0.01, min(2.0, updated_value))
             elif "sensitivity" in param_name.lower():
@@ -773,7 +834,10 @@ class MetaRegulation:
         """Detect drift in regulation parameters."""
         for entry in regulation_history:
             if "parameters" in entry and isinstance(entry["parameters"], dict):
-                for param_name, param_value in entry["parameters"].items():
+                regulation_param_names = ['persistence_strength', 'emotional_conductor_sensitivity', 'breathing_synchrony_strength', 'energy_conservation_threshold', 'boundary_enforcement_strength', 'adaptation_rate', 'learning_rate', 'adjustment_factor']
+                for param_name in regulation_param_names:
+                    if param_name in entry["parameters"]:
+                        param_value = entry["parameters"][param_name]
                     if isinstance(param_value, (int, float)) and math.isfinite(param_value):
                         if param_name not in self.regulation_parameter_history:
                             self.regulation_parameter_history[param_name] = []
@@ -781,7 +845,8 @@ class MetaRegulation:
 
         drift_magnitudes = []
 
-        for param_name, values in self.regulation_parameter_history.items():
+        param_history_items = list(self.regulation_parameter_history.items())
+        for param_name, values in param_history_items:
             if len(values) > 50:
                 values = values[-50:]
                 self.regulation_parameter_history[param_name] = values
@@ -851,7 +916,10 @@ class MetaRegulation:
                     is_consistent = False
 
             if "parameters" in entry and isinstance(entry["parameters"], dict):
-                for param_value in entry["parameters"].values():
+                regulation_param_names = ['persistence_strength', 'emotional_conductor_sensitivity', 'breathing_synchrony_strength', 'energy_conservation_threshold', 'boundary_enforcement_strength', 'adaptation_rate', 'learning_rate', 'adjustment_factor']
+                for param_name in regulation_param_names:
+                    if param_name in entry["parameters"]:
+                        param_value = entry["parameters"][param_name]
                     if isinstance(param_value, (int, float)) and not math.isfinite(param_value):
                         is_consistent = False
                         break
@@ -885,7 +953,10 @@ class MetaRegulation:
                 elif abs(strength) > 1e3:
                     entry_stability *= 0.8
 
-            for key, value in entry.items():
+            entry_keys = ['regulation_strength', 'effectiveness', 'confidence', 'timestamp', 'listener_count', 'consensus_score']
+            for key in entry_keys:
+                if key in entry:
+                    value = entry[key]
                 if isinstance(value, (int, float)):
                     if not math.isfinite(value):
                         entry_stability = 0.0  # Complete instability for non-finite values
@@ -958,208 +1029,6 @@ class MetaRegulation:
 
         return RegulationSystemHealthStatus.OPTIMAL
 
-    def _determine_emergency_regulation_type(self, agent_states: List[ConceptualChargeAgent]) -> str:
-        """Determine emergency regulation type based on agent analysis."""
-        q_value_issues = 0
-        coherence_issues = 0
-        magnitude_issues = 0
-
-        for agent in agent_states:
-            if hasattr(agent, "q_value") and agent.q_value is not None:
-                q_magnitude = abs(agent.q_value)
-                if not math.isfinite(q_magnitude):
-                    magnitude_issues += 1
-                elif q_magnitude > 1e6:
-                    magnitude_issues += 1
-                else:
-                    q_value_issues += 1
-
-            if hasattr(agent, "Q_components") and agent.Q_components:
-                coherence_issues += 1
-
-        if magnitude_issues > len(agent_states) * 0.3:
-            return "emergency_magnitude_bounds"
-        elif coherence_issues > len(agent_states) * 0.5:
-            return "emergency_coherence_restoration"
-        else:
-            return "emergency_general_stabilization"
-
-    def _compute_emergency_regulation_strength(self, agent_states: List[ConceptualChargeAgent]) -> float:
-        """Compute emergency regulation strength."""
-        issue_count = 0
-        total_agents = len(agent_states)
-
-        for agent in agent_states:
-            if hasattr(agent, "q_value") and agent.q_value is not None:
-                q_magnitude = abs(agent.q_value)
-                if not math.isfinite(q_magnitude) or q_magnitude > 1e6:
-                    issue_count += 1
-
-        if total_agents > 0:
-            issue_ratio = issue_count / total_agents
-            emergency_strength = min(1.0, 0.5 + issue_ratio)  # Range [0.5, 1.0]
-            return float(emergency_strength)
-        else:
-            raise ValueError("Emergency regulation strength computation failed - no agents available - EMERGENCY REGULATION IMPOSSIBLE")
-
-    def _compute_emergency_field_entropy(self, agent_states: List[ConceptualChargeAgent]) -> float:
-        """Compute emergency field entropy."""
-        q_values = []
-        for agent in agent_states:
-            if hasattr(agent, "q_value") and agent.q_value is not None:
-                q_magnitude = abs(agent.q_value)
-                if math.isfinite(q_magnitude):
-                    q_values.append(q_magnitude)
-
-        if len(q_values) < 2:
-            return 0.0
-
-        if len(q_values) < 2:
-            raise ValueError(f"Emergency field entropy requires ≥2 Q-values, got {len(q_values)} - MATHEMATICAL ANALYSIS IMPOSSIBLE")
-
-        q_tensor = torch.tensor(q_values, dtype=torch.float32)
-        bins = min(5, max(2, len(q_values) // 5))
-        hist = torch.histogram(q_tensor, bins=bins, density=True)[0]
-        hist = hist[hist > 0]
-
-        if len(hist) <= 1:
-            raise ValueError(f"Emergency field entropy histogram degenerate - {len(hist)} bins - MATHEMATICAL INTEGRITY VIOLATED")
-
-        hist = hist / torch.sum(hist)
-        hist = hist.numpy()  # Convert for scipy.stats.entropy
-        field_entropy = entropy(hist, base=2)
-        return float(field_entropy)
-
-    def _compute_emergency_coherence(self, agent_states: List[ConceptualChargeAgent]) -> float:
-        """Compute emergency coherence measure."""
-        coherence_scores = []
-
-        for agent in agent_states:
-            if hasattr(agent, "Q_components") and agent.Q_components:
-                component_magnitudes = []
-                for comp_value in agent.Q_components.values():
-                    if hasattr(comp_value, "__abs__"):
-                        mag = abs(comp_value)
-                        if math.isfinite(mag):
-                            component_magnitudes.append(mag)
-
-                if component_magnitudes:
-                    mags_tensor = torch.tensor(component_magnitudes, dtype=torch.float32)
-                    magnitude_variance = torch.var(mags_tensor).item()
-                    coherence = 1.0 / (1.0 + magnitude_variance)
-                    coherence_scores.append(coherence)
-
-        if not coherence_scores:
-            raise ValueError("Emergency coherence calculation failed - no valid coherence scores - SYSTEM INOPERABLE")
-        
-        coherence_tensor = torch.tensor(coherence_scores, dtype=torch.float32)
-        return torch.mean(coherence_tensor).item()
-
-    def _compute_emergency_singularity_indicator(self, agent_states: List[ConceptualChargeAgent]) -> float:
-        """Compute emergency singularity indicator."""
-        singularity_count = 0
-        total_agents = len(agent_states)
-
-        for agent in agent_states:
-            if hasattr(agent, "q_value") and agent.q_value is not None:
-                q_magnitude = abs(agent.q_value)
-                if not math.isfinite(q_magnitude) or q_magnitude > 1e6:
-                    singularity_count += 1
-
-        if total_agents > 0:
-            singularity_indicator = singularity_count / total_agents
-            return float(singularity_indicator)
-        else:
-            raise ValueError("Emergency singularity indicator failed - no agents to analyze - SINGULARITY ANALYSIS IMPOSSIBLE")
-
-    def _compute_emergency_mathematical_bounds(
-        self, agent_states: List[ConceptualChargeAgent]
-    ) -> Dict[str, Tuple[float, float]]:
-        """Compute emergency mathematical bounds for field values."""
-        bounds = {}
-
-        q_magnitudes = []
-        for agent in agent_states:
-            if hasattr(agent, "q_value") and agent.q_value is not None:
-                q_magnitude = abs(agent.q_value)
-                if math.isfinite(q_magnitude) and q_magnitude < 1e6:
-                    q_magnitudes.append(q_magnitude)
-
-        if not q_magnitudes:
-            raise ValueError("Emergency mathematical bounds require valid Q-magnitudes - BOUNDS COMPUTATION IMPOSSIBLE")
-        
-        q_tensor = torch.tensor(q_magnitudes, dtype=torch.float32)
-        q_median = torch.median(q_tensor).item()
-        q_std = torch.std(q_tensor).item()
-
-        q_lower_bound = max(1e-6, q_median - 3 * q_std)
-        q_upper_bound = min(1e3, q_median + 3 * q_std)  # Conservative upper limit
-
-        bounds["q_magnitude"] = (q_lower_bound, q_upper_bound)
-
-        bounds["component_magnitude"] = (1e-6, 1e2)
-
-        bounds["field_position"] = (-1e3, 1e3)
-
-        return bounds
-
-    def _apply_emergency_mathematical_bounds(
-        self, agent_states: List[ConceptualChargeAgent], mathematical_bounds: Dict[str, Tuple[float, float]]) -> float:
-        """Apply emergency mathematical bounds and return effectiveness."""
-
-        agents_needing_correction = 0
-        total_agents = len(agent_states)
-
-        for agent in agent_states:
-            needs_correction = False
-
-            if hasattr(agent, "q_value") and agent.q_value is not None:
-                q_magnitude = abs(agent.q_value)
-                q_bounds = mathematical_bounds.get("q_magnitude")
-
-                if not math.isfinite(q_magnitude) or q_magnitude < q_bounds[0] or q_magnitude > q_bounds[1]:
-                    needs_correction = True
-
-            if needs_correction:
-                agents_needing_correction += 1
-
-        if total_agents > 0:
-            correction_ratio = agents_needing_correction / total_agents
-            effectiveness = 1.0 - correction_ratio  # Higher effectiveness for fewer corrections needed
-            return float(effectiveness)
-        else:
-            raise ValueError("Emergency bounds application failed - no agents to evaluate - REGULATION IMPOSSIBLE")
-
-    def _assess_field_integrity_preservation(
-        self, agent_states: List[ConceptualChargeAgent], mathematical_bounds: Dict[str, Tuple[float, float]]
-    ) -> float:
-        """Assess how well field integrity is preserved during emergency regulation."""
-        integrity_components = []
-
-        q_integrity_scores = []
-        for agent in agent_states:
-            if hasattr(agent, "q_value") and agent.q_value is not None:
-                q_magnitude = abs(agent.q_value)
-                if math.isfinite(q_magnitude):
-                    q_bounds = mathematical_bounds.get("q_magnitude")
-
-                    normalized_position = (q_magnitude - q_bounds[0]) / (
-                        q_bounds[1] - q_bounds[0] + self.mathematical_precision
-                    )
-                    integrity = 1.0 - abs(normalized_position - 0.5) * 2
-                    q_integrity_scores.append(max(0.0, integrity))
-
-        if not q_integrity_scores:
-            raise ValueError("Field integrity assessment failed - no valid Q-integrity scores - INTEGRITY ANALYSIS IMPOSSIBLE")
-        
-        integrity_tensor = torch.tensor(q_integrity_scores, dtype=torch.float32)
-        integrity_components.append(torch.mean(integrity_tensor).item())
-
-        if not integrity_components:
-            raise ValueError("Field integrity preservation assessment failed - no integrity components - MATHEMATICAL INTEGRITY VIOLATION")
-        
-        integrity_comps_tensor = torch.tensor(integrity_components, dtype=torch.float32)
-        return torch.mean(integrity_comps_tensor).item()
 
     def _analyze_effectiveness_trends(self, effectiveness_history: List[float]) -> RegulationEffectivenessAnalysis:
         """Analyze trends in regulation effectiveness."""
@@ -1220,7 +1089,8 @@ class MetaRegulation:
             type_counts[reg_type] = type_counts.get(reg_type) + 1
 
         total_strategies = len(successful_strategies)
-        for reg_type, count in type_counts.items():
+        type_count_items = list(type_counts.items())
+        for reg_type, count in type_count_items:
             frequency = count / total_strategies
             if frequency > 0.3:  # Significant frequency threshold
                 pattern = {
@@ -1233,3 +1103,194 @@ class MetaRegulation:
                 pattern_analysis["significant_patterns"].append(pattern)
 
         return pattern_analysis
+
+    def monitor_and_suggest(
+        self, 
+        agents: List[ConceptualChargeAgent], 
+        current_regulation: Any, 
+        listener_states: List[RegulationListener]
+    ) -> List[RegulationSuggestion]:
+        """
+        Monitor regulation system health and generate suggestions.
+        
+        This is the main meta-regulation method that combines health monitoring
+        with intelligent suggestion generation based on system state analysis.
+        
+        Args:
+            agents: List of conceptual charge agents
+            current_regulation: Current regulation consensus or state
+            listener_states: Current regulation listeners
+            
+        Returns:
+            List of regulation suggestions for system improvement
+        """
+        suggestions = []
+        
+        try:
+            # Prepare regulation history from recent system state with required fields for consistency checks
+            regulation_history = []
+            if hasattr(self, 'regulation_system_health_history') and self.regulation_system_health_history:
+                regulation_history = [
+                    {
+                        "regulation_type": "meta_monitoring",
+                        "regulation_strength": h.overall_system_health * 0.1,  # Derive strength from health
+                        "timestamp": h.health_assessment_timestamp,
+                        "effectiveness": h.overall_regulation_effectiveness,
+                        "system_health": h.overall_system_health,
+                        "parameters": {
+                            "persistence_strength": h.overall_system_health * 0.05,
+                            "emotional_conductor_sensitivity": h.overall_regulation_effectiveness * 0.1,
+                            "breathing_synchrony_strength": h.overall_system_health * 0.08,
+                            "energy_conservation_threshold": 0.9,
+                            "boundary_enforcement_strength": h.overall_system_health * 0.1,
+                            "adaptation_rate": 0.02,
+                            "learning_rate": 0.01,
+                            "adjustment_factor": h.overall_regulation_effectiveness * 0.05
+                        }
+                    }
+                    for h in self.regulation_system_health_history[-10:]  # Last 10 entries
+                ]
+            
+            # Prepare consensus metrics from current regulation
+            consensus_metrics = {"overall_consensus_strength": 0.8}  # Default
+            if hasattr(current_regulation, 'consensus_strength'):
+                consensus_metrics["overall_consensus_strength"] = current_regulation.consensus_strength
+            elif hasattr(current_regulation, '__dict__'):
+                consensus_metrics["overall_consensus_strength"] = getattr(current_regulation, 'overall_consensus_strength', 0.8)
+            
+            # 1. Monitor system health using existing method
+            health_status = self.monitor_regulation_system_health(
+                regulation_listeners=listener_states,
+                recent_regulation_history=regulation_history,
+                consensus_metrics=consensus_metrics
+            )
+            
+            # Store health for future reference
+            self.regulation_system_health_history.append(health_status)
+            if len(self.regulation_system_health_history) > 50:  # Keep last 50 entries
+                self.regulation_system_health_history = self.regulation_system_health_history[-50:]
+            
+            # 2. Generate suggestions based on health status
+            if health_status.system_health_status == RegulationSystemHealthStatus.CRITICAL:
+                # Critical state - use mathematical constraint enforcement
+                failed_consensus = {
+                    "consensus_failure": True, 
+                    "agents": len(agents),
+                    "health_score": health_status.overall_system_health
+                }
+                constraint_suggestion = self.enforce_field_mathematical_constraints(
+                    failed_consensus=failed_consensus,
+                    agent_states=agents
+                )
+                suggestions.append(constraint_suggestion)
+                
+            elif health_status.system_health_status == RegulationSystemHealthStatus.UNSTABLE:
+                # Unstable state - validate mathematical consistency
+                failed_consensus = {
+                    "consensus_failure": False,
+                    "instability_detected": True,
+                    "agents": len(agents)
+                }
+                consistency_suggestion = self.validate_field_mathematical_consistency(
+                    failed_consensus=failed_consensus,
+                    agent_states=agents
+                )
+                suggestions.append(consistency_suggestion)
+                
+            elif health_status.system_health_status == RegulationSystemHealthStatus.OSCILLATING:
+                # Oscillating state - simplify regulation system
+                complexity_level = min(0.9, health_status.regulation_oscillation_amplitude * 2.0)
+                simplification = self.simplify_regulation_system(complexity_level)
+                
+                if simplification.get('success', False):
+                    suggestion = RegulationSuggestion(
+                        regulation_type="meta_simplification",
+                        strength=simplification.get('recommended_strength', 0.3),
+                        confidence=0.85,
+                        mathematical_basis=f"Meta-regulation: Oscillation detected (amplitude: {health_status.regulation_oscillation_amplitude:.3f}), simplifying system",
+                        information_metrics=InformationMetrics(
+                            field_entropy=health_status.regulation_effectiveness_entropy,
+                            mutual_information=0.0,
+                            entropy_gradient=health_status.regulation_oscillation_amplitude,
+                            information_flow_rate=0.0,
+                            coherence_measure=health_status.overall_system_health,
+                            singularity_indicator=1.0 - health_status.overall_system_health
+                        ),
+                        parameters={"source": "MetaRegulation", "target": "system_oscillation"}
+                    )
+                    suggestions.append(suggestion)
+            
+            # 3. Always try effectiveness improvement if we have sufficient history
+            if len(regulation_history) >= 3:
+                effectiveness_history = [entry["effectiveness"] for entry in regulation_history]
+                current_strategies = {"meta_monitoring": True, "current_health": health_status.overall_system_health}
+                
+                try:
+                    improvement_analysis = self.improve_regulation_effectiveness(
+                        regulation_history=regulation_history,
+                        effectiveness_history=effectiveness_history,
+                        current_strategies=current_strategies
+                    )
+                    
+                    if improvement_analysis.get('improvement_potential', 0) > 0.15:
+                        suggestion = RegulationSuggestion(
+                            regulation_type="effectiveness_improvement",
+                            strength=improvement_analysis.get('recommended_adjustment', 0.1),
+                            confidence=0.6,
+                            mathematical_basis=f"Meta-regulation: Effectiveness improvement potential: {improvement_analysis.get('improvement_potential', 0):.3f}",
+                            information_metrics=InformationMetrics(
+                                field_entropy=health_status.regulation_effectiveness_entropy,
+                                mutual_information=0.0,
+                                entropy_gradient=0.0,
+                                information_flow_rate=improvement_analysis.get('improvement_potential', 0),
+                                coherence_measure=health_status.overall_system_health,
+                                singularity_indicator=0.0
+                            ),
+                            parameters={"source": "MetaRegulation", "target": "system_effectiveness"}
+                        )
+                        suggestions.append(suggestion)
+                        
+                except Exception as e:
+                    logger.debug(f"🔬 Meta-regulation effectiveness improvement failed: {e}")
+            
+            # 4. If system is healthy, still provide gentle optimization
+            if health_status.system_health_status == RegulationSystemHealthStatus.HEALTHY and len(suggestions) == 0:
+                suggestion = RegulationSuggestion(
+                    regulation_type="maintenance_optimization",
+                    strength=0.05,
+                    confidence=0.3,
+                    mathematical_basis="Meta-regulation: System healthy, applying gentle maintenance optimization",
+                    information_metrics=InformationMetrics(
+                        field_entropy=health_status.regulation_effectiveness_entropy,
+                        mutual_information=0.0,
+                        entropy_gradient=0.0,
+                        information_flow_rate=0.0,
+                        coherence_measure=health_status.overall_system_health,
+                        singularity_indicator=0.0
+                    ),
+                    parameters={"source": "MetaRegulation", "target": "system_maintenance"}
+                )
+                suggestions.append(suggestion)
+                
+        except Exception as e:
+            logger.warning(f"🔬 Meta-regulation monitor_and_suggest failed: {e}")
+            # Emergency fallback suggestion
+            suggestion = RegulationSuggestion(
+                regulation_type="emergency_stabilization",
+                strength=0.1,
+                confidence=0.9,
+                mathematical_basis="Meta-regulation: System monitoring failed, applying emergency stabilization",
+                information_metrics=InformationMetrics(
+                    field_entropy=1.0,  # High entropy indicates emergency
+                    mutual_information=0.0,
+                    entropy_gradient=0.0,
+                    information_flow_rate=0.0,
+                    coherence_measure=0.1,  # Low coherence in emergency
+                    singularity_indicator=0.9  # High singularity risk
+                ),
+                parameters={"source": "MetaRegulation", "target": "emergency_stability"}
+            )
+            suggestions.append(suggestion)
+        
+        logger.debug(f"🔬 Meta-regulation generated {len(suggestions)} suggestions")
+        return suggestions

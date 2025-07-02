@@ -90,7 +90,7 @@ class RegulationListener(ABC):
             return 0.0
 
         values_tensor = torch.tensor(values, dtype=torch.float32)
-        
+
         bins = min(10, max(3, len(values) // 5))
         hist, _ = torch.histogram(values_tensor, bins=bins, density=True)
 
@@ -101,7 +101,9 @@ class RegulationListener(ABC):
         entropy_val = entropy(hist, base=2)
         return float(entropy_val)
 
-    def compute_mutual_information(self, values1: List[float], values2: List[float]) -> float:
+    def compute_mutual_information(
+        self, values1: List[float], values2: List[float]
+    ) -> float:
         """
         Compute mutual information between two sets of field values.
 
@@ -113,7 +115,7 @@ class RegulationListener(ABC):
 
         values1_tensor = torch.tensor(values1, dtype=torch.float32)
         values2_tensor = torch.tensor(values2, dtype=torch.float32)
-        
+
         bins = min(5, max(2, len(values1) // 10))
 
         stacked_values = torch.stack([values1_tensor, values2_tensor], dim=1)
@@ -126,7 +128,7 @@ class RegulationListener(ABC):
         entropy_y = entropy(hist2[hist2 > 0], base=2)
         joint_flattened = joint_hist.flatten()
         entropy_joint = entropy(joint_flattened[joint_flattened > 0], base=2)
-        
+
         mi = entropy_x + entropy_y - entropy_joint
         return float(max(0.0, mi))  # MI should be non-negative
 
@@ -157,7 +159,7 @@ class RegulationListener(ABC):
             return 1.0  # All non-finite is maximum singularity
 
         values_tensor = torch.tensor(finite_values, dtype=torch.float32)
-        
+
         mean_val = torch.mean(values_tensor)
         std_val = torch.std(values_tensor)
         cv = std_val / (torch.abs(mean_val) + 1e-12)
@@ -175,7 +177,9 @@ class RegulationListener(ABC):
         singularity_measure = min(1.0, cv / 10.0 + outlier_fraction)
         return float(singularity_measure)
 
-    def compute_information_flow_rate(self, current_metrics: InformationMetrics) -> float:
+    def compute_information_flow_rate(
+        self, current_metrics: InformationMetrics
+    ) -> float:
         """
         Compute rate of information change in the field.
 
@@ -187,13 +191,19 @@ class RegulationListener(ABC):
         prev_metrics = self.history[-1]
 
         entropy_rate = abs(current_metrics.field_entropy - prev_metrics.field_entropy)
-        mi_rate = abs(current_metrics.mutual_information - prev_metrics.mutual_information)
-        coherence_rate = abs(current_metrics.coherence_measure - prev_metrics.coherence_measure)
+        mi_rate = abs(
+            current_metrics.mutual_information - prev_metrics.mutual_information
+        )
+        coherence_rate = abs(
+            current_metrics.coherence_measure - prev_metrics.coherence_measure
+        )
 
         flow_rate = (entropy_rate + mi_rate + coherence_rate) / 3.0
         return float(flow_rate)
 
-    def smooth_regulation_mapping(self, measure: float, sensitivity: float = 1.0) -> float:
+    def smooth_regulation_mapping(
+        self, measure: float, sensitivity: float = 1.0
+    ) -> float:
         """
         Map information measure to regulation strength using smooth function.
 
@@ -204,7 +214,9 @@ class RegulationListener(ABC):
         regulation_strength = 1.0 - torch.exp(-sensitivity_tensor * measure_tensor)
         return float(torch.clamp(regulation_strength, 0.0, 1.0))
 
-    def _compute_information_based_threshold(self, metrics: InformationMetrics) -> float:
+    def _compute_information_based_threshold(
+        self, metrics: InformationMetrics
+    ) -> float:
         """
         Compute confidence threshold based on information-theoretic principles.
 
@@ -223,7 +235,9 @@ class RegulationListener(ABC):
         threshold_tensor = torch.tensor(threshold, dtype=torch.float32)
         return float(torch.clamp(threshold_tensor, 0.01, 0.99))
 
-    def _compute_confidence_from_information(self, metrics: InformationMetrics) -> float:
+    def _compute_confidence_from_information(
+        self, metrics: InformationMetrics
+    ) -> float:
         """
         Compute regulation confidence based on information content.
 
@@ -241,7 +255,12 @@ class RegulationListener(ABC):
 
         flow_confidence = 1.0 / (1.0 + metrics.information_flow_rate)
 
-        total_information = mi_confidence + coherence_confidence + stability_confidence + flow_confidence
+        total_information = (
+            mi_confidence
+            + coherence_confidence
+            + stability_confidence
+            + flow_confidence
+        )
         confidence = total_information / 4.0
 
         confidence_tensor = torch.tensor(confidence, dtype=torch.float32)
@@ -262,9 +281,13 @@ class RegulationListener(ABC):
 
         coherence_resistance = 1.0 - metrics.coherence_measure
 
-        flow_activation = metrics.information_flow_rate / (1.0 + metrics.information_flow_rate)
+        flow_activation = metrics.information_flow_rate / (
+            1.0 + metrics.information_flow_rate
+        )
 
-        instability_maximum = max(entropy_activation, singularity_activation, flow_activation)
+        instability_maximum = max(
+            entropy_activation, singularity_activation, flow_activation
+        )
 
         activation_threshold = instability_maximum * coherence_resistance
 
@@ -286,13 +309,18 @@ class RegulationListener(ABC):
 
         stability_coherence = 1.0 / (1.0 + metrics.information_flow_rate)
 
-        factors_tensor = torch.tensor([coupling_coherence, organization_coherence, stability_coherence], dtype=torch.float32)
+        factors_tensor = torch.tensor(
+            [coupling_coherence, organization_coherence, stability_coherence],
+            dtype=torch.float32,
+        )
         natural_coherence = torch.pow(torch.prod(factors_tensor), 1.0 / 3.0)
 
         return float(torch.clamp(natural_coherence, 0.1, 0.95))
 
     @abstractmethod
-    def analyze_field_aspect(self, agents: List[ConceptualChargeAgent]) -> InformationMetrics:
+    def analyze_field_aspect(
+        self, agents: List[ConceptualChargeAgent]
+    ) -> InformationMetrics:
         """
         Analyze specific aspect of field this listener monitors.
 
@@ -301,7 +329,9 @@ class RegulationListener(ABC):
         pass
 
     @abstractmethod
-    def suggest_regulation(self, metrics: InformationMetrics) -> Optional[RegulationSuggestion]:
+    def suggest_regulation(
+        self, metrics: InformationMetrics
+    ) -> Optional[RegulationSuggestion]:
         """
         Suggest regulation based on information-theoretic analysis.
 
@@ -309,7 +339,9 @@ class RegulationListener(ABC):
         """
         pass
 
-    def validate_mathematically(self, agents: List[ConceptualChargeAgent], suggestion: RegulationSuggestion) -> bool:
+    def validate_mathematically(
+        self, agents: List[ConceptualChargeAgent], suggestion: RegulationSuggestion
+    ) -> bool:
         """
         Validate that regulation suggestion maintains mathematical integrity.
 
@@ -338,15 +370,32 @@ class RegulationListener(ABC):
             logger.warning(f"🚨 Invalid field entropy: {metrics.field_entropy}")
             return False
 
-        if metrics.mutual_information < 0 or not math.isfinite(metrics.mutual_information):
-            logger.warning(f"🚨 Invalid mutual information: {metrics.mutual_information}")
+        if metrics.mutual_information < 0 or not math.isfinite(
+            metrics.mutual_information
+        ):
+            logger.warning(
+                f"🚨 Invalid mutual information: {metrics.mutual_information}"
+            )
             return False
 
-        if not suggestion.mathematical_basis or len(suggestion.mathematical_basis.strip()) == 0:
+        if (
+            not suggestion.mathematical_basis
+            or len(suggestion.mathematical_basis.strip()) == 0
+        ):
             logger.warning("🚨 Missing mathematical basis for regulation")
             return False
 
-        for param_name, param_value in suggestion.parameters.items():
+        regulation_param_names = [
+            "strength",
+            "sensitivity",
+            "threshold",
+            "damping",
+            "coupling",
+            "adaptation_rate",
+        ]
+        for param_name in regulation_param_names:
+            if param_name in suggestion.parameters:
+                param_value = suggestion.parameters[param_name]
             if not math.isfinite(param_value):
                 logger.warning(f"🚨 Non-finite parameter {param_name}: {param_value}")
                 return False
@@ -366,13 +415,19 @@ class RegulationListener(ABC):
             q_mag_tensor = torch.tensor(agent_q_magnitudes, dtype=torch.float32)
             max_q_magnitude = torch.max(q_mag_tensor).item()
             if suggestion.strength > 0.5 and max_q_magnitude < 1e-6:
-                logger.warning("🚨 Strong regulation on near-zero field - potential over-regulation")
+                logger.warning(
+                    "🚨 Strong regulation on near-zero field - potential over-regulation"
+                )
                 return False
 
-        logger.debug(f"✅ Mathematical validation passed for {suggestion.regulation_type}")
+        logger.debug(
+            f"✅ Mathematical validation passed for {suggestion.regulation_type}"
+        )
         return True
 
-    def listen(self, agents: List[ConceptualChargeAgent]) -> Optional[RegulationSuggestion]:
+    def listen(
+        self, agents: List[ConceptualChargeAgent]
+    ) -> Optional[RegulationSuggestion]:
         """
         Main listening function that analyzes field and suggests regulation.
 
@@ -413,7 +468,9 @@ class PersistenceRegulationListener(RegulationListener):
         super().__init__("PersistenceRegulation", "temporal_persistence")
         self.wavelet = "db4"  # Daubechies wavelet for temporal analysis
 
-    def analyze_field_aspect(self, agents: List[ConceptualChargeAgent]) -> InformationMetrics:
+    def analyze_field_aspect(
+        self, agents: List[ConceptualChargeAgent]
+    ) -> InformationMetrics:
         """
         Analyze temporal persistence patterns using wavelet analysis and signal processing.
         """
@@ -423,34 +480,66 @@ class PersistenceRegulationListener(RegulationListener):
         breathing_coherences = []
 
         for agent in agents:
-            if hasattr(agent, "temporal_biography") and agent.temporal_biography is not None:
+            if (
+                hasattr(agent, "temporal_biography")
+                and agent.temporal_biography is not None
+            ):
                 bio = agent.temporal_biography
 
                 if hasattr(bio, "vivid_layer") and bio.vivid_layer is not None:
-                    vivid_values = [x for x in bio.vivid_layer if math.isfinite(abs(x))]
+                    # Handle torch tensors properly
+                    if hasattr(bio.vivid_layer, "cpu"):  # It's a torch tensor
+                        vivid_array = bio.vivid_layer.cpu().numpy()
+                    else:  # It's already a numpy array
+                        vivid_array = bio.vivid_layer
+
+                    vivid_values = [
+                        float(x)
+                        for x in vivid_array.flatten()
+                        if math.isfinite(abs(float(x)))
+                    ]
                     if vivid_values:
                         vivid_time_series.append(vivid_values)
 
                 if hasattr(bio, "character_layer") and bio.character_layer is not None:
-                    char_values = [x for x in bio.character_layer if math.isfinite(abs(x))]
+                    # Handle torch tensors properly
+                    if hasattr(bio.character_layer, "cpu"):  # It's a torch tensor
+                        char_array = bio.character_layer.cpu().numpy()
+                    else:  # It's already a numpy array
+                        char_array = bio.character_layer
+
+                    char_values = [
+                        float(x)
+                        for x in char_array.flatten()
+                        if math.isfinite(abs(float(x)))
+                    ]
                     if char_values:
                         character_time_series.append(char_values)
 
-                if hasattr(bio, "temporal_momentum") and bio.temporal_momentum is not None:
+                if (
+                    hasattr(bio, "temporal_momentum")
+                    and bio.temporal_momentum is not None
+                ):
                     momentum_mag = abs(bio.temporal_momentum)
                     if math.isfinite(momentum_mag):
                         temporal_momenta.append(momentum_mag)
 
-                if hasattr(bio, "breathing_coherence") and math.isfinite(bio.breathing_coherence):
+                if hasattr(bio, "breathing_coherence") and math.isfinite(
+                    bio.breathing_coherence
+                ):
                     breathing_coherences.append(bio.breathing_coherence)
 
         vivid_entropy = self._wavelet_entropy_analysis(vivid_time_series)
         character_entropy = self._wavelet_entropy_analysis(character_time_series)
         field_entropy = (vivid_entropy + character_entropy) / 2.0
 
-        mutual_info = self._temporal_mutual_information(vivid_time_series, character_time_series)
+        mutual_info = self._temporal_mutual_information(
+            vivid_time_series, character_time_series
+        )
 
-        coherence_measure = np.mean(breathing_coherences) if breathing_coherences else 0.0
+        coherence_measure = (
+            np.mean(breathing_coherences) if breathing_coherences else 0.0
+        )
 
         entropy_gradient = self.compute_entropy_gradient(field_entropy)
 
@@ -469,16 +558,28 @@ class PersistenceRegulationListener(RegulationListener):
 
         return metrics
 
-    def suggest_regulation(self, metrics: InformationMetrics) -> Optional[RegulationSuggestion]:
+    def suggest_regulation(
+        self, metrics: InformationMetrics
+    ) -> Optional[RegulationSuggestion]:
         """
         Suggest persistence regulation based on temporal information analysis.
         """
-        entropy_strength = self.smooth_regulation_mapping(metrics.field_entropy, sensitivity=0.5)
-        gradient_strength = self.smooth_regulation_mapping(abs(metrics.entropy_gradient), sensitivity=2.0)
-        singularity_strength = self.smooth_regulation_mapping(metrics.singularity_indicator, sensitivity=1.0)
-        flow_strength = self.smooth_regulation_mapping(metrics.information_flow_rate, sensitivity=1.5)
+        entropy_strength = self.smooth_regulation_mapping(
+            metrics.field_entropy, sensitivity=0.5
+        )
+        gradient_strength = self.smooth_regulation_mapping(
+            abs(metrics.entropy_gradient), sensitivity=2.0
+        )
+        singularity_strength = self.smooth_regulation_mapping(
+            metrics.singularity_indicator, sensitivity=1.0
+        )
+        flow_strength = self.smooth_regulation_mapping(
+            metrics.information_flow_rate, sensitivity=1.5
+        )
 
-        combined_strength = (entropy_strength + gradient_strength + singularity_strength + flow_strength) / 4.0
+        combined_strength = (
+            entropy_strength + gradient_strength + singularity_strength + flow_strength
+        ) / 4.0
 
         confidence = self._compute_confidence_from_information(metrics)
 
@@ -502,117 +603,150 @@ class PersistenceRegulationListener(RegulationListener):
                 },
             )
 
+        logger.debug(f"🟢 {self.name}: Field stable, regulation not needed (strength: {combined_strength:.3f} < threshold: {activation_threshold:.3f})")
         return None
 
     def _wavelet_entropy_analysis(self, time_series_list: List[List[float]]) -> float:
         """
         Analyze entropy of temporal patterns using PyTorch tensor operations.
-        
+
         Uses frequency domain analysis to decompose temporal signals and compute
         entropy across frequency bands to detect persistence instabilities.
         MPS-compatible implementation using pure PyTorch operations.
         """
         if not time_series_list:
-            return 0.0
-            
+            raise ValueError("No valid time series found for wavelet entropy analysis - mathematical computation impossible")
+
         total_entropy = 0.0
         valid_series = 0
-        
+
         for time_series in time_series_list:
-            if len(time_series) < 4:  # Need minimum samples for frequency analysis
+            if len(time_series) < 2:  # Need minimum samples for frequency analysis
                 continue
-                
+
             # Convert to PyTorch tensor and keep on device (MPS-compatible)
-            if hasattr(time_series, 'device'):
+            if hasattr(time_series, "device"):
                 # Already a tensor
                 time_series_tensor = time_series
             else:
                 # Convert to tensor on the same device as other computations
                 time_series_tensor = torch.as_tensor(time_series, dtype=torch.float32)
                 if torch.backends.mps.is_available():
-                    time_series_tensor = time_series_tensor.to('mps')
-            
-            n = time_series_tensor.shape[0] if time_series_tensor.ndim > 0 else len(time_series)
-            
+                    time_series_tensor = time_series_tensor.to("mps")
+
+            n = (
+                time_series_tensor.shape[0]
+                if time_series_tensor.ndim > 0
+                else len(time_series)
+            )
+
             # Pad to power of 2 for efficient FFT
             padded_length = 2 ** int(torch.ceil(torch.log2(torch.tensor(float(n)))))
             if padded_length > n:
                 padding = (0, padded_length - n)
-                padded_series = torch.nn.functional.pad(time_series_tensor, padding, mode='constant', value=0.0)
+                padded_series = torch.nn.functional.pad(
+                    time_series_tensor, padding, mode="constant", value=0.0
+                )
             else:
                 padded_series = time_series_tensor
-            
+
             # Use FFT-based frequency analysis instead of CWT for MPS compatibility
             fft_result = torch.fft.fft(padded_series)
             power_spectrum = torch.abs(fft_result) ** 2
-            
+
             # Create frequency bands (similar to wavelet scale bands)
-            num_bands = min(16, len(power_spectrum) // 4)
+            num_bands = min(8, max(2, len(power_spectrum) // 2))
             if num_bands < 2:
                 continue
-                
+
             band_size = len(power_spectrum) // num_bands
             band_energies = []
-            
+
             for i in range(num_bands):
                 start_idx = i * band_size
                 end_idx = min((i + 1) * band_size, len(power_spectrum))
                 band_energy = torch.sum(power_spectrum[start_idx:end_idx])
                 band_energies.append(band_energy)
-            
+
             band_energies = torch.stack(band_energies)
-            
+
             # Normalize band energies
             total_energy = torch.sum(band_energies)
             if total_energy > 0:
                 band_energies = band_energies / total_energy
-                
+
                 # Remove zero energies for entropy calculation
                 band_energies = band_energies[band_energies > 1e-12]
-                
+
                 if len(band_energies) > 1:
-                    # Calculate Shannon entropy using PyTorch operations
-                    log_energies = torch.log2(band_energies + 1e-12)  # Add small epsilon for numerical stability
+                    log_energies = torch.log2(band_energies)
                     band_entropy = -torch.sum(band_energies * log_energies)
                     total_entropy += band_entropy.item()
                     valid_series += 1
-                
-        return total_entropy / valid_series if valid_series > 0 else 0.0
 
-    def _temporal_mutual_information(self, series1_list: List[List[float]], series2_list: List[List[float]]) -> float:
+        if valid_series == 0:
+            raise ValueError(
+                "No valid time series found for wavelet entropy analysis - mathematical computation impossible"
+            )
+
+        return total_entropy / valid_series
+
+    def _temporal_mutual_information(
+        self, series1_list: List[List[float]], series2_list: List[List[float]]
+    ) -> float:
         """
         Compute mutual information between two sets of temporal patterns.
-        
+
         Uses signal processing to find temporal correlations between
         vivid and character layer dynamics.
         """
         if not series1_list or not series2_list:
-            return 0.0
-            
+            raise ValueError(
+                "Both temporal series required for mutual information analysis - mathematical computation impossible"
+            )
+
         combined_series1 = []
         combined_series2 = []
-        
+
         min_pairs = min(len(series1_list), len(series2_list))
         for i in range(min_pairs):
             if len(series1_list[i]) > 0 and len(series2_list[i]) > 0:
                 min_len = min(len(series1_list[i]), len(series2_list[i]))
                 combined_series1.extend(series1_list[i][:min_len])
                 combined_series2.extend(series2_list[i][:min_len])
-        
+
         if len(combined_series1) < 3 or len(combined_series2) < 3:
-            return 0.0
-            
+            raise ValueError(
+                f"Insufficient data for mutual information: need ≥3 points, got {len(combined_series1)}, {len(combined_series2)}"
+            )
+
         s1 = torch.tensor(combined_series1).flatten()
         s2 = torch.tensor(combined_series2).flatten()
-        s1 = (s1 - torch.mean(s1)) / (torch.std(s1) + 1e-12)
-        s2 = (s2 - torch.mean(s2)) / (torch.std(s2) + 1e-12)
-        
-        correlation = torch.sum(s1 * s2) / torch.sqrt(torch.sum(s1 ** 2) * torch.sum(s2 ** 2))
+
+        s1_std = torch.std(s1)
+        s2_std = torch.std(s2)
+
+        if s1_std == 0 or s2_std == 0:
+            raise ValueError(
+                "Zero variance in temporal series - mathematical normalization impossible"
+            )
+
+        s1 = (s1 - torch.mean(s1)) / s1_std
+        s2 = (s2 - torch.mean(s2)) / s2_std
+
+        correlation = torch.sum(s1 * s2) / torch.sqrt(
+            torch.sum(s1**2) * torch.sum(s2**2)
+        )
         max_correlation = torch.abs(correlation)
-        
-        mi_estimate = -0.5 * torch.log(1 - torch.clamp(max_correlation**2, max=0.99))
-        
-        return float(max(0.0, mi_estimate))
+
+        if max_correlation >= 1.0:
+            raise ValueError(
+                f"Perfect correlation detected: {max_correlation:.6f} - mathematical singularity in mutual information"
+            )
+
+        mi_estimate = -0.5 * torch.log(1 - max_correlation**2)
+
+        return float(mi_estimate)
 
 
 class EmotionalConductorListener(RegulationListener):
@@ -626,7 +760,9 @@ class EmotionalConductorListener(RegulationListener):
     def __init__(self):
         super().__init__("EmotionalConductor", "phase_coherence")
 
-    def analyze_field_aspect(self, agents: List[ConceptualChargeAgent]) -> InformationMetrics:
+    def analyze_field_aspect(
+        self, agents: List[ConceptualChargeAgent]
+    ) -> InformationMetrics:
         """
         Analyze emotional field modulation using complex field analysis.
         """
@@ -636,21 +772,33 @@ class EmotionalConductorListener(RegulationListener):
         coupling_strengths = []
 
         for agent in agents:
-            if hasattr(agent, "emotional_modulation") and agent.emotional_modulation is not None:
+            if (
+                hasattr(agent, "emotional_modulation")
+                and agent.emotional_modulation is not None
+            ):
                 mod = agent.emotional_modulation
 
-                if hasattr(mod, "field_modulation_strength") and math.isfinite(mod.field_modulation_strength):
+                if hasattr(mod, "field_modulation_strength") and math.isfinite(
+                    mod.field_modulation_strength
+                ):
                     field_modulations.append(abs(mod.field_modulation_strength))
 
-                if hasattr(mod, "unified_phase_shift") and mod.unified_phase_shift is not None:
+                if (
+                    hasattr(mod, "unified_phase_shift")
+                    and mod.unified_phase_shift is not None
+                ):
                     phase = np.angle(mod.unified_phase_shift)
                     if math.isfinite(phase):
                         phase_values.append(phase)
 
-                if hasattr(mod, "gradient_magnitude") and math.isfinite(mod.gradient_magnitude):
+                if hasattr(mod, "gradient_magnitude") and math.isfinite(
+                    mod.gradient_magnitude
+                ):
                     gradient_magnitudes.append(abs(mod.gradient_magnitude))
 
-                if hasattr(mod, "coupling_strength") and math.isfinite(mod.coupling_strength):
+                if hasattr(mod, "coupling_strength") and math.isfinite(
+                    mod.coupling_strength
+                ):
                     coupling_strengths.append(abs(mod.coupling_strength))
 
         field_entropy = self.measure_field_entropy(field_modulations)
@@ -658,10 +806,14 @@ class EmotionalConductorListener(RegulationListener):
         if len(phase_values) > 2:
             phase_tensor = torch.tensor(phase_values, dtype=torch.float32)
             phase_std = torch.std(phase_tensor)
-            phase_coherence = 1.0 - phase_std / np.pi  # 1 = perfect coherence, 0 = random
+            phase_coherence = (
+                1.0 - phase_std / np.pi
+            )  # 1 = perfect coherence, 0 = random
 
             if len(field_modulations) == len(phase_values):
-                mutual_info = self.compute_mutual_information(field_modulations, phase_values)
+                mutual_info = self.compute_mutual_information(
+                    field_modulations, phase_values
+                )
             else:
                 mutual_info = 0.0
         else:
@@ -685,15 +837,23 @@ class EmotionalConductorListener(RegulationListener):
 
         return metrics
 
-    def suggest_regulation(self, metrics: InformationMetrics) -> Optional[RegulationSuggestion]:
+    def suggest_regulation(
+        self, metrics: InformationMetrics
+    ) -> Optional[RegulationSuggestion]:
         """
         Suggest emotional conductor regulation based on phase coherence analysis.
         """
         coherence_loss = 1.0 - metrics.coherence_measure
-        entropy_strength = self.smooth_regulation_mapping(metrics.field_entropy, sensitivity=0.8)
-        singularity_strength = self.smooth_regulation_mapping(metrics.singularity_indicator, sensitivity=1.2)
+        entropy_strength = self.smooth_regulation_mapping(
+            metrics.field_entropy, sensitivity=0.8
+        )
+        singularity_strength = self.smooth_regulation_mapping(
+            metrics.singularity_indicator, sensitivity=1.2
+        )
 
-        combined_strength = (coherence_loss + entropy_strength + singularity_strength) / 3.0
+        combined_strength = (
+            coherence_loss + entropy_strength + singularity_strength
+        ) / 3.0
 
         confidence = self._compute_confidence_from_information(metrics)
 
@@ -717,6 +877,7 @@ class EmotionalConductorListener(RegulationListener):
                 },
             )
 
+        logger.debug(f"🟢 {self.name}: Field stable, regulation not needed (strength: {combined_strength:.3f} < threshold: {activation_threshold:.3f})")
         return None
 
 
@@ -731,7 +892,9 @@ class BreathingSynchronyListener(RegulationListener):
     def __init__(self):
         super().__init__("BreathingSynchrony", "collective_breathing")
 
-    def analyze_field_aspect(self, agents: List[ConceptualChargeAgent]) -> InformationMetrics:
+    def analyze_field_aspect(
+        self, agents: List[ConceptualChargeAgent]
+    ) -> InformationMetrics:
         """
         Analyze breathing patterns using frequency domain analysis.
         """
@@ -741,22 +904,31 @@ class BreathingSynchronyListener(RegulationListener):
         q_coefficients = []
 
         for agent in agents:
-            if hasattr(agent, "breath_frequency") and math.isfinite(agent.breath_frequency):
+            if hasattr(agent, "breath_frequency") and math.isfinite(
+                agent.breath_frequency
+            ):
                 breathing_frequencies.append(abs(agent.breath_frequency))
 
-            if hasattr(agent, "breath_amplitude") and math.isfinite(agent.breath_amplitude):
+            if hasattr(agent, "breath_amplitude") and math.isfinite(
+                agent.breath_amplitude
+            ):
                 breathing_amplitudes.append(abs(agent.breath_amplitude))
 
             if hasattr(agent, "breath_phase") and math.isfinite(agent.breath_phase):
                 breathing_phases.append(agent.breath_phase)
 
-            if hasattr(agent, "breathing_q_coefficients") and agent.breathing_q_coefficients:
+            if (
+                hasattr(agent, "breathing_q_coefficients")
+                and agent.breathing_q_coefficients
+            ):
+                breath_coeffs = agent.breathing_q_coefficients
+                breathing_coefficients = list(breath_coeffs.values())
                 coeff_list = [
                     coeff
-                    for coeff in agent.breathing_q_coefficients.values()
+                    for coeff in breathing_coefficients
                     if hasattr(coeff, "__abs__") and math.isfinite(abs(coeff))
                 ]
-                
+
                 if coeff_list:
                     coeff_tensor = torch.tensor(coeff_list, dtype=torch.complex64)
                     q_magnitudes_tensor = torch.abs(coeff_tensor)
@@ -774,8 +946,13 @@ class BreathingSynchronyListener(RegulationListener):
         else:
             phase_coherence = 0.0
 
-        if len(breathing_frequencies) == len(breathing_amplitudes) and len(breathing_frequencies) > 2:
-            mutual_info = self.compute_mutual_information(breathing_frequencies, breathing_amplitudes)
+        if (
+            len(breathing_frequencies) == len(breathing_amplitudes)
+            and len(breathing_frequencies) > 2
+        ):
+            mutual_info = self.compute_mutual_information(
+                breathing_frequencies, breathing_amplitudes
+            )
         else:
             mutual_info = 0.0
 
@@ -796,19 +973,29 @@ class BreathingSynchronyListener(RegulationListener):
 
         return metrics
 
-    def suggest_regulation(self, metrics: InformationMetrics) -> Optional[RegulationSuggestion]:
+    def suggest_regulation(
+        self, metrics: InformationMetrics
+    ) -> Optional[RegulationSuggestion]:
         """
         Suggest breathing regulation based on frequency and synchrony analysis.
         """
-        cascade_risk = self.smooth_regulation_mapping(metrics.singularity_indicator, sensitivity=1.5)
+        cascade_risk = self.smooth_regulation_mapping(
+            metrics.singularity_indicator, sensitivity=1.5
+        )
 
         ideal_coherence = self._compute_natural_coherence_point(metrics)
         coherence_deviation = abs(metrics.coherence_measure - ideal_coherence)
-        synchrony_regulation = self.smooth_regulation_mapping(coherence_deviation, sensitivity=2.0)
+        synchrony_regulation = self.smooth_regulation_mapping(
+            coherence_deviation, sensitivity=2.0
+        )
 
-        entropy_strength = self.smooth_regulation_mapping(metrics.field_entropy, sensitivity=0.6)
+        entropy_strength = self.smooth_regulation_mapping(
+            metrics.field_entropy, sensitivity=0.6
+        )
 
-        combined_strength = (cascade_risk + synchrony_regulation + entropy_strength) / 3.0
+        combined_strength = (
+            cascade_risk + synchrony_regulation + entropy_strength
+        ) / 3.0
 
         confidence = self._compute_confidence_from_information(metrics)
 
@@ -832,6 +1019,7 @@ class BreathingSynchronyListener(RegulationListener):
                 },
             )
 
+        logger.debug(f"🟢 {self.name}: Field stable, regulation not needed (strength: {combined_strength:.3f} < threshold: {activation_threshold:.3f})")
         return None
 
 
@@ -846,7 +1034,9 @@ class EnergyConservationListener(RegulationListener):
     def __init__(self):
         super().__init__("EnergyConservation", "energy_flow")
 
-    def analyze_field_aspect(self, agents: List[ConceptualChargeAgent]) -> InformationMetrics:
+    def analyze_field_aspect(
+        self, agents: List[ConceptualChargeAgent]
+    ) -> InformationMetrics:
         """
         Analyze energy distribution using field energy analysis.
         """
@@ -866,7 +1056,7 @@ class EnergyConservationListener(RegulationListener):
             mutual_info = 0.0
         else:
             q_tensor = torch.tensor(q_values_list, dtype=torch.complex64)
-            
+
             q_magnitudes_tensor = torch.abs(q_tensor)
             q_phases_tensor = torch.angle(q_tensor)
             energy_densities_tensor = q_magnitudes_tensor.pow(2)
@@ -901,17 +1091,27 @@ class EnergyConservationListener(RegulationListener):
 
         return metrics
 
-    def suggest_regulation(self, metrics: InformationMetrics) -> Optional[RegulationSuggestion]:
+    def suggest_regulation(
+        self, metrics: InformationMetrics
+    ) -> Optional[RegulationSuggestion]:
         """
         Suggest energy conservation regulation based on energy flow analysis.
         """
-        concentration_risk = self.smooth_regulation_mapping(metrics.singularity_indicator, sensitivity=1.0)
+        concentration_risk = self.smooth_regulation_mapping(
+            metrics.singularity_indicator, sensitivity=1.0
+        )
 
-        entropy_strength = self.smooth_regulation_mapping(metrics.field_entropy, sensitivity=0.7)
+        entropy_strength = self.smooth_regulation_mapping(
+            metrics.field_entropy, sensitivity=0.7
+        )
 
-        flow_regulation = self.smooth_regulation_mapping(metrics.information_flow_rate, sensitivity=1.2)
+        flow_regulation = self.smooth_regulation_mapping(
+            metrics.information_flow_rate, sensitivity=1.2
+        )
 
-        combined_strength = (concentration_risk + entropy_strength + flow_regulation) / 3.0
+        combined_strength = (
+            concentration_risk + entropy_strength + flow_regulation
+        ) / 3.0
 
         confidence = self._compute_confidence_from_information(metrics)
 
@@ -949,7 +1149,9 @@ class BoundaryEnforcementListener(RegulationListener):
     def __init__(self):
         super().__init__("BoundaryEnforcement", "spatial_distribution")
 
-    def analyze_field_aspect(self, agents: List[ConceptualChargeAgent]) -> InformationMetrics:
+    def analyze_field_aspect(
+        self, agents: List[ConceptualChargeAgent]
+    ) -> InformationMetrics:
         """
         Analyze spatial distribution using geometric measures.
         """
@@ -968,7 +1170,7 @@ class BoundaryEnforcementListener(RegulationListener):
                         distances_from_center.append(distance)
 
         if len(positions) < 3:
-            return InformationMetrics(0.0, 0.0, 0.0, 0.0, 0.0, 0.0)
+            raise ValueError(f"Insufficient field positions for spatial analysis: {len(positions)} agents found, minimum 3 required for mathematical rigor")
 
         distance_entropy = self.measure_field_entropy(distances_from_center)
 
@@ -984,7 +1186,9 @@ class BoundaryEnforcementListener(RegulationListener):
             spatial_coherence = 1.0
 
         max_reasonable_distance = 5.0  # Will be made adaptive
-        boundary_violations = sum(1 for d in distances_from_center if d > max_reasonable_distance)
+        boundary_violations = sum(
+            1 for d in distances_from_center if d > max_reasonable_distance
+        )
         violation_fraction = boundary_violations / len(distances_from_center)
 
         x_coords = [pos[0] for pos in positions]
@@ -1008,19 +1212,29 @@ class BoundaryEnforcementListener(RegulationListener):
 
         return metrics
 
-    def suggest_regulation(self, metrics: InformationMetrics) -> Optional[RegulationSuggestion]:
+    def suggest_regulation(
+        self, metrics: InformationMetrics
+    ) -> Optional[RegulationSuggestion]:
         """
         Suggest boundary regulation based on spatial distribution analysis.
         """
-        violation_strength = self.smooth_regulation_mapping(metrics.singularity_indicator, sensitivity=1.3)
+        violation_strength = self.smooth_regulation_mapping(
+            metrics.singularity_indicator, sensitivity=1.3
+        )
 
-        entropy_strength = self.smooth_regulation_mapping(metrics.field_entropy, sensitivity=0.5)
+        entropy_strength = self.smooth_regulation_mapping(
+            metrics.field_entropy, sensitivity=0.5
+        )
 
         ideal_coherence = 0.6
         coherence_deviation = abs(metrics.coherence_measure - ideal_coherence)
-        coherence_regulation = self.smooth_regulation_mapping(coherence_deviation, sensitivity=1.8)
+        coherence_regulation = self.smooth_regulation_mapping(
+            coherence_deviation, sensitivity=1.8
+        )
 
-        combined_strength = (violation_strength + entropy_strength + coherence_regulation) / 3.0
+        combined_strength = (
+            violation_strength + entropy_strength + coherence_regulation
+        ) / 3.0
 
         confidence = self._compute_confidence_from_information(metrics)
 
@@ -1044,6 +1258,7 @@ class BoundaryEnforcementListener(RegulationListener):
                 },
             )
 
+        logger.debug(f"🟢 {self.name}: Field stable, regulation not needed (strength: {combined_strength:.3f} < threshold: {activation_threshold:.3f})")
         return None
 
 
@@ -1065,8 +1280,12 @@ class ListenerConsensus:
         """
         metrics = suggestion.information_metrics
 
-        entropy_weight = min(1.0, metrics.field_entropy / 2.0)  # Higher entropy = more information
-        mi_weight = min(1.0, metrics.mutual_information * 2.0)  # Higher MI = stronger relationships
+        entropy_weight = min(
+            1.0, metrics.field_entropy / 2.0
+        )  # Higher entropy = more information
+        mi_weight = min(
+            1.0, metrics.mutual_information * 2.0
+        )  # Higher MI = stronger relationships
         confidence_weight = suggestion.confidence
 
         info_weight = (entropy_weight + mi_weight + confidence_weight) / 3.0
@@ -1081,7 +1300,7 @@ class ListenerConsensus:
         Finds regulation that minimizes overall field energy functional.
         """
         if not suggestions:
-            return None
+            raise ValueError("No regulation suggestions provided to consensus mechanism - mathematical resolution impossible")
 
         if len(suggestions) == 1:
             return suggestions[0]
@@ -1089,20 +1308,35 @@ class ListenerConsensus:
         weights = [self.compute_information_weight(s) for s in suggestions]
         total_weight = sum(weights) + 1e-12
 
-        avg_strength = sum(w * s.strength for w, s in zip(weights, suggestions)) / total_weight
+        avg_strength = (
+            sum(w * s.strength for w, s in zip(weights, suggestions)) / total_weight
+        )
 
-        combined_basis = "; ".join([f"{s.regulation_type}: {s.mathematical_basis}" for s in suggestions])
+        combined_basis = "; ".join(
+            [f"{s.regulation_type}: {s.mathematical_basis}" for s in suggestions]
+        )
 
         max_confidence = max(s.confidence for s in suggestions)
 
         combined_params = {}
+        regulation_param_names = [
+            "strength",
+            "sensitivity",
+            "threshold",
+            "damping",
+            "coupling",
+            "adaptation_rate",
+        ]
         for suggestion in suggestions:
-            for key, value in suggestion.parameters.items():
-                if key not in combined_params:
-                    combined_params[key] = []
-                combined_params[key].append(value)
+            for key in regulation_param_names:
+                if key in suggestion.parameters:
+                    value = suggestion.parameters[key]
+                    if key not in combined_params:
+                        combined_params[key] = []
+                    combined_params[key].append(value)
 
-        for key in combined_params:
+        combined_param_keys = list(combined_params.keys())
+        for key in combined_param_keys:
             params_tensor = torch.tensor(combined_params[key], dtype=torch.float32)
             combined_params[key] = torch.mean(params_tensor).item()
 
@@ -1111,21 +1345,27 @@ class ListenerConsensus:
             strength=avg_strength,
             confidence=max_confidence,
             mathematical_basis=combined_basis,
-            information_metrics=suggestions[0].information_metrics,  # Use first one as representative
+            information_metrics=suggestions[
+                0
+            ].information_metrics,  # Use first one as representative
             parameters=combined_params,
         )
 
-    def weighted_consensus(self, suggestions: List[RegulationSuggestion]) -> Optional[RegulationSuggestion]:
+    def weighted_consensus(
+        self, suggestions: List[RegulationSuggestion]
+    ) -> Optional[RegulationSuggestion]:
         """
         Compute weighted consensus from multiple listener suggestions.
         """
         if not suggestions:
-            return None
+            raise ValueError("No regulation suggestions provided for weighted consensus - mathematical aggregation impossible")
 
-        valid_suggestions = [s for s in suggestions if self.compute_information_weight(s) > 0.1]
+        valid_suggestions = [
+            s for s in suggestions if self.compute_information_weight(s) > 0.1
+        ]
 
         if not valid_suggestions:
-            return None
+            raise ValueError(f"No valid regulation suggestions with sufficient information weight (>0.1) from {len(suggestions)} total suggestions")
 
         consensus_suggestion = self.resolve_conflicting_regulations(valid_suggestions)
 

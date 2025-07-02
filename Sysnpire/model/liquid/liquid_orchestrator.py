@@ -20,7 +20,6 @@ import math
 import numba as nb
 import numpy as np
 import torch
-import torch.nn.functional as F
 from sage.all import (
     CDF,
     CuspForms,
@@ -327,6 +326,17 @@ class LiquidOrchestrator:
             agent_id = agent.charge_id
             self.charge_agents[agent_id] = agent
             self.active_charges[agent_id] = agent.charge_obj
+            
+            # DEBUG: Verify regulation system and Q_components are properly initialized
+            logger.debug(f"🔍 DEBUG: Agent {agent_id} created with:")
+            logger.debug(f"   - Has regulation_liquid: {hasattr(agent, 'regulation_liquid') and agent.regulation_liquid is not None}")
+            logger.debug(f"   - Has Q_components: {hasattr(agent, 'Q_components') and agent.Q_components is not None}")
+            if hasattr(agent, 'Q_components') and agent.Q_components is not None:
+                logger.debug(f"   - Q_components.E_trajectory is None: {agent.Q_components.E_trajectory is None}")
+                if agent.Q_components.E_trajectory is not None:
+                    logger.debug(f"   - E_trajectory value: {agent.Q_components.E_trajectory}")
+            else:
+                logger.debug("   - WARNING: Q_components is None or missing!")
 
             # FIELD THEORY MEMORY OPTIMIZATION: Validate agent before cleanup
             if (i + 1) % 10 == 0:
@@ -585,7 +595,7 @@ class LiquidOrchestrator:
                     f"🌊 FIELD REGULATION TRIGGERED: interaction_strength = {interaction_strength:.2e}"
                 )
                 regulated_strength, regulation_metrics = (
-                    self.regulation_liquid.apply_field_regulation(
+                    self.regulation_liquid.regulate_interaction_strength(
                         agents, interaction_strength
                     )
                 )
@@ -633,7 +643,7 @@ class LiquidOrchestrator:
                 )
                 # Use interaction regulation method for complexity as it follows same field principles
                 regulated_complexity, complexity_regulation_metrics = (
-                    self.regulation_liquid.apply_field_regulation(
+                    self.regulation_liquid.regulate_complexity(
                         agents, complexity_measure
                     )
                 )
@@ -4116,6 +4126,9 @@ class LiquidOrchestrator:
 
 
             # Process each neighbor (sparse graph ensures O(log N) neighbors per agent)
+            if neighbors is None:
+                continue
+                
             for neighbor_idx, interaction_strength in neighbors:
                 neighbor_agent = group_agent_map.get(neighbor_idx)
 
@@ -4635,6 +4648,17 @@ class LiquidOrchestrator:
                     # 🌊 CRITICAL: Set regulation_liquid reference for reconstructed agents
                     if hasattr(reconstructed_charge, "regulation_liquid"):
                         reconstructed_charge.regulation_liquid = self.regulation_liquid
+
+                    # 🔍 Q VALUE TRACKING: Check loaded agent E_trajectory after reconstruction
+                    agent_id = getattr(reconstructed_charge, 'charge_id', charge_id)
+                    logger.debug(f"🔍 Q-TRACK LOADED: Agent {agent_id} after reconstruction:")
+                    if hasattr(reconstructed_charge, 'Q_components') and reconstructed_charge.Q_components is not None:
+                        e_traj = getattr(reconstructed_charge.Q_components, 'E_trajectory', 'N/A')
+                        logger.debug(f"   - Q_components.E_trajectory: {e_traj} (None: {e_traj is None})")
+                        if e_traj is not None and hasattr(e_traj, 'real'):
+                            logger.debug(f"   - E_trajectory magnitude: {abs(e_traj):.6f}")
+                    else:
+                        logger.warning(f"   - WARNING: Agent {agent_id} has no Q_components after reconstruction!")
 
                     reconstructed_charges.append(reconstructed_charge)
 

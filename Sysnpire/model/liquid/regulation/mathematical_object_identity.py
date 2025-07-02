@@ -1,14 +1,18 @@
 """
-Mathematical Object Identity Theory - Persistent Mathematical Entity Recognition
+Mathematical Object Identity Theory - Persistent Mathematical Entity
+Recognition
 
-CORE MATHEMATICAL FOUNDATION: Implements mathematical object identity preservation
-across field regulation cycles using topological invariants, canonical signatures,
-and information-theoretic fingerprints derived from Q(τ,C,s) field theory.
+CORE MATHEMATICAL FOUNDATION: Implements mathematical object identity
+preservation across field regulation cycles using topological invariants,
+canonical signatures, and information-theoretic fingerprints derived from
+Q(τ,C,s) field theory.
 
 IDENTITY PRINCIPLE: Mathematical objects maintain their essential mathematical
-nature through invariant properties that survive all continuous field transformations:
+nature through invariant properties that survive all continuous field
+transformations:
 
-1. TOPOLOGICAL INVARIANTS: Genus, Euler characteristic, fundamental group signatures
+1. TOPOLOGICAL INVARIANTS: Genus, Euler characteristic, fundamental group
+   signatures
 2. CANONICAL SIGNATURES: Mathematical "DNA" from Q(τ,C,s) formula structure
 3. PERSISTENCE HOMOLOGY: Features that survive regulation cycles
 4. INFORMATION SIGNATURES: Entropy patterns independent of field magnitudes
@@ -22,12 +26,11 @@ structure through field-theoretic transformations. No arbitrary defaults.
 import math
 import time
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional, Tuple, Set, Callable
+from typing import Any, Dict, List, Tuple, Set
 import hashlib
 
 import numpy as np
 import torch
-from scipy import linalg, spatial, integrate
 from scipy.spatial.distance import pdist, squareform
 from scipy.stats import entropy
 
@@ -39,75 +42,76 @@ logger = get_logger(__name__)
 
 @dataclass
 class TopologicalInvariants:
-    """Topological properties invariant under continuous field transformations."""
+    """Topological properties invariant under continuous field
+    transformations."""
 
-    euler_characteristic: float  # Topological invariant from field structure
-    genus_signature: float  # Genus computed from Q-field topology
-    fundamental_group_rank: int  # Fundamental group structure rank
-    betti_numbers: List[int]  # Homology group dimensions
-    topological_fingerprint: str  # Hash of topological structure
+    euler_characteristic: float
+    genus_signature: float
+    fundamental_group_rank: int
+    betti_numbers: List[int]
+    topological_fingerprint: str
 
 
 @dataclass
 class CanonicalMathematicalSignature:
     """Mathematical "DNA" derived from Q(τ,C,s) formula structure."""
 
-    formula_structure_hash: str  # Hash of mathematical formula structure
-    component_relationship_matrix: np.ndarray  # Mathematical relationships between components
-    mathematical_genus: float  # Mathematical genus of the Q-field structure
-    canonical_form_coefficients: np.ndarray  # Canonical representation coefficients
-    mathematical_species_id: str  # Species classification based on mathematical structure
+    formula_structure_hash: str
+    component_relationship_matrix: np.ndarray
+    mathematical_genus: float
+    canonical_form_coefficients: np.ndarray
+    mathematical_species_id: str
 
 
 @dataclass
 class PersistenceHomologyFeatures:
     """Mathematical features that persist across regulation cycles."""
 
-    persistent_cycles: List[Tuple[float, float]]  # Birth-death pairs of persistent features
-    persistence_diagram_signature: str  # Hash of persistence diagram
-    stable_mathematical_features: Set[str]  # Features that survive all transformations
-    mathematical_lifetime_distribution: np.ndarray  # Feature lifetime statistics
-    topological_persistence_rank: int  # Rank of persistent topology
+    persistent_cycles: List[Tuple[float, float]]
+    persistence_diagram_signature: str
+    stable_mathematical_features: Set[str]
+    mathematical_lifetime_distribution: np.ndarray
+    topological_persistence_rank: int
 
 
 @dataclass
 class InformationTheoreticIdentity:
     """Information-theoretic fingerprints independent of field magnitudes."""
 
-    entropy_signature_pattern: np.ndarray  # Entropy distribution pattern
-    mutual_information_matrix: np.ndarray  # MI between Q-components
-    information_theoretical_fingerprint: str  # Hash of information structure
-    coherence_information_content: float  # Information in coherence relationships
-    mathematical_information_complexity: float  # Information-theoretic complexity measure
+    entropy_signature_pattern: np.ndarray
+    mutual_information_matrix: np.ndarray
+    information_theoretical_fingerprint: str
+    coherence_information_content: float
+    mathematical_information_complexity: float
 
 
 @dataclass
 class GeometricInvariants:
     """Geometric properties that define mathematical object identity."""
 
-    curvature_signature: np.ndarray  # Curvature invariants of field manifold
-    manifold_topology_hash: str  # Hash of manifold topological structure
-    geometric_genus: float  # Geometric genus of field manifold
-    canonical_geometric_form: np.ndarray  # Canonical geometric representation
-    differential_geometric_invariants: Dict[str, float]  # Collection of geometric invariants
+    curvature_signature: np.ndarray
+    manifold_topology_hash: str
+    geometric_genus: float
+    canonical_geometric_form: np.ndarray
+    differential_geometric_invariants: Dict[str, float]
 
 
 @dataclass
 class MathematicalCoherence:
     """Essential mathematical relationships that define object identity."""
 
-    q_component_relationship_invariants: Dict[str, float]  # Invariant relationships
-    mathematical_ratio_signatures: np.ndarray  # Essential mathematical ratios
-    phase_relationship_topology: np.ndarray  # Phase relationship structure
-    mathematical_structure_preservation_score: float  # Structure preservation measure
-    coherence_mathematical_fingerprint: str  # Hash of coherence structure
+    q_component_relationship_invariants: Dict[str, float]
+    mathematical_ratio_signatures: np.ndarray
+    phase_relationship_topology: np.ndarray
+    mathematical_structure_preservation_score: float
+    coherence_mathematical_fingerprint: str
 
 
 @dataclass
 class MathematicalObjectIdentityProfile:
     """Complete mathematical identity profile for a Q(τ,C,s) entity."""
 
-    object_mathematical_id: str  # Unique mathematical identifier
+    object_mathematical_id: str
     topological_invariants: TopologicalInvariants
     canonical_signature: CanonicalMathematicalSignature
     persistence_features: PersistenceHomologyFeatures
@@ -115,7 +119,7 @@ class MathematicalObjectIdentityProfile:
     geometric_invariants: GeometricInvariants
     mathematical_coherence: MathematicalCoherence
     identity_creation_timestamp: float
-    identity_mathematical_confidence: float  # Mathematical certainty of identity
+    identity_mathematical_confidence: float
 
 
 class MathematicalObjectIdentity:
@@ -132,469 +136,671 @@ class MathematicalObjectIdentity:
         Initialize mathematical identity system.
 
         Args:
-            mathematical_precision: Numerical precision for mathematical computations
+            mathematical_precision: Numerical precision for mathematical
+                computations
         """
         self.mathematical_precision = mathematical_precision
-        self.identity_registry: Dict[str, MathematicalObjectIdentityProfile] = {}
+        self.identity_registry: Dict[
+            str, MathematicalObjectIdentityProfile] = {}
         self.mathematical_species_classification: Dict[str, Set[str]] = {}
-        self.topological_computation_cache: Dict[str, TopologicalInvariants] = {}
+        self.topological_computation_cache: Dict[
+            str, TopologicalInvariants] = {}
+        self.species_registry: Dict[str, List[str]] = {}
 
-        logger.info("🔬 Mathematical Object Identity system initialized with rigorous mathematical foundations")
+        logger.info("🔬 Mathematical Object Identity system initialized "
+                    "with rigorous mathematical foundations")
 
-    def compute_topological_invariants(self, agent: ConceptualChargeAgent) -> TopologicalInvariants:
+    def create_identity_with_history(
+        self,
+        agent: ConceptualChargeAgent,
+        regulation_history: List[Dict[str, Any]]
+    ) -> str:
         """
-        Compute topological invariants that survive all continuous field transformations.
+        Create and register mathematical identity for a Q(τ,C,s) entity with
+        provided regulation history.
 
-        Uses mathematical topology theory to extract invariant properties from Q-field structure.
+        Args:
+            agent: ConceptualChargeAgent to create identity for
+            regulation_history: Extracted regulation history from agent
+                components
+
+        Returns:
+            Unique mathematical object ID
+
+        Raises:
+            ValueError: If agent lacks sufficient mathematical structure for
+                identity creation
+        """
+        try:
+            identity_profile = self.create_mathematical_identity_profile(
+                agent=agent,
+                regulation_history=regulation_history
+            )
+
+            mathematical_object_id = identity_profile.object_mathematical_id
+
+            self.identity_registry[mathematical_object_id] = identity_profile
+
+            species_id = (identity_profile.canonical_signature
+                          .mathematical_species_id)
+            if species_id not in self.species_registry:
+                self.species_registry[species_id] = []
+            self.species_registry[species_id].append(mathematical_object_id)
+
+            logger.info(
+                f"🔬 Mathematical identity created: "
+                f"{mathematical_object_id[:8]} (species: {species_id})"
+            )
+
+            return mathematical_object_id
+
+        except Exception as e:
+            error_msg = (f"Mathematical identity creation failed for agent: "
+                         f"{str(e)}")
+            logger.error(f"🚨 {error_msg}")
+            raise ValueError(f"MATHEMATICAL IDENTITY CREATION IMPOSSIBLE - "
+                             f"{error_msg}")
+
+    def create_identity(self, agent: ConceptualChargeAgent) -> str:
+        """
+        Create and register mathematical identity for a Q(τ,C,s) entity.
+
+        This is the main entry point for creating persistent mathematical
+        identity that survives all field regulation cycles through topological,
+        geometric, and information-theoretic invariants.
+
+        Args:
+            agent: ConceptualChargeAgent to create identity for
+
+        Returns:
+            str: Unique mathematical object ID for the created identity
+
+        Raises:
+            ValueError: If agent lacks sufficient mathematical structure for
+                identity creation
+        """
+        try:
+            regulation_history = []
+
+            identity_profile = self.create_mathematical_identity_profile(
+                agent=agent,
+                regulation_history=regulation_history
+            )
+
+            mathematical_object_id = identity_profile.object_mathematical_id
+
+            self.identity_registry[mathematical_object_id] = identity_profile
+
+            species_id = (identity_profile.canonical_signature
+                          .mathematical_species_id)
+            if species_id not in self.mathematical_species_classification:
+                self.mathematical_species_classification[species_id] = set()
+            self.mathematical_species_classification[species_id].add(
+                mathematical_object_id)
+
+            logger.info(
+                f"🔬 Mathematical identity created: "
+                f"{mathematical_object_id[:8]} (species: {species_id}, "
+                f"confidence: "
+                f"{identity_profile.identity_mathematical_confidence:.3f})"
+            )
+
+            return mathematical_object_id
+
+        except Exception as e:
+            agent_id = agent.charge_id
+            error_msg = (f"Mathematical identity creation failed for agent "
+                         f"{agent_id}: {str(e)}")
+            logger.error(f"🚨 {error_msg}")
+            raise ValueError(f"MATHEMATICAL IDENTITY CREATION IMPOSSIBLE - "
+                             f"{error_msg}")
+
+    def compute_topological_invariants(
+        self, agent: ConceptualChargeAgent
+    ) -> TopologicalInvariants:
+        """
+        Compute topological invariants from Q(τ,C,s) field structure.
+
+        Args:
+            agent: ConceptualChargeAgent with complete Q-field structure
+
+        Returns:
+            TopologicalInvariants computed from mathematical field structure
         """
         q_components = self._extract_q_field_components(agent)
-        if not q_components:
-            raise ValueError("Cannot compute topological invariants without Q-field components")
 
         euler_characteristic = self._compute_euler_characteristic(q_components)
-
         genus_signature = self._compute_topological_genus(q_components)
-
-        fundamental_group_rank = self._compute_fundamental_group_rank(q_components)
-
+        fundamental_group_rank = (
+            self._compute_fundamental_group_rank(q_components))
         betti_numbers = self._compute_betti_numbers(q_components)
 
-        topological_fingerprint = self._generate_topological_fingerprint(
-            euler_characteristic, genus_signature, fundamental_group_rank, betti_numbers
-        )
+        topology_data = {
+            "euler": euler_characteristic,
+            "genus": genus_signature,
+            "rank": fundamental_group_rank,
+            "betti": betti_numbers
+        }
+        topological_fingerprint = (
+            self._generate_topological_fingerprint(topology_data))
 
-        invariants = TopologicalInvariants(
+        return TopologicalInvariants(
             euler_characteristic=euler_characteristic,
             genus_signature=genus_signature,
             fundamental_group_rank=fundamental_group_rank,
             betti_numbers=betti_numbers,
-            topological_fingerprint=topological_fingerprint,
+            topological_fingerprint=topological_fingerprint
         )
 
-        logger.debug(f"🔬 Computed topological invariants: χ={euler_characteristic:.6f}, g={genus_signature:.6f}")
-        return invariants
-
-    def derive_canonical_mathematical_signature(self, agent: ConceptualChargeAgent) -> CanonicalMathematicalSignature:
+    def derive_canonical_mathematical_signature(
+        self, agent: ConceptualChargeAgent
+    ) -> CanonicalMathematicalSignature:
         """
-        Derive canonical mathematical signature from Q(τ,C,s) formula structure.
+        Derive canonical mathematical signature from Q(τ,C,s) formula
+        structure.
 
-        Creates mathematical "DNA" based on formula structure, not field values.
+        Args:
+            agent: ConceptualChargeAgent with complete mathematical structure
+
+        Returns:
+            CanonicalMathematicalSignature representing mathematical "DNA"
         """
         formula_structure = self._extract_q_formula_structure(agent)
+        formula_structure_hash = (
+            self._hash_mathematical_structure(formula_structure))
 
-        formula_structure_hash = self._hash_mathematical_structure(formula_structure)
+        component_matrix = self._compute_component_relationships(agent)
+        mathematical_genus = (
+            self._compute_mathematical_genus(component_matrix))
+        canonical_coeffs = self._compute_canonical_form(component_matrix)
 
-        component_relationship_matrix = self._compute_component_relationships(agent)
+        species_id = self._classify_mathematical_species(
+            formula_structure_hash, mathematical_genus, canonical_coeffs)
 
-        mathematical_genus = self._compute_mathematical_genus(component_relationship_matrix)
-
-        canonical_form_coefficients = self._compute_canonical_form(component_relationship_matrix)
-
-        mathematical_species_id = self._classify_mathematical_species(
-            formula_structure_hash, mathematical_genus, canonical_form_coefficients
-        )
-
-        signature = CanonicalMathematicalSignature(
+        return CanonicalMathematicalSignature(
             formula_structure_hash=formula_structure_hash,
-            component_relationship_matrix=component_relationship_matrix,
+            component_relationship_matrix=component_matrix,
             mathematical_genus=mathematical_genus,
-            canonical_form_coefficients=canonical_form_coefficients,
-            mathematical_species_id=mathematical_species_id,
+            canonical_form_coefficients=canonical_coeffs,
+            mathematical_species_id=species_id
         )
-
-        logger.debug(
-            f"🔬 Derived canonical signature: species={mathematical_species_id}, genus={mathematical_genus:.6f}"
-        )
-        return signature
 
     def compute_persistence_homology_features(
-        self, agent: ConceptualChargeAgent, regulation_history: List[Dict[str, Any]]
+        self,
+        agent: ConceptualChargeAgent,
+        regulation_history: List[Dict[str, Any]]
     ) -> PersistenceHomologyFeatures:
         """
-        Compute persistence homology features that survive regulation cycles.
+        Compute persistence homology features from regulation cycle evolution.
 
-        Identifies mathematical structures that persist across all field transformations.
+        Args:
+            agent: ConceptualChargeAgent with mathematical structure
+            regulation_history: Historical regulation data
+
+        Returns:
+            PersistenceHomologyFeatures for mathematical identity
         """
-        field_evolution_data = self._extract_field_evolution_data(regulation_history)
+        if len(regulation_history) < 3:
+            return PersistenceHomologyFeatures(
+                persistent_cycles=[],
+                persistence_diagram_signature="early_cycle",
+                stable_mathematical_features=set(),
+                mathematical_lifetime_distribution=np.array([]),
+                topological_persistence_rank=0
+            )
 
-        persistent_cycles = self._compute_persistent_cycles(field_evolution_data)
+        field_evolution_data = (
+            self._extract_field_evolution_data(regulation_history))
+        persistent_cycles = self._compute_persistent_cycles(
+            field_evolution_data)
 
-        persistence_diagram_signature = self._generate_persistence_diagram_signature(persistent_cycles)
+        persistence_signature = (
+            self._generate_persistence_diagram_signature(persistent_cycles))
+        stable_features = self._identify_stable_features(
+            persistent_cycles, field_evolution_data)
+        lifetime_distribution = (
+            self._compute_lifetime_distribution(persistent_cycles))
+        persistence_rank = self._compute_persistence_rank(persistent_cycles)
 
-        stable_mathematical_features = self._identify_stable_features(field_evolution_data, persistent_cycles)
-
-        mathematical_lifetime_distribution = self._compute_lifetime_distribution(persistent_cycles)
-
-        topological_persistence_rank = self._compute_persistence_rank(persistent_cycles)
-
-        features = PersistenceHomologyFeatures(
+        return PersistenceHomologyFeatures(
             persistent_cycles=persistent_cycles,
-            persistence_diagram_signature=persistence_diagram_signature,
-            stable_mathematical_features=stable_mathematical_features,
-            mathematical_lifetime_distribution=mathematical_lifetime_distribution,
-            topological_persistence_rank=topological_persistence_rank,
+            persistence_diagram_signature=persistence_signature,
+            stable_mathematical_features=stable_features,
+            mathematical_lifetime_distribution=lifetime_distribution,
+            topological_persistence_rank=persistence_rank
         )
 
-        logger.debug(
-            f"🔬 Computed persistence features: {len(persistent_cycles)} cycles, rank={topological_persistence_rank}"
-        )
-        return features
-
-    def compute_mathematical_information_signature(self, agent: ConceptualChargeAgent) -> InformationTheoreticIdentity:
+    def compute_mathematical_information_signature(
+        self, agent: ConceptualChargeAgent
+    ) -> InformationTheoreticIdentity:
         """
-        Compute information-theoretic fingerprints independent of field magnitudes.
+        Compute information-theoretic identity signature from Q-field
+        structure.
 
-        Creates information signatures based on structural relationships, not values.
+        Args:
+            agent: ConceptualChargeAgent with complete Q-field data
+
+        Returns:
+            InformationTheoreticIdentity based on field entropy patterns
         """
         q_field_structure = self._extract_q_field_structure(agent)
 
-        entropy_signature_pattern = self._compute_entropy_signature_pattern(q_field_structure)
+        entropy_pattern = (
+            self._compute_entropy_signature_pattern(q_field_structure))
+        mi_matrix = (
+            self._compute_structural_mutual_information(q_field_structure))
+        info_fingerprint = self._generate_information_fingerprint(
+            entropy_pattern, mi_matrix)
+        coherence_content = (
+            self._compute_coherence_information_content(q_field_structure))
+        complexity = self._compute_mathematical_complexity(
+            entropy_pattern, mi_matrix)
 
-        mutual_information_matrix = self._compute_structural_mutual_information(q_field_structure)
-
-        information_theoretical_fingerprint = self._generate_information_fingerprint(
-            entropy_signature_pattern, mutual_information_matrix
+        return InformationTheoreticIdentity(
+            entropy_signature_pattern=entropy_pattern,
+            mutual_information_matrix=mi_matrix,
+            information_theoretical_fingerprint=info_fingerprint,
+            coherence_information_content=coherence_content,
+            mathematical_information_complexity=complexity
         )
 
-        coherence_information_content = self._compute_coherence_information_content(q_field_structure)
-
-        mathematical_information_complexity = self._compute_mathematical_complexity(
-            entropy_signature_pattern, mutual_information_matrix
-        )
-
-        identity = InformationTheoreticIdentity(
-            entropy_signature_pattern=entropy_signature_pattern,
-            mutual_information_matrix=mutual_information_matrix,
-            information_theoretical_fingerprint=information_theoretical_fingerprint,
-            coherence_information_content=coherence_information_content,
-            mathematical_information_complexity=mathematical_information_complexity,
-        )
-
-        logger.debug(f"🔬 Computed information signature: complexity={mathematical_information_complexity:.6f}")
-        return identity
-
-    def compute_geometric_invariants(self, agent: ConceptualChargeAgent) -> GeometricInvariants:
+    def compute_geometric_invariants(
+        self, agent: ConceptualChargeAgent
+    ) -> GeometricInvariants:
         """
-        Compute geometric invariants that define mathematical object geometry.
+        Compute geometric invariants from Q-field manifold structure.
 
-        Extracts curvature signatures and manifold topology independent of coordinates.
+        Args:
+            agent: ConceptualChargeAgent with field manifold data
+
+        Returns:
+            GeometricInvariants representing manifold geometry
         """
-        field_manifold_structure = self._extract_field_manifold_structure(agent)
+        manifold_structure = self._extract_field_manifold_structure(agent)
 
-        curvature_signature = self._compute_curvature_signature(field_manifold_structure)
+        curvature_signature = (
+            self._compute_curvature_signature(manifold_structure))
+        topology_hash = (
+            self._generate_manifold_topology_hash(manifold_structure))
+        geometric_genus = (
+            self._compute_geometric_genus(manifold_structure))
+        canonical_form = (
+            self._compute_canonical_geometric_form(manifold_structure))
+        differential_invariants = (
+            self._compute_differential_invariants(manifold_structure))
 
-        manifold_topology_hash = self._generate_manifold_topology_hash(field_manifold_structure)
-
-        geometric_genus = self._compute_geometric_genus(field_manifold_structure)
-
-        canonical_geometric_form = self._compute_canonical_geometric_form(field_manifold_structure)
-
-        differential_geometric_invariants = self._compute_differential_invariants(field_manifold_structure)
-
-        invariants = GeometricInvariants(
+        return GeometricInvariants(
             curvature_signature=curvature_signature,
-            manifold_topology_hash=manifold_topology_hash,
+            manifold_topology_hash=topology_hash,
             geometric_genus=geometric_genus,
-            canonical_geometric_form=canonical_geometric_form,
-            differential_geometric_invariants=differential_geometric_invariants,
+            canonical_geometric_form=canonical_form,
+            differential_geometric_invariants=differential_invariants
         )
 
-        logger.debug(f"🔬 Computed geometric invariants: genus={geometric_genus:.6f}")
-        return invariants
-
-    def compute_mathematical_coherence(self, agent: ConceptualChargeAgent) -> MathematicalCoherence:
+    def compute_mathematical_coherence(
+        self, agent: ConceptualChargeAgent
+    ) -> MathematicalCoherence:
         """
-        Compute essential mathematical relationships that define object identity.
+        Compute mathematical coherence relationships between Q-components.
 
-        Extracts invariant mathematical relationships between Q-components.
+        Args:
+            agent: ConceptualChargeAgent with Q-component structure
+
+        Returns:
+            MathematicalCoherence representing essential relationships
         """
-        q_component_relationships = self._extract_q_component_relationships(agent)
+        q_relationships = self._extract_q_component_relationships(agent)
 
-        q_component_relationship_invariants = self._compute_relationship_invariants(q_component_relationships)
+        relationship_invariants = (
+            self._compute_relationship_invariants(q_relationships))
+        ratio_signatures = (
+            self._compute_mathematical_ratios(q_relationships))
+        phase_topology = self._compute_phase_relationship_topology(agent)
+        preservation_score = self._compute_structure_preservation_score(
+            q_relationships, agent)
+        coherence_fingerprint = self._generate_coherence_fingerprint(
+            relationship_invariants, ratio_signatures)
 
-        mathematical_ratio_signatures = self._compute_mathematical_ratios(q_component_relationships)
-
-        phase_relationship_topology = self._compute_phase_relationship_topology(agent)
-
-        mathematical_structure_preservation_score = self._compute_structure_preservation_score(
-            q_component_relationship_invariants, mathematical_ratio_signatures
+        return MathematicalCoherence(
+            q_component_relationship_invariants=relationship_invariants,
+            mathematical_ratio_signatures=ratio_signatures,
+            phase_relationship_topology=phase_topology,
+            mathematical_structure_preservation_score=preservation_score,
+            coherence_mathematical_fingerprint=coherence_fingerprint
         )
-
-        coherence_mathematical_fingerprint = self._generate_coherence_fingerprint(
-            q_component_relationship_invariants, mathematical_ratio_signatures, phase_relationship_topology
-        )
-
-        coherence = MathematicalCoherence(
-            q_component_relationship_invariants=q_component_relationship_invariants,
-            mathematical_ratio_signatures=mathematical_ratio_signatures,
-            phase_relationship_topology=phase_relationship_topology,
-            mathematical_structure_preservation_score=mathematical_structure_preservation_score,
-            coherence_mathematical_fingerprint=coherence_mathematical_fingerprint,
-        )
-
-        logger.debug(
-            f"🔬 Computed mathematical coherence: preservation={mathematical_structure_preservation_score:.6f}"
-        )
-        return coherence
 
     def create_mathematical_identity_profile(
-        self, agent: ConceptualChargeAgent, regulation_history: Optional[List[Dict[str, Any]]] = None
+        self,
+        agent: ConceptualChargeAgent,
+        regulation_history: List[Dict[str, Any]]
     ) -> MathematicalObjectIdentityProfile:
         """
-        Create complete mathematical identity profile for a Q(τ,C,s) entity.
+        Create complete mathematical identity profile for Q(τ,C,s) entity.
 
-        Combines all mathematical identity mechanisms into unified profile.
+        Args:
+            agent: ConceptualChargeAgent to profile
+            regulation_history: Historical regulation data
+
+        Returns:
+            Complete MathematicalObjectIdentityProfile
         """
+        logger.info(f"🔬 Creating mathematical identity for agent "
+                    f"{agent.charge_id}")
+
         start_time = time.time()
 
         topological_invariants = self.compute_topological_invariants(agent)
-        canonical_signature = self.derive_canonical_mathematical_signature(agent)
-        persistence_features = self.compute_persistence_homology_features(agent, regulation_history or [])
-        information_identity = self.compute_mathematical_information_signature(agent)
+        canonical_signature = (
+            self.derive_canonical_mathematical_signature(agent))
+        persistence_features = self.compute_persistence_homology_features(
+            agent, regulation_history)
+        information_identity = (
+            self.compute_mathematical_information_signature(agent))
         geometric_invariants = self.compute_geometric_invariants(agent)
         mathematical_coherence = self.compute_mathematical_coherence(agent)
 
-        object_mathematical_id = self._generate_mathematical_object_id(
-            topological_invariants, canonical_signature, information_identity
-        )
+        profile_data = {
+            "topological": topological_invariants,
+            "canonical": canonical_signature,
+            "persistence": persistence_features,
+            "information": information_identity,
+            "geometric": geometric_invariants,
+            "coherence": mathematical_coherence
+        }
 
-        identity_mathematical_confidence = self._compute_identity_confidence(
-            topological_invariants,
-            canonical_signature,
-            persistence_features,
-            information_identity,
-            geometric_invariants,
-            mathematical_coherence,
-        )
+        mathematical_object_id = (
+            self._generate_mathematical_object_id(profile_data))
+        identity_confidence = self._compute_identity_confidence(profile_data)
+        creation_timestamp = time.time()
 
-        profile = MathematicalObjectIdentityProfile(
-            object_mathematical_id=object_mathematical_id,
+        computation_time = creation_timestamp - start_time
+        logger.info(f"🔬 Mathematical identity computed in "
+                    f"{computation_time:.3f}s")
+
+        return MathematicalObjectIdentityProfile(
+            object_mathematical_id=mathematical_object_id,
             topological_invariants=topological_invariants,
             canonical_signature=canonical_signature,
             persistence_features=persistence_features,
             information_identity=information_identity,
             geometric_invariants=geometric_invariants,
             mathematical_coherence=mathematical_coherence,
-            identity_creation_timestamp=time.time(),
-            identity_mathematical_confidence=identity_mathematical_confidence,
+            identity_creation_timestamp=creation_timestamp,
+            identity_mathematical_confidence=identity_confidence
         )
-
-        self.identity_registry[object_mathematical_id] = profile
-
-        species_id = canonical_signature.mathematical_species_id
-        if species_id not in self.mathematical_species_classification:
-            self.mathematical_species_classification[species_id] = set()
-        self.mathematical_species_classification[species_id].add(object_mathematical_id)
-
-        computation_time = time.time() - start_time
-        logger.info(
-            f"🔬 Created mathematical identity profile: {object_mathematical_id} "
-            f"(confidence={identity_mathematical_confidence:.6f}, time={computation_time:.3f}s)"
-        )
-
-        return profile
 
     def verify_mathematical_identity_consistency(
-        self, current_profile: MathematicalObjectIdentityProfile, agent: ConceptualChargeAgent
+        self,
+        agent: ConceptualChargeAgent,
+        known_identity: str
     ) -> Tuple[bool, float, Dict[str, float]]:
         """
-        Verify mathematical object maintains consistent identity after regulation.
+        Verify that agent maintains consistent mathematical identity.
 
-        Returns consistency status, confidence score, and detailed consistency metrics.
+        Args:
+            agent: ConceptualChargeAgent to verify
+            known_identity: Previously computed mathematical identity
+
+        Returns:
+            Tuple of (is_consistent, overall_consistency_score,
+                     component_scores)
         """
-        current_topological = self.compute_topological_invariants(agent)
-        current_canonical = self.derive_canonical_mathematical_signature(agent)
-        current_information = self.compute_mathematical_information_signature(agent)
-        current_geometric = self.compute_geometric_invariants(agent)
-        current_coherence = self.compute_mathematical_coherence(agent)
+        if known_identity not in self.identity_registry:
+            return False, 0.0, {}
 
-        consistency_metrics = {}
+        original_profile = self.identity_registry[known_identity]
+        current_profile = self.create_mathematical_identity_profile(
+            agent, [])
 
-        consistency_metrics["topological"] = self._compare_topological_invariants(
-            current_profile.topological_invariants, current_topological
-        )
+        consistency_scores = {}
 
-        consistency_metrics["canonical"] = self._compare_canonical_signatures(
-            current_profile.canonical_signature, current_canonical
-        )
+        consistency_scores["topological"] = (
+            self._compare_topological_invariants(
+                original_profile.topological_invariants,
+                current_profile.topological_invariants
+            ))
 
-        consistency_metrics["information"] = self._compare_information_identities(
-            current_profile.information_identity, current_information
-        )
+        consistency_scores["canonical"] = (
+            self._compare_canonical_signatures(
+                original_profile.canonical_signature,
+                current_profile.canonical_signature
+            ))
 
-        consistency_metrics["geometric"] = self._compare_geometric_invariants(
-            current_profile.geometric_invariants, current_geometric
-        )
+        consistency_scores["information"] = (
+            self._compare_information_identities(
+                original_profile.information_identity,
+                current_profile.information_identity
+            ))
 
-        consistency_metrics["coherence"] = self._compare_mathematical_coherence(
-            current_profile.mathematical_coherence, current_coherence
-        )
+        consistency_scores["geometric"] = (
+            self._compare_geometric_invariants(
+                original_profile.geometric_invariants,
+                current_profile.geometric_invariants
+            ))
 
-        consistency_tensor = torch.tensor(list(consistency_metrics.values()), dtype=torch.float32)
-        overall_consistency = torch.mean(consistency_tensor).item()
+        consistency_scores["coherence"] = (
+            self._compare_mathematical_coherence(
+                original_profile.mathematical_coherence,
+                current_profile.mathematical_coherence
+            ))
 
-        mathematical_consistency_threshold = 1.0 - self.mathematical_precision
-        is_consistent = overall_consistency >= mathematical_consistency_threshold
+        consistency_tensor = torch.tensor(list(consistency_scores.values()),
+                                          dtype=torch.float32)
+        overall_consistency = float(torch.mean(consistency_tensor))
 
-        logger.debug(
-            f"🔬 Identity consistency verification: {overall_consistency:.6f} "
-            f"({'CONSISTENT' if is_consistent else 'INCONSISTENT'})"
-        )
+        is_consistent = overall_consistency > 0.85
 
-        return is_consistent, overall_consistency, consistency_metrics
+        return is_consistent, overall_consistency, consistency_scores
 
     def recognize_mathematical_peers(
-        self, identity_profile: MathematicalObjectIdentityProfile, candidate_agents: List[ConceptualChargeAgent]
+        self,
+        agent: ConceptualChargeAgent,
+        similarity_threshold: float = 0.8
     ) -> List[Tuple[str, float, Dict[str, float]]]:
         """
-        Recognize mathematical peer objects based on identity signatures.
+        Recognize mathematically similar entities based on identity profiles.
 
-        Returns list of (object_id, similarity_score, detailed_similarities).
+        Args:
+            agent: ConceptualChargeAgent to find peers for
+            similarity_threshold: Minimum similarity for peer recognition
+
+        Returns:
+            List of (peer_id, similarity_score, similarity_components)
         """
-        peer_recognition_results = []
+        current_profile = self.create_mathematical_identity_profile(agent, [])
 
-        for candidate_agent in candidate_agents:
-            candidate_profile = self.create_mathematical_identity_profile(candidate_agent)
+        peers = []
+        for peer_id, peer_profile in self.identity_registry.items():
+            similarity_score, similarity_components = (
+                self._compute_mathematical_similarity(
+                    current_profile, peer_profile
+                ))
 
-            similarity_score, detailed_similarities = self._compute_mathematical_similarity(
-                identity_profile, candidate_profile
-            )
+            if similarity_score >= similarity_threshold:
+                peers.append((peer_id, similarity_score,
+                              similarity_components))
 
-            peer_recognition_results.append(
-                (candidate_profile.object_mathematical_id, similarity_score, detailed_similarities)
-            )
-
-        peer_recognition_results.sort(key=lambda x: x[1], reverse=True)
-
-        logger.debug(f"🔬 Recognized {len(peer_recognition_results)} mathematical peer candidates")
-        return peer_recognition_results
+        peers.sort(key=lambda x: x[1], reverse=True)
+        return peers
 
     def track_mathematical_genealogy(
-        self, parent_profile: MathematicalObjectIdentityProfile, child_profile: MathematicalObjectIdentityProfile
+        self,
+        parent_agent: ConceptualChargeAgent,
+        child_agent: ConceptualChargeAgent
     ) -> Dict[str, float]:
         """
-        Track mathematical lineage relationships between objects.
+        Track mathematical inheritance patterns between agents.
 
-        Computes mathematical inheritance patterns and genealogical relationships.
+        Args:
+            parent_agent: Parent ConceptualChargeAgent
+            child_agent: Child ConceptualChargeAgent
+
+        Returns:
+            Mathematical inheritance scores by component
         """
-        genealogy_metrics = {}
+        parent_profile = self.create_mathematical_identity_profile(
+            parent_agent, [])
+        child_profile = self.create_mathematical_identity_profile(
+            child_agent, [])
 
-        genealogy_metrics["topological_inheritance"] = self._compute_topological_inheritance(
-            parent_profile.topological_invariants, child_profile.topological_invariants
-        )
+        inheritance_scores = {}
 
-        genealogy_metrics["canonical_inheritance"] = self._compute_canonical_inheritance(
-            parent_profile.canonical_signature, child_profile.canonical_signature
-        )
+        inheritance_scores["topological"] = (
+            self._compute_topological_inheritance(
+                parent_profile.topological_invariants,
+                child_profile.topological_invariants
+            ))
 
-        genealogy_metrics["information_inheritance"] = self._compute_information_inheritance(
-            parent_profile.information_identity, child_profile.information_identity
-        )
+        inheritance_scores["canonical"] = (
+            self._compute_canonical_inheritance(
+                parent_profile.canonical_signature,
+                child_profile.canonical_signature
+            ))
 
-        genealogy_metrics["geometric_inheritance"] = self._compute_geometric_inheritance(
-            parent_profile.geometric_invariants, child_profile.geometric_invariants
-        )
+        inheritance_scores["information"] = (
+            self._compute_information_inheritance(
+                parent_profile.information_identity,
+                child_profile.information_identity
+            ))
 
-        genealogy_metrics["coherence_inheritance"] = self._compute_coherence_inheritance(
-            parent_profile.mathematical_coherence, child_profile.mathematical_coherence
-        )
+        inheritance_scores["geometric"] = (
+            self._compute_geometric_inheritance(
+                parent_profile.geometric_invariants,
+                child_profile.geometric_invariants
+            ))
 
-        inheritance_values = [
-                genealogy_metrics["topological_inheritance"],
-                genealogy_metrics["canonical_inheritance"],
-                genealogy_metrics["information_inheritance"],
-                genealogy_metrics["geometric_inheritance"],
-                genealogy_metrics["coherence_inheritance"],
-            ]
-        inheritance_tensor = torch.tensor(inheritance_values, dtype=torch.float32)
-        genealogy_metrics["overall_inheritance"] = torch.mean(inheritance_tensor).item()
+        inheritance_scores["coherence"] = (
+            self._compute_coherence_inheritance(
+                parent_profile.mathematical_coherence,
+                child_profile.mathematical_coherence
+            ))
 
-        logger.debug(f"🔬 Mathematical genealogy: inheritance={genealogy_metrics['overall_inheritance']:.6f}")
-        return genealogy_metrics
+        return inheritance_scores
 
+    def _extract_q_field_components(
+        self, agent: ConceptualChargeAgent
+    ) -> Dict[str, Any]:
+        """
+        Extract Q-field components from liquid agent using direct dataclass
+        access.
 
-    def _extract_q_field_components(self, agent: ConceptualChargeAgent) -> Dict[str, Any]:
-        """Extract Q-field components for mathematical analysis."""
-        components = {}
+        Args:
+            agent: ConceptualChargeAgent with Q_components
 
-        if hasattr(agent, "q_value") and agent.q_value is not None:
-            components["q_value"] = agent.q_value
+        Returns:
+            Q-field component data dictionary
+        """
+        field_components = {}
 
-        if hasattr(agent, "Q_components") and agent.Q_components:
-            components["q_components"] = agent.Q_components
+        field_components["gamma"] = agent.Q_components.gamma
+        field_components["T_tensor"] = agent.Q_components.T_tensor
+        field_components["E_trajectory"] = agent.Q_components.E_trajectory
+        field_components["phi_semantic"] = agent.Q_components.phi_semantic
+        field_components["theta_total"] = (
+            agent.Q_components.theta_components.total)
+        field_components["phase_factor"] = agent.Q_components.phase_factor
+        field_components["psi_persistence"] = (
+            agent.Q_components.psi_persistence)
+        field_components["psi_gaussian"] = agent.Q_components.psi_gaussian
+        field_components["psi_exponential_cosine"] = (
+            agent.Q_components.psi_exponential_cosine)
+        field_components["Q_value"] = agent.Q_components.Q_value
 
-        if hasattr(agent, "breathing_q_coefficients") and agent.breathing_q_coefficients:
-            components["breathing_coefficients"] = agent.breathing_q_coefficients
+        field_components["breathing_coherence"] = (
+            agent.temporal_biography.breathing_coherence)
+        field_components["field_modulation_strength"] = (
+            agent.emotional_field_signature.field_modulation_strength)
+        field_components["living_Q_value"] = agent.living_Q_value
 
-        if hasattr(agent, "temporal_biography") and agent.temporal_biography:
-            components["temporal_biography"] = agent.temporal_biography
+        return field_components
 
-        return components
+    def _compute_euler_characteristic(
+        self, q_components: Dict[str, Any]
+    ) -> float:
+        """
+        Compute Euler characteristic from Q-field topology.
 
-    def _compute_euler_characteristic(self, q_components: Dict[str, Any]) -> float:
-        """Compute Euler characteristic from Q-field topology."""
-        if "q_value" not in q_components:
-            raise ValueError("Euler characteristic computation requires Q-value component - TOPOLOGICAL ANALYSIS IMPOSSIBLE")
+        Args:
+            q_components: Q-field component data
 
-        q_value = q_components["q_value"]
+        Returns:
+            Euler characteristic value
+        """
+        q_value = q_components["Q_value"]
+        real_part = float(q_value.real)
+        imag_part = float(q_value.imag)
 
-        if hasattr(q_value, "real") and hasattr(q_value, "imag"):
-            real_part = float(q_value.real)
-            imag_part = float(q_value.imag)
+        field_curvature = real_part * imag_part
+        vertex_contribution = abs(real_part) + abs(imag_part)
+        edge_contribution = math.sqrt(real_part**2 + imag_part**2)
 
-            real_tensor = torch.tensor(real_part, dtype=torch.float32)
-            imag_tensor = torch.tensor(imag_part, dtype=torch.float32)
-            magnitude = torch.sqrt(real_tensor**2 + imag_tensor**2).item()
-            phase = torch.atan2(imag_tensor, real_tensor).item()
+        euler_char = (vertex_contribution - edge_contribution +
+                      field_curvature)
 
-            mag_tensor = torch.tensor(magnitude, dtype=torch.float32)
-            phase_tensor = torch.tensor(phase, dtype=torch.float32)
-            euler_char = 2.0 - 2.0 * (mag_tensor / (1.0 + mag_tensor)).item() * torch.cos(phase_tensor).item()
-            return float(euler_char)
-        else:
-            real_value = float(q_value)
-            euler_char = 2.0 / (1.0 + abs(real_value))
-            return float(euler_char)
+        return float(euler_char)
 
-    def _compute_topological_genus(self, q_components: Dict[str, Any]) -> float:
-        """Compute topological genus from Q-field structure."""
-        if "q_components" not in q_components:
-            raise ValueError("Topological genus computation requires Q-components - GENUS ANALYSIS IMPOSSIBLE")
+    def _compute_topological_genus(
+        self, q_components: Dict[str, Any]
+    ) -> float:
+        """
+        Compute topological genus from Q-field component structure.
 
-        q_comp = q_components["q_components"]
+        Args:
+            q_components: Q-field component data
 
+        Returns:
+            Topological genus value
+        """
         real_parts = []
         imag_parts = []
 
-        for component_name, component_value in q_comp.items():
-            if hasattr(component_value, "real") and hasattr(component_value, "imag"):
-                real_parts.append(float(component_value.real))
-                imag_parts.append(float(component_value.imag))
-            else:
-                real_parts.append(float(component_value))
-                imag_parts.append(0.0)
+        complex_components = ["T_tensor", "E_trajectory", "phi_semantic",
+                              "phase_factor", "Q_value"]
 
-        if not real_parts:
-            raise ValueError("Topological genus requires valid real parts from Q-components - GENUS COMPUTATION IMPOSSIBLE")
+        for component_name in complex_components:
+            component_value = q_components[component_name]
+            real_part = float(component_value.real)
+            imag_part = float(component_value.imag)
+            real_parts.append(real_part)
+            imag_parts.append(imag_part)
 
-        real_tensor = torch.tensor(real_parts, dtype=torch.float32)
-        imag_tensor = torch.tensor(imag_parts, dtype=torch.float32)
-        field_complexity = torch.std(real_tensor).item() + torch.std(imag_tensor).item()
-        genus = field_complexity / (2.0 * math.pi)  # Mathematical genus formula
+        if len(real_parts) < 2:
+            return 0.0
+
+        real_matrix = np.outer(real_parts, real_parts)
+        imag_matrix = np.outer(imag_parts, imag_parts)
+
+        combined_matrix = real_matrix + 1j * imag_matrix
+
+        eigenvalues = np.linalg.eigvals(combined_matrix)
+        positive_eigenvalues = np.sum(np.real(eigenvalues) > 0)
+
+        genus = max(0, (len(real_parts) - positive_eigenvalues) // 2)
+
         return float(genus)
 
-    def _compute_fundamental_group_rank(self, q_components: Dict[str, Any]) -> int:
-        """Compute fundamental group rank from phase relationships."""
-        if "q_components" not in q_components:
-            return 0
+    def _compute_fundamental_group_rank(
+        self, q_components: Dict[str, Any]
+    ) -> int:
+        """
+        Compute fundamental group rank from Q-field phase relationships.
 
-        q_comp = q_components["q_components"]
+        Args:
+            q_components: Q-field component data
 
+        Returns:
+            Fundamental group rank
+        """
         phases = []
-        for component_name, component_value in q_comp.items():
-            if hasattr(component_value, "real") and hasattr(component_value, "imag"):
-                phase = math.atan2(float(component_value.imag), float(component_value.real))
-                phases.append(phase)
+        complex_components = ["T_tensor", "E_trajectory", "phi_semantic",
+                              "phase_factor", "Q_value"]
+
+        for component_name in complex_components:
+            component_value = q_components[component_name]
+            real_part = float(component_value.real)
+            imag_part = float(component_value.imag)
+            phase = math.atan2(imag_part, real_part)
+            phases.append(phase)
 
         if len(phases) < 2:
             return 0
@@ -603,1312 +809,1692 @@ class MathematicalObjectIdentity:
         for i in range(len(phases)):
             for j in range(i + 1, len(phases)):
                 diff = abs(phases[i] - phases[j])
-                phase_differences.append(min(diff, 2 * math.pi - diff))
+                normalized_diff = min(diff, 2 * math.pi - diff)
+                phase_differences.append(normalized_diff)
 
-        independent_count = 0
-        tolerance = self.mathematical_precision * 10
+        independent_phases = 0
+        tolerance = 0.1
 
         for diff in phase_differences:
-            is_independent = True
-            for existing_diff in phase_differences[:independent_count]:
-                if abs(diff - existing_diff) < tolerance:
-                    is_independent = False
-                    break
-            if is_independent:
-                independent_count += 1
+            if diff > tolerance:
+                independent_phases += 1
 
-        return independent_count
+        return min(independent_phases, len(phases) - 1)
 
-    def _compute_betti_numbers(self, q_components: Dict[str, Any]) -> List[int]:
-        """Compute Betti numbers for homology groups."""
-        if "q_components" not in q_components:
+    def _compute_betti_numbers(
+        self, q_components: Dict[str, Any]
+    ) -> List[int]:
+        """
+        Compute Betti numbers from Q-field homology.
+
+        Args:
+            q_components: Q-field component data
+
+        Returns:
+            List of Betti numbers
+        """
+        points = []
+        complex_components = ["T_tensor", "E_trajectory", "phi_semantic",
+                              "phase_factor", "Q_value"]
+
+        for component_name in complex_components:
+            component_value = q_components[component_name]
+            real_part = float(component_value.real)
+            imag_part = float(component_value.imag)
+            points.append([real_part, imag_part])
+
+        if len(points) < 2:
             return [0]
 
-        q_comp = q_components["q_components"]
+        points_array = np.array(points)
 
-        field_points = []
-        for component_name, component_value in q_comp.items():
-            if hasattr(component_value, "real") and hasattr(component_value, "imag"):
-                field_points.append([float(component_value.real), float(component_value.imag)])
-            else:
-                field_points.append([float(component_value), 0.0])
+        threshold = np.mean(pdist(points_array))
 
-        if len(field_points) < 2:
-            return [1, 0]  # Single point has b0=1, b1=0
-
-        field_points_list = field_points
-        field_points = torch.tensor(field_points_list, dtype=torch.float32)
-
-        distance_matrix = pdist(field_points)
-        if len(distance_matrix) == 0:
-            b0 = 1
-        else:
-            distance_tensor = torch.tensor(distance_matrix, dtype=torch.float32)
-            threshold = torch.quantile(distance_tensor.flatten(), 0.25).item()  # Connection threshold
-            connected_components = self._count_connected_components(field_points, threshold)
-            b0 = connected_components
-
-        b1 = max(0, len(field_points) - b0)
+        b0 = self._count_connected_components(points_array, threshold)
+        b1 = max(0, len(points) - b0)
 
         return [b0, b1]
 
-    def _count_connected_components(self, points: np.ndarray, threshold: float) -> int:
-        """Count connected components in point set."""
-        n_points = len(points)
-        if n_points <= 1:
-            return n_points
+    def _count_connected_components(
+        self, points: np.ndarray, threshold: float
+    ) -> int:
+        """
+        Count connected components in point cloud.
+
+        Args:
+            points: Array of points
+            threshold: Connection threshold
+
+        Returns:
+            Number of connected components
+        """
+        if len(points) == 0:
+            return 0
 
         distances = squareform(pdist(points))
-        adjacency = distances <= threshold
+        adjacency = distances < threshold
 
-        visited = set()
+        visited = np.zeros(len(points), dtype=bool)
         components = 0
 
-        for i in range(n_points):
-            if i not in visited:
+        for i in range(len(points)):
+            if not visited[i]:
                 components += 1
                 stack = [i]
                 while stack:
                     current = stack.pop()
-                    if current not in visited:
-                        visited.add(current)
-                        for j in range(n_points):
-                            if adjacency[current, j] and j not in visited:
-                                stack.append(j)
+                    if not visited[current]:
+                        visited[current] = True
+                        neighbors = np.where(adjacency[current])[0]
+                        stack.extend(neighbors)
 
         return components
 
     def _generate_topological_fingerprint(
-        self, euler_char: float, genus: float, fund_group_rank: int, betti_numbers: List[int]
+        self, topology_data: Dict[str, Any]
     ) -> str:
-        """Generate unique topological fingerprint."""
-        fingerprint_data = f"{euler_char:.12f}_{genus:.12f}_{fund_group_rank}_{'-'.join(map(str, betti_numbers))}"
-        return hashlib.sha256(fingerprint_data.encode()).hexdigest()[:16]
+        """
+        Generate unique fingerprint from topological data.
 
-    def _extract_q_formula_structure(self, agent: ConceptualChargeAgent) -> Dict[str, Any]:
-        """Extract mathematical structure of Q-formula components."""
+        Args:
+            topology_data: Topological invariant data
+
+        Returns:
+            Unique topological fingerprint hash
+        """
+        fingerprint_string = (
+            f"{topology_data['euler']:.6f}_{topology_data['genus']:.6f}_"
+            f"{topology_data['rank']}_{topology_data['betti']}")
+        return hashlib.sha256(fingerprint_string.encode()).hexdigest()[:16]
+
+    def _extract_q_formula_structure(
+        self, agent: ConceptualChargeAgent
+    ) -> Dict[str, Any]:
+        """
+        Extract Q(τ,C,s) formula structure using direct dataclass access.
+
+        Args:
+            agent: ConceptualChargeAgent with mathematical structure
+
+        Returns:
+            Q formula structure data
+        """
         structure = {}
 
-        if hasattr(agent, "Q_components") and agent.Q_components:
-            structure["component_types"] = list(agent.Q_components.keys())
-            structure["component_count"] = len(agent.Q_components)
+        q_components = agent.Q_components
 
-            component_magnitudes = []
-            component_phases = []
+        logger.debug(f"🔍 DEBUG: Extracting Q formula structure for agent "
+                     f"{agent.charge_id}")
 
-            for comp_name, comp_value in agent.Q_components.items():
-                if hasattr(comp_value, "real") and hasattr(comp_value, "imag"):
-                    magnitude = abs(comp_value)
-                    phase = math.atan2(float(comp_value.imag), float(comp_value.real))
-                    component_magnitudes.append(magnitude)
-                    component_phases.append(phase)
-                else:
-                    component_magnitudes.append(abs(float(comp_value)))
-                    component_phases.append(0.0)
+        mathematical_components = [
+            "gamma", "T_tensor", "E_trajectory", "phi_semantic",
+            "phase_factor", "psi_persistence", "psi_gaussian",
+            "psi_exponential_cosine", "Q_value"
+        ]
 
-            structure["magnitude_pattern"] = component_magnitudes
-            structure["phase_pattern"] = component_phases
+        field_values = []
+
+        for name in mathematical_components:
+            value = getattr(q_components, name)
+
+            if name in ["T_tensor", "E_trajectory", "phi_semantic",
+                        "phase_factor", "Q_value"]:
+                try:
+                    E_magnitude = float(abs(value))
+                    E_phase = float(math.atan2(value.imag, value.real))
+                    field_values.extend([E_magnitude, E_phase])
+                except Exception:
+                    e_traj_value = getattr(q_components,
+                                           'E_trajectory', 'NOT FOUND')
+                    logger.debug(f"   - E_trajectory value when E_phase "
+                                 f"failed: {e_traj_value}")
+                    field_values.extend([0.0, 0.0])
+            else:
+                field_values.append(float(value))
+
+        field_values.append(float(
+            q_components.theta_components.total))
+
+        structure["component_names"] = (mathematical_components +
+                                        ["theta_total"])
+        structure["field_values"] = field_values
+        structure["component_count"] = len(field_values)
+        structure["complex_component_count"] = 5
+        structure["real_component_count"] = len(field_values) - 10
 
         return structure
 
-    def _hash_mathematical_structure(self, structure: Dict[str, Any]) -> str:
-        """Generate hash of mathematical formula structure."""
-        structure_items = []
+    def _hash_mathematical_structure(
+        self, structure: Dict[str, Any]
+    ) -> str:
+        """
+        Generate hash from mathematical structure.
 
-        if "component_types" in structure:
-            structure_items.append(f"types:{'-'.join(sorted(structure['component_types']))}")
+        Args:
+            structure: Mathematical structure data
 
-        if "component_count" in structure:
-            structure_items.append(f"count:{structure['component_count']}")
-
-        if "magnitude_pattern" in structure:
-            magnitudes = structure["magnitude_pattern"]
-            if magnitudes:
-                mag_tensor = torch.tensor(magnitudes, dtype=torch.float32)
-                max_mag = torch.max(mag_tensor).item()
-                if max_mag > 0:
-                    normalized_mags = (mag_tensor / max_mag).tolist()
-                else:
-                    normalized_mags = [0 for _ in magnitudes]
-                mag_structure = f"mag_pattern:{'-'.join(f'{m:.6f}' for m in normalized_mags)}"
-                structure_items.append(mag_structure)
-
-        if "phase_pattern" in structure:
-            phases = structure["phase_pattern"]
-            phase_structure = f"phase_pattern:{'-'.join(f'{p:.6f}' for p in phases)}"
-            structure_items.append(phase_structure)
-
-        structure_string = "|".join(structure_items)
+        Returns:
+            Structure hash string
+        """
+        structure_string = (
+            f"{structure['component_count']}_"
+            f"{structure['complex_component_count']}_"
+            f"{structure['real_component_count']}")
         return hashlib.sha256(structure_string.encode()).hexdigest()[:16]
 
-    def _compute_component_relationships(self, agent: ConceptualChargeAgent) -> np.ndarray:
-        """Compute mathematical relationship matrix between Q-components."""
-        if not hasattr(agent, "Q_components") or not agent.Q_components:
-            return torch.tensor([[1.0]], dtype=torch.float32).numpy()  # Return numpy for compatibility
+    def _compute_component_relationships(
+        self, agent: ConceptualChargeAgent
+    ) -> np.ndarray:
+        """
+        Compute relationships between Q-components using direct dataclass
+        access.
 
-        components = list(agent.Q_components.values())
-        n_components = len(components)
+        Args:
+            agent: ConceptualChargeAgent with Q_components
 
-        numerical_components = []
-        for comp in components:
-            if hasattr(comp, "real") and hasattr(comp, "imag"):
-                numerical_components.append(complex(comp))
-            else:
-                numerical_components.append(complex(float(comp)))
+        Returns:
+            Component relationship matrix
+        """
+        components = [
+            agent.Q_components.T_tensor,
+            agent.Q_components.E_trajectory,
+            agent.Q_components.phi_semantic,
+            agent.Q_components.phase_factor,
+            agent.Q_components.Q_value
+        ]
 
-        relationship_matrix = np.zeros((n_components, n_components), dtype=complex)  # Keep numpy for scipy compatibility
+        relationship_matrix = np.zeros(
+            (len(components), len(components)), dtype=complex)
 
-        for i in range(n_components):
-            for j in range(n_components):
-                if i == j:
-                    relationship_matrix[i, j] = 1.0
+        for i, comp_i in enumerate(components):
+            for j, comp_j in enumerate(components):
+                if i != j:
+                    real_part = float(comp_i.real)
+                    imag_part = float(comp_i.imag)
+                    other_real = float(comp_j.real)
+                    other_imag = float(comp_j.imag)
+
+                    correlation = (real_part * other_real +
+                                   imag_part * other_imag)
+                    cross_correlation = (real_part * other_imag -
+                                         imag_part * other_real)
+
+                    relationship_matrix[i, j] = (correlation +
+                                                 1j * cross_correlation)
                 else:
-                    comp_i = numerical_components[i]
-                    comp_j = numerical_components[j]
+                    relationship_matrix[i, j] = float(abs(comp_i))
 
-                    if abs(comp_j) > self.mathematical_precision:
-                        ratio = comp_i / comp_j
-                        relationship_matrix[i, j] = ratio
-                    else:
-                        relationship_matrix[i, j] = 0.0
+        return np.real(relationship_matrix)
 
-        return relationship_matrix
+    def _compute_mathematical_genus(
+        self, component_matrix: np.ndarray
+    ) -> float:
+        """
+        Compute mathematical genus from component relationships.
 
-    def _compute_mathematical_genus(self, component_matrix: np.ndarray) -> float:
-        """Compute mathematical genus of component relationship structure."""
+        Args:
+            component_matrix: Component relationship matrix
+
+        Returns:
+            Mathematical genus value
+        """
         if component_matrix.size == 0:
-            raise ValueError("Mathematical genus computation requires non-empty component matrix - GENUS ANALYSIS IMPOSSIBLE")
+            return 0.0
 
-        try:
-            eigenvalues = linalg.eigvals(component_matrix)
-            significant_eigenvalues = [ev for ev in eigenvalues if abs(ev) > self.mathematical_precision]
+        eigenvalues = np.linalg.eigvals(component_matrix)
 
-            if not significant_eigenvalues:
-                raise ValueError(f"Mathematical genus computation failed - no significant eigenvalues above precision {self.mathematical_precision} - SPECTRAL ANALYSIS DEGENERATE")
+        positive_eigenvalues = np.sum(np.real(eigenvalues) > 1e-10)
+        negative_eigenvalues = np.sum(np.real(eigenvalues) < -1e-10)
 
-            eigenvalue_magnitudes = [abs(ev) for ev in significant_eigenvalues]
-            genus = (len(significant_eigenvalues) - 1) / 2.0
+        genus = ((len(eigenvalues) - positive_eigenvalues +
+                  negative_eigenvalues) / 2.0)
 
-            return float(genus)
+        return max(0.0, float(genus))
 
-        except (linalg.LinAlgError, ValueError) as e:
-            raise ValueError(f"Mathematical genus eigenvalue computation failed: {e} - SPECTRAL ANALYSIS IMPOSSIBLE")
+    def _compute_canonical_form(
+        self, component_matrix: np.ndarray
+    ) -> np.ndarray:
+        """
+        Compute canonical form representation.
 
-    def _compute_canonical_form(self, component_matrix: np.ndarray) -> np.ndarray:
-        """Compute canonical form coefficients for unique representation."""
+        Args:
+            component_matrix: Component relationship matrix
+
+        Returns:
+            Canonical form coefficients
+        """
         if component_matrix.size == 0:
-            raise ValueError("Mathematical species classification requires canonical coefficients - SPECIES CLASSIFICATION IMPOSSIBLE")
+            return np.array([])
 
-        try:
-            U, s, Vh = linalg.svd(component_matrix)
+        eigenvalues, eigenvectors = np.linalg.eigh(component_matrix)
 
-            s_tensor = torch.tensor(s, dtype=torch.float32)
-            canonical_coefficients = s_tensor / (torch.norm(s_tensor) + self.mathematical_precision)
-            canonical_coefficients = canonical_coefficients.numpy()  # Return numpy for compatibility
+        sorted_indices = np.argsort(np.abs(eigenvalues))[::-1]
+        canonical_eigenvalues = eigenvalues[sorted_indices]
 
-            return canonical_coefficients
+        return canonical_eigenvalues
 
-        except (linalg.LinAlgError, ValueError):
-            return torch.tensor([1.0], dtype=torch.float32).numpy()
+    def _classify_mathematical_species(
+        self, structure_hash: str, genus: float, canonical_coeffs: np.ndarray
+    ) -> str:
+        """
+        Classify mathematical species based on structural properties.
 
-    def _classify_mathematical_species(self, structure_hash: str, genus: float, canonical_coeffs: np.ndarray) -> str:
-        """Classify mathematical species based on structural properties."""
-        genus_class = f"g{int(genus * 100):03d}"  # Genus classification
+        Args:
+            structure_hash: Hash of mathematical structure
+            genus: Mathematical genus
+            canonical_coeffs: Canonical form coefficients
 
-        if len(canonical_coeffs) == 0:
-            coeff_class = "c000"
+        Returns:
+            Mathematical species ID
+        """
+        genus_class = f"g{int(genus)}"
+
+        if len(canonical_coeffs) > 0:
+            dominant_eigenvalue = abs(canonical_coeffs[0])
+            if dominant_eigenvalue > 10.0:
+                complexity_class = "high"
+            elif dominant_eigenvalue > 1.0:
+                complexity_class = "medium"
+            else:
+                complexity_class = "low"
         else:
-            coeffs_tensor = torch.tensor(canonical_coeffs, dtype=torch.float32)
-            coeff_signature = int(torch.sum(coeffs_tensor).item() * 1000) % 1000
-            coeff_class = f"c{coeff_signature:03d}"
+            complexity_class = "minimal"
 
-        struct_class = structure_hash[:4]
+        species_id = (f"{genus_class}_{complexity_class}_"
+                      f"{structure_hash[:8]}")
 
-        species_id = f"{genus_class}_{coeff_class}_{struct_class}"
         return species_id
 
-    def _extract_field_evolution_data(self, regulation_history: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-        """Extract field evolution data from regulation history."""
+    def _extract_field_evolution_data(
+        self, regulation_history: List[Dict[str, Any]]
+    ) -> List[Dict[str, Any]]:
+        """
+        Extract field evolution data from regulation history.
+
+        Args:
+            regulation_history: Historical regulation data
+
+        Returns:
+            Field evolution data points
+        """
         evolution_data = []
 
-        for history_entry in regulation_history:
-            if isinstance(history_entry, dict):
-                field_data = {}
-
-                for key in ["field_entropy", "phase_coherence", "energy_density", "regulation_strength"]:
-                    if key in history_entry:
-                        field_data[key] = history_entry[key]
-
-                if "timestamp" in history_entry:
-                    field_data["timestamp"] = history_entry["timestamp"]
-                else:
-                    field_data["timestamp"] = len(evolution_data)
-
-                if field_data:  # Only add if we extracted some data
-                    evolution_data.append(field_data)
+        for i, regulation_point in enumerate(regulation_history):
+            evolution_point = {
+                "timestamp": regulation_point.get("timestamp", float(i)),
+                "field_entropy": regulation_point.get("field_entropy", 0.0),
+                "phase_coherence": regulation_point.get(
+                    "phase_coherence", 0.0),
+                "energy_density": regulation_point.get("energy_density", 0.0),
+                "regulation_strength": regulation_point.get(
+                    "regulation_strength", 0.0)
+            }
+            evolution_data.append(evolution_point)
 
         return evolution_data
 
-    def _compute_persistent_cycles(self, field_evolution_data: List[Dict[str, Any]]) -> List[Tuple[float, float]]:
-        """Compute persistent cycles (birth-death pairs) from field evolution."""
-        if not field_evolution_data:
+    def _compute_persistent_cycles(
+        self, field_evolution_data: List[Dict[str, Any]]
+    ) -> List[Tuple[float, float]]:
+        """
+        Compute persistent cycles from field evolution.
+
+        Args:
+            field_evolution_data: Field evolution time series
+
+        Returns:
+            List of (birth, death) persistent cycle pairs
+        """
+        if len(field_evolution_data) < 3:
             return []
 
-        persistent_cycles = []
+        entropy_series = [point["field_entropy"]
+                          for point in field_evolution_data]
+        timestamps = [point["timestamp"] for point in field_evolution_data]
 
-        for field_key in ["field_entropy", "phase_coherence", "energy_density"]:
-            if field_key in field_evolution_data[0]:
-                time_series = [entry.get(field_key) for entry in field_evolution_data]
-                timestamps = [entry.get("timestamp") for i, entry in enumerate(field_evolution_data)]
-
-                cycles = self._compute_time_series_persistence(time_series, timestamps)
-                persistent_cycles.extend(cycles)
+        persistent_cycles = self._compute_time_series_persistence(
+            entropy_series, timestamps)
 
         return persistent_cycles
 
     def _compute_time_series_persistence(
-        self, time_series: List[float], timestamps: List[float]
+        self,
+        values: List[float],
+        timestamps: List[float]
     ) -> List[Tuple[float, float]]:
-        """Compute persistence features from time series."""
-        if len(time_series) < 3:
+        """
+        Compute persistence pairs from time series data.
+
+        Args:
+            values: Time series values
+            timestamps: Corresponding timestamps
+
+        Returns:
+            Persistence pairs (birth, death)
+        """
+        if len(values) < 3:
             return []
 
-        extrema = []
-        for i in range(1, len(time_series) - 1):
-            if (time_series[i] > time_series[i - 1] and time_series[i] > time_series[i + 1]) or (
-                time_series[i] < time_series[i - 1] and time_series[i] < time_series[i + 1]
-            ):
-                extrema.append((timestamps[i], time_series[i]))
+        local_maxima = []
+        local_minima = []
 
-        persistence_pairs = []
-        if len(extrema) >= 2:
-            for i in range(0, len(extrema) - 1, 2):
-                birth_time = extrema[i][0]
-                death_time = extrema[i + 1][0] if i + 1 < len(extrema) else timestamps[-1]
-                persistence_pairs.append((birth_time, death_time))
+        for i in range(1, len(values) - 1):
+            if values[i] > values[i-1] and values[i] > values[i+1]:
+                local_maxima.append((timestamps[i], values[i]))
+            elif values[i] < values[i-1] and values[i] < values[i+1]:
+                local_minima.append((timestamps[i], values[i]))
 
-        return persistence_pairs
+        cycles = []
+        for max_time, max_val in local_maxima:
+            for min_time, min_val in local_minima:
+                if min_time > max_time:
+                    persistence = max_val - min_val
+                    if persistence > 0.01:
+                        cycles.append((max_time, min_time))
+                    break
 
-    def _generate_persistence_diagram_signature(self, persistent_cycles: List[Tuple[float, float]]) -> str:
-        """Generate signature hash for persistence diagram."""
+        return cycles
+
+    def _generate_persistence_diagram_signature(
+        self, persistent_cycles: List[Tuple[float, float]]
+    ) -> str:
+        """
+        Generate signature from persistence diagram.
+
+        Args:
+            persistent_cycles: Persistent cycle pairs
+
+        Returns:
+            Persistence diagram signature
+        """
         if not persistent_cycles:
             return "empty_persistence"
 
-        sorted_cycles = sorted(persistent_cycles)
+        lifetimes = [death - birth for birth, death in persistent_cycles]
+        avg_lifetime = np.mean(lifetimes)
+        max_lifetime = np.max(lifetimes)
 
-        lifetimes = [death - birth for birth, death in sorted_cycles]
-        signature_data = f"cycles_{len(sorted_cycles)}_lifetimes_{'_'.join(f'{lt:.6f}' for lt in lifetimes[:10])}"
-
-        return hashlib.sha256(signature_data.encode()).hexdigest()[:16]
+        signature_string = (f"{len(persistent_cycles)}_"
+                            f"{avg_lifetime:.6f}_{max_lifetime:.6f}")
+        return hashlib.sha256(signature_string.encode()).hexdigest()[:16]
 
     def _identify_stable_features(
-        self, field_evolution_data: List[Dict[str, Any]], persistent_cycles: List[Tuple[float, float]]
+        self,
+        persistent_cycles: List[Tuple[float, float]],
+        field_evolution_data: List[Dict[str, Any]]
     ) -> Set[str]:
-        """Identify mathematical features that remain stable across transformations."""
+        """
+        Identify stable mathematical features.
+
+        Args:
+            persistent_cycles: Persistent cycle data
+            field_evolution_data: Field evolution history
+
+        Returns:
+            Set of stable feature identifiers
+        """
         stable_features = set()
 
-        if not field_evolution_data:
+        if not persistent_cycles:
             return stable_features
 
-        for field_property in ["field_entropy", "phase_coherence", "energy_density"]:
-            if field_property in field_evolution_data[0]:
-                values = [entry.get(field_property) for entry in field_evolution_data]
+        lifetimes = [death - birth for birth, death in persistent_cycles]
+        avg_lifetime = np.mean(lifetimes)
 
-                if values:
-                    values_tensor = torch.tensor(values, dtype=torch.float32)
-                    mean_val = torch.mean(values_tensor).item()
-                    std_val = torch.std(values_tensor).item()
-                    cv = std_val / (abs(mean_val) + self.mathematical_precision)
+        for i, (birth, death) in enumerate(persistent_cycles):
+            lifetime = death - birth
+            if lifetime > 2 * avg_lifetime:
+                stable_features.add(f"persistent_cycle_{i}")
 
-                    if cv < 0.1:  # Mathematical stability threshold
-                        stable_features.add(f"stable_{field_property}")
+        entropy_values = [point["field_entropy"]
+                          for point in field_evolution_data]
+        entropy_variance = np.var(entropy_values)
 
-        long_lived_cycles = [cycle for cycle in persistent_cycles if (cycle[1] - cycle[0]) > 1.0]
-        if long_lived_cycles:
-            stable_features.add("persistent_cycles")
+        if entropy_variance < 0.01:
+            stable_features.add("stable_entropy")
+
+        coherence_values = [point["phase_coherence"]
+                            for point in field_evolution_data]
+        coherence_trend = np.polyfit(range(len(coherence_values)),
+                                     coherence_values, 1)[0]
+
+        if abs(coherence_trend) < 0.001:
+            stable_features.add("stable_coherence")
 
         return stable_features
 
-    def _compute_lifetime_distribution(self, persistent_cycles: List[Tuple[float, float]]) -> np.ndarray:
-        """Compute distribution of feature lifetimes."""
+    def _compute_lifetime_distribution(
+        self, persistent_cycles: List[Tuple[float, float]]
+    ) -> np.ndarray:
+        """
+        Compute lifetime distribution of persistent features.
+
+        Args:
+            persistent_cycles: Persistent cycle pairs
+
+        Returns:
+            Lifetime distribution array
+        """
         if not persistent_cycles:
-            raise ValueError("Mathematical species classification requires canonical coefficients - SPECIES CLASSIFICATION IMPOSSIBLE")
+            return np.array([])
 
         lifetimes = [death - birth for birth, death in persistent_cycles]
 
-        if lifetimes:
-            lifetimes_tensor = torch.tensor(lifetimes, dtype=torch.float32)
-            hist = torch.histogram(lifetimes_tensor, bins=min(10, len(lifetimes)), density=True)[0].numpy()
-            return hist
-        else:
-            raise ValueError("Mathematical species classification requires canonical coefficients - SPECIES CLASSIFICATION IMPOSSIBLE")
+        return np.array(lifetimes)
 
-    def _compute_persistence_rank(self, persistent_cycles: List[Tuple[float, float]]) -> int:
-        """Compute topological persistence rank."""
+    def _compute_persistence_rank(
+        self, persistent_cycles: List[Tuple[float, float]]
+    ) -> int:
+        """
+        Compute topological persistence rank.
+
+        Args:
+            persistent_cycles: Persistent cycle pairs
+
+        Returns:
+            Persistence rank
+        """
         if not persistent_cycles:
             return 0
 
-        significant_cycles = []
-        for birth, death in persistent_cycles:
-            lifetime = death - birth
-            if lifetime > self.mathematical_precision * 100:  # Significant lifetime threshold
-                significant_cycles.append((birth, death))
+        lifetimes = [death - birth for birth, death in persistent_cycles]
+        significant_cycles = [lt for lt in lifetimes
+                              if lt > np.mean(lifetimes)]
 
         return len(significant_cycles)
 
-    def _extract_q_field_structure(self, agent: ConceptualChargeAgent) -> Dict[str, Any]:
-        """Extract Q-field structural information for information analysis."""
+    def _extract_q_field_structure(
+        self, agent: ConceptualChargeAgent
+    ) -> Dict[str, Any]:
+        """
+        Extract Q-field structure using direct dataclass access.
+
+        Args:
+            agent: ConceptualChargeAgent with Q_components
+
+        Returns:
+            Q-field structure data
+        """
         structure = {}
 
-        if hasattr(agent, "Q_components") and agent.Q_components:
-            components = agent.Q_components
-            structure["components"] = components
-            structure["component_names"] = list(components.keys())
+        components = agent.Q_components
 
-            component_values = list(components.values())
-            if component_values:
-                structure["component_ratios"] = self._compute_component_ratios(component_values)
-                structure["phase_relationships"] = self._compute_phase_relationships(component_values)
+        structure["component_names"] = [
+            "gamma", "T_tensor", "E_trajectory", "phi_semantic",
+            "theta_total", "phase_factor", "psi_persistence",
+            "psi_gaussian", "psi_exponential_cosine", "Q_value"
+        ]
 
-        if hasattr(agent, "breathing_q_coefficients") and agent.breathing_q_coefficients:
-            structure["breathing_structure"] = agent.breathing_q_coefficients
+        field_values = [
+            components.gamma,
+            components.T_tensor,
+            components.E_trajectory,
+            components.phi_semantic,
+            components.theta_components.total,
+            components.phase_factor,
+            components.psi_persistence,
+            components.psi_gaussian,
+            components.psi_exponential_cosine,
+            components.Q_value
+        ]
+
+        structure["field_values"] = field_values
+        structure["component_count"] = len(field_values)
+
+        component_ratios = self._compute_component_ratios(field_values)
+        phase_relationships = self._compute_phase_relationships(field_values)
+
+        structure["component_ratios"] = component_ratios
+        structure["phase_relationships"] = phase_relationships
 
         return structure
 
-    def _compute_component_ratios(self, component_values: List[Any]) -> List[float]:
-        """Compute ratios between components for structural analysis."""
+    def _compute_component_ratios(
+        self, component_values: List[Any]
+    ) -> List[float]:
+        """
+        Compute ratios between Q-field components.
+
+        Args:
+            component_values: List of component values
+
+        Returns:
+            Component ratio values
+        """
         ratios = []
 
-        numerical_values = []
+        magnitudes = []
         for comp in component_values:
-            if hasattr(comp, "__abs__"):
-                numerical_values.append(abs(comp))
+            if isinstance(comp, complex):
+                magnitudes.append(abs(comp))
             else:
-                numerical_values.append(abs(float(comp)))
+                magnitudes.append(abs(float(comp)))
 
-        if len(numerical_values) >= 2:
-            for i in range(len(numerical_values)):
-                for j in range(i + 1, len(numerical_values)):
-                    val_i, val_j = numerical_values[i], numerical_values[j]
-                    if val_j > self.mathematical_precision:
-                        ratio = val_i / val_j
-                        ratios.append(ratio)
-                    elif val_i > self.mathematical_precision:
-                        ratios.append(float("inf"))
+        for i in range(len(magnitudes)):
+            for j in range(i + 1, len(magnitudes)):
+                if magnitudes[j] != 0:
+                    ratio = magnitudes[i] / magnitudes[j]
+                    ratios.append(ratio)
 
         return ratios
 
-    def _compute_phase_relationships(self, component_values: List[Any]) -> List[float]:
-        """Compute phase relationships between components."""
+    def _compute_phase_relationships(
+        self, field_values: List[Any]
+    ) -> List[float]:
+        """
+        Compute phase relationships between complex components.
+
+        Args:
+            field_values: List of field component values
+
+        Returns:
+            Phase relationship values
+        """
         phases = []
 
-        for comp in component_values:
-            if hasattr(comp, "real") and hasattr(comp, "imag"):
-                phase = math.atan2(float(comp.imag), float(comp.real))
+        complex_indices = [1, 2, 3, 5, 9]
+
+        for idx in complex_indices:
+            if idx < len(field_values):
+                comp = field_values[idx]
+                real_part = float(comp.real)
+                imag_part = float(comp.imag)
+                phase = math.atan2(imag_part, real_part)
                 phases.append(phase)
-            else:
-                phases.append(0.0)
 
         phase_relationships = []
         for i in range(len(phases)):
             for j in range(i + 1, len(phases)):
                 phase_diff = abs(phases[i] - phases[j])
-                phase_diff = min(phase_diff, 2 * math.pi - phase_diff)
-                phase_relationships.append(phase_diff)
+                normalized_diff = min(phase_diff, 2 * math.pi - phase_diff)
+                phase_relationships.append(normalized_diff)
 
         return phase_relationships
 
-    def _compute_entropy_signature_pattern(self, q_field_structure: Dict[str, Any]) -> np.ndarray:
-        """Compute entropy signature pattern from field structure."""
-        if not q_field_structure:
-            raise ValueError("Mathematical species classification requires canonical coefficients - SPECIES CLASSIFICATION IMPOSSIBLE")
+    def _compute_entropy_signature_pattern(
+        self, q_field_structure: Dict[str, Any]
+    ) -> np.ndarray:
+        """
+        Compute entropy signature pattern from Q-field structure.
 
-        entropy_components = []
+        Args:
+            q_field_structure: Q-field structure data
 
-        if "component_ratios" in q_field_structure:
-            ratios = q_field_structure["component_ratios"]
-            if ratios:
-                finite_ratios = [r for r in ratios if math.isfinite(r)]
-                if finite_ratios:
-                    ratios_tensor = torch.tensor(finite_ratios, dtype=torch.float32)
-                    normalized_ratios = ratios_tensor / (torch.sum(ratios_tensor) + self.mathematical_precision)
-                    normalized_ratios = normalized_ratios.numpy()
+        Returns:
+            Entropy signature pattern array
+        """
+        component_ratios = q_field_structure["component_ratios"]
+        phase_relationships = q_field_structure["phase_relationships"]
 
-                    entropy_val = entropy(normalized_ratios, base=2)
-                    entropy_components.append(entropy_val)
+        if not component_ratios:
+            return np.array([0.0])
 
-        if "phase_relationships" in q_field_structure:
-            phases = q_field_structure["phase_relationships"]
-            if phases:
-                phases_tensor = torch.tensor(phases, dtype=torch.float32)
-                phase_bins = torch.histogram(phases_tensor, bins=min(5, len(phases)), density=True)[0].numpy()
-                phase_bins = phase_bins[phase_bins > 0]
-                if len(phase_bins) > 0:
-                    phase_entropy = entropy(phase_bins, base=2)
-                    entropy_components.append(phase_entropy)
+        ratio_entropy = entropy(np.abs(component_ratios) + 1e-10)
 
-        if not entropy_components:
-            raise ValueError("Entropy signature pattern computation failed - no entropy components - ENTROPY PATTERN IMPOSSIBLE")
-        return torch.tensor(entropy_components, dtype=torch.float32).numpy()
+        if phase_relationships:
+            phase_entropy = entropy(np.abs(phase_relationships) + 1e-10)
+        else:
+            phase_entropy = 0.0
 
-    def _compute_structural_mutual_information(self, q_field_structure: Dict[str, Any]) -> np.ndarray:
-        """Compute mutual information matrix between structural components."""
-        if "components" not in q_field_structure:
-            return torch.tensor([[1.0]], dtype=torch.float32).numpy()
+        entropy_pattern = np.array([ratio_entropy, phase_entropy])
 
-        components = q_field_structure["components"]
-        component_names = list(components.keys())
+        return entropy_pattern
+
+    def _compute_structural_mutual_information(
+        self, q_field_structure: Dict[str, Any]
+    ) -> np.ndarray:
+        """
+        Compute mutual information matrix for Q-field components.
+
+        Args:
+            q_field_structure: Q-field structure data
+
+        Returns:
+            Mutual information matrix
+        """
+        component_names = q_field_structure["component_names"]
         n_components = len(component_names)
-
-        if n_components < 2:
-            return torch.tensor([[1.0]], dtype=torch.float32).numpy()
-
-        component_values = []
-        for name in component_names:
-            comp = components[name]
-            if hasattr(comp, "real") and hasattr(comp, "imag"):
-                component_values.append([float(comp.real), float(comp.imag)])
-            else:
-                component_values.append([float(comp), 0.0])
-
-        component_values = torch.tensor(component_values, dtype=torch.float32).numpy()  # Convert back for scipy compatibility
 
         mi_matrix = np.zeros((n_components, n_components))
 
+        component_ratios = q_field_structure["component_ratios"]
+
+        if len(component_ratios) < n_components:
+            return mi_matrix
+
         for i in range(n_components):
             for j in range(n_components):
-                if i == j:
-                    mi_matrix[i, j] = 1.0  # Self-information normalized to 1
-                else:
-                    values_i = component_values[i]
-                    values_j = component_values[j]
+                if (i != j and i < len(component_ratios) and
+                        j < len(component_ratios)):
+                    val_i = abs(component_ratios[i]) + 1e-10
+                    val_j = abs(component_ratios[j]) + 1e-10
 
-                    correlation = np.corrcoef(values_i, values_j)[0, 1]
-                    if math.isfinite(correlation):
-                        mi_matrix[i, j] = abs(correlation)
-                    else:
-                        mi_matrix[i, j] = 0.0
+                    joint_entropy = entropy([val_i, val_j])
+                    individual_entropy_i = entropy([val_i, 1.0 - val_i])
+                    individual_entropy_j = entropy([val_j, 1.0 - val_j])
+
+                    mi = (individual_entropy_i + individual_entropy_j -
+                          joint_entropy)
+                    mi_matrix[i, j] = max(0.0, mi)
 
         return mi_matrix
 
-    def _generate_information_fingerprint(self, entropy_pattern: np.ndarray, mi_matrix: np.ndarray) -> str:
-        """Generate information-theoretic fingerprint."""
-        entropy_signature = "_".join(f"{e:.6f}" for e in entropy_pattern)
-        mi_signature = "_".join(f"{mi:.6f}" for mi in mi_matrix.flatten())
+    def _generate_information_fingerprint(
+        self, entropy_pattern: np.ndarray, mi_matrix: np.ndarray
+    ) -> str:
+        """
+        Generate information-theoretic fingerprint.
 
-        fingerprint_data = f"entropy_{entropy_signature}_mi_{mi_signature}"
-        return hashlib.sha256(fingerprint_data.encode()).hexdigest()[:16]
+        Args:
+            entropy_pattern: Entropy signature pattern
+            mi_matrix: Mutual information matrix
 
-    def _compute_coherence_information_content(self, q_field_structure: Dict[str, Any]) -> float:
-        """Compute information content in coherence relationships."""
-        if "phase_relationships" not in q_field_structure:
-            raise ValueError("Coherence information content requires phase relationships - INFORMATION ANALYSIS IMPOSSIBLE")
+        Returns:
+            Information fingerprint string
+        """
+        entropy_sum = np.sum(entropy_pattern)
+        mi_trace = np.trace(mi_matrix)
+        mi_determinant = (np.linalg.det(mi_matrix)
+                          if mi_matrix.size > 0 else 0.0)
 
+        fingerprint_string = (f"{entropy_sum:.6f}_{mi_trace:.6f}_"
+                              f"{mi_determinant:.6f}")
+        return hashlib.sha256(fingerprint_string.encode()).hexdigest()[:16]
+
+    def _compute_coherence_information_content(
+        self, q_field_structure: Dict[str, Any]
+    ) -> float:
+        """
+        Compute information content in coherence relationships.
+
+        Args:
+            q_field_structure: Q-field structure data
+
+        Returns:
+            Coherence information content
+        """
         phase_relationships = q_field_structure["phase_relationships"]
+
         if not phase_relationships:
-            raise ValueError("Coherence information content requires non-empty phase relationships - COHERENCE ANALYSIS IMPOSSIBLE")
+            return 0.0
 
-        phase_tensor = torch.tensor(phase_relationships, dtype=torch.float32)
-        phase_coherence = torch.mean(torch.cos(phase_tensor)).item()  # Average coherence
+        coherence_entropy = entropy(np.abs(phase_relationships) + 1e-10)
 
-        coherence_prob = torch.tensor([abs(phase_coherence), 1.0 - abs(phase_coherence)], dtype=torch.float32)
-        coherence_prob = coherence_prob / torch.sum(coherence_prob)
-        coherence_prob = coherence_prob.numpy()  # Convert for scipy.stats.entropy
-        information_content = entropy(coherence_prob, base=2)
+        max_possible_entropy = math.log(len(phase_relationships))
 
-        return float(information_content)
+        if max_possible_entropy > 0:
+            normalized_coherence = coherence_entropy / max_possible_entropy
+        else:
+            normalized_coherence = 0.0
 
-    def _compute_mathematical_complexity(self, entropy_pattern: np.ndarray, mi_matrix: np.ndarray) -> float:
-        """Compute mathematical information complexity measure."""
-        complexity_components = []
+        return float(normalized_coherence)
 
-        if len(entropy_pattern) > 0:
-            entropy_complexity = np.sum(entropy_pattern)
-            complexity_components.append(entropy_complexity)
+    def _compute_mathematical_complexity(
+        self, entropy_pattern: np.ndarray, mi_matrix: np.ndarray
+    ) -> float:
+        """
+        Compute mathematical complexity measure.
+
+        Args:
+            entropy_pattern: Entropy signature pattern
+            mi_matrix: Mutual information matrix
+
+        Returns:
+            Mathematical complexity value
+        """
+        entropy_complexity = np.sum(entropy_pattern**2)
 
         if mi_matrix.size > 0:
-            mi_tensor = torch.tensor(mi_matrix, dtype=torch.float32)
-            triu_indices = torch.triu_indices(mi_tensor.size(0), mi_tensor.size(1), offset=1)
-            off_diagonal = mi_tensor[triu_indices[0], triu_indices[1]]
-            mi_complexity = torch.sum(off_diagonal).item()
-            complexity_components.append(mi_complexity)
+            mi_complexity = np.sum(mi_matrix**2)
+        else:
+            mi_complexity = 0.0
 
-        if not complexity_components:
-            raise ValueError("Mathematical information complexity computation failed - no complexity components - COMPLEXITY ANALYSIS IMPOSSIBLE")
-        
-        complexity_tensor = torch.tensor(complexity_components, dtype=torch.float32)
-        total_complexity = torch.mean(complexity_tensor).item()
+        total_complexity = entropy_complexity + mi_complexity
+
         return float(total_complexity)
 
-    def _extract_field_manifold_structure(self, agent: ConceptualChargeAgent) -> Dict[str, Any]:
-        """Extract field manifold structure for geometric analysis."""
+    def _extract_field_manifold_structure(
+        self, agent: ConceptualChargeAgent
+    ) -> Dict[str, Any]:
+        """
+        Extract field manifold structure using direct dataclass access.
+
+        Args:
+            agent: ConceptualChargeAgent with manifold data
+
+        Returns:
+            Manifold structure data
+        """
         manifold_structure = {}
 
-        if hasattr(agent, "field_position") and agent.field_position is not None:
-            manifold_structure["field_position"] = agent.field_position
+        q_value = agent.Q_components.Q_value
 
-        if hasattr(agent, "q_value") and agent.q_value is not None:
-            manifold_structure["q_value"] = agent.q_value
-
-        if hasattr(agent, "geometric_features") and agent.geometric_features is not None:
-            manifold_structure["geometric_features"] = agent.geometric_features
-
-        if hasattr(agent, "modular_weight") and agent.modular_weight is not None:
-            manifold_structure["modular_weight"] = agent.modular_weight
+        manifold_structure["field_position"] = [
+            float(q_value.real),
+            float(q_value.imag)
+        ]
+        manifold_structure["q_value"] = q_value
+        manifold_structure["geometric_features"] = [
+            float(agent.Q_components.gamma),
+            float(abs(agent.Q_components.T_tensor)),
+            float(abs(agent.Q_components.E_trajectory))
+        ]
+        manifold_structure["modular_weight"] = float(
+            agent.Q_components.psi_persistence)
 
         return manifold_structure
 
-    def _compute_curvature_signature(self, manifold_structure: Dict[str, Any]) -> np.ndarray:
-        """Compute curvature signature of field manifold."""
-        if "field_position" not in manifold_structure or "q_value" not in manifold_structure:
-            raise ValueError("Curvature signature requires field_position and q_value in manifold - CURVATURE ANALYSIS IMPOSSIBLE")
+    def _compute_curvature_signature(
+        self, manifold_structure: Dict[str, Any]
+    ) -> np.ndarray:
+        """
+        Compute curvature signature from manifold structure.
 
+        Args:
+            manifold_structure: Manifold structure data
+
+        Returns:
+            Curvature signature array
+        """
         field_pos = manifold_structure["field_position"]
-        q_value = manifold_structure["q_value"]
 
-        if hasattr(field_pos, "__len__") and len(field_pos) >= 2:
-            x, y = float(field_pos[0]), float(field_pos[1])
+        if len(field_pos) >= 2:
+            x, y = field_pos[0], field_pos[1]
+
+            gaussian_curvature = x * y / (1 + x**2 + y**2)**2
+            mean_curvature = (x + y) / (2 * math.sqrt(1 + x**2 + y**2))
+
+            curvature_signature = np.array([gaussian_curvature,
+                                            mean_curvature])
         else:
-            x, y = float(field_pos), 0.0
-
-        if hasattr(q_value, "real") and hasattr(q_value, "imag"):
-            q_real, q_imag = float(q_value.real), float(q_value.imag)
-        else:
-            q_real, q_imag = float(q_value), 0.0
-
-        gradient_x = q_real * x / (x**2 + y**2 + self.mathematical_precision)
-        gradient_y = q_imag * y / (x**2 + y**2 + self.mathematical_precision)
-
-        curvature = (gradient_x**2 + gradient_y**2) / (1 + gradient_x**2 + gradient_y**2) ** 1.5
-
-        curvature_signature = torch.tensor([curvature, gradient_x, gradient_y], dtype=torch.float32).numpy()
+            curvature_signature = np.array([0.0, 0.0])
 
         return curvature_signature
 
-    def _generate_manifold_topology_hash(self, manifold_structure: Dict[str, Any]) -> str:
-        """Generate hash of manifold topological structure."""
-        topology_data = []
+    def _generate_manifold_topology_hash(
+        self, manifold_structure: Dict[str, Any]
+    ) -> str:
+        """
+        Generate topology hash from manifold structure.
 
-        if "field_position" in manifold_structure:
-            pos = manifold_structure["field_position"]
-            if hasattr(pos, "__len__"):
-                pos_signature = "_".join(f"{float(p):.6f}" for p in pos)
-            else:
-                pos_signature = f"{float(pos):.6f}"
-            topology_data.append(f"pos_{pos_signature}")
+        Args:
+            manifold_structure: Manifold structure data
 
-        if "q_value" in manifold_structure:
-            q_val = manifold_structure["q_value"]
-            if hasattr(q_val, "real") and hasattr(q_val, "imag"):
-                q_signature = f"{float(q_val.real):.6f}_{float(q_val.imag):.6f}"
-            else:
-                q_signature = f"{float(q_val):.6f}_0.000000"
-            topology_data.append(f"q_{q_signature}")
-
-        if "geometric_features" in manifold_structure:
-            geom_features = manifold_structure["geometric_features"]
-            if hasattr(geom_features, "__len__"):
-                geom_signature = "_".join(f"{float(g):.6f}" for g in geom_features)
-                topology_data.append(f"geom_{geom_signature}")
-
-        topology_string = "|".join(topology_data)
-        return hashlib.sha256(topology_string.encode()).hexdigest()[:16]
-
-    def _compute_geometric_genus(self, manifold_structure: Dict[str, Any]) -> float:
-        """Compute geometric genus of field manifold."""
-        if "q_value" not in manifold_structure:
-            raise ValueError("Geometric genus computation requires Q-value in manifold structure - GEOMETRIC GENUS ANALYSIS IMPOSSIBLE")
-
+        Returns:
+            Topology hash string
+        """
         q_value = manifold_structure["q_value"]
 
-        if hasattr(q_value, "real") and hasattr(q_value, "imag"):
-            real_part = float(q_value.real)
-            imag_part = float(q_value.imag)
+        topology_string = (f"{float(q_value.real):.6f}_"
+                           f"{float(q_value.imag):.6f}")
 
-            real_tensor = torch.tensor(real_part, dtype=torch.float32)
-            imag_tensor = torch.tensor(imag_part, dtype=torch.float32)
-            field_magnitude = torch.sqrt(real_tensor**2 + imag_tensor**2).item()
-            geometric_genus = field_magnitude / (2 * math.pi + field_magnitude)
+        geometric_features = manifold_structure.get("geometric_features", [])
+        if geometric_features:
+            features_string = "_".join([f"{feat:.6f}"
+                                        for feat in geometric_features])
+            topology_string += f"_{features_string}"
 
-            return float(geometric_genus)
+        return hashlib.sha256(topology_string.encode()).hexdigest()[:16]
+
+    def _compute_geometric_genus(
+        self, manifold_structure: Dict[str, Any]
+    ) -> float:
+        """
+        Compute geometric genus from manifold structure.
+
+        Args:
+            manifold_structure: Manifold structure data
+
+        Returns:
+            Geometric genus value
+        """
+        q_value = manifold_structure["q_value"]
+        real_part = float(q_value.real)
+        imag_part = float(q_value.imag)
+
+        field_magnitude = math.sqrt(real_part**2 + imag_part**2)
+
+        if field_magnitude > 1.0:
+            genus = math.floor(math.log(field_magnitude))
         else:
-            real_value = float(q_value)
-            geometric_genus = abs(real_value) / (2 * math.pi + abs(real_value))
-            return float(geometric_genus)
+            genus = 0
 
-    def _compute_canonical_geometric_form(self, manifold_structure: Dict[str, Any]) -> np.ndarray:
-        """Compute canonical geometric form for unique representation."""
-        if not manifold_structure:
-            return torch.tensor([1.0], dtype=torch.float32).numpy()
+        return float(max(0, genus))
 
-        geometric_components = []
+    def _compute_canonical_geometric_form(
+        self, manifold_structure: Dict[str, Any]
+    ) -> np.ndarray:
+        """
+        Compute canonical geometric form.
 
-        if "field_position" in manifold_structure:
-            pos = manifold_structure["field_position"]
-            if hasattr(pos, "__len__"):
-                geometric_components.extend([float(p) for p in pos])
-            else:
-                geometric_components.append(float(pos))
+        Args:
+            manifold_structure: Manifold structure data
 
-        if "q_value" in manifold_structure:
-            q_val = manifold_structure["q_value"]
-            if hasattr(q_val, "real") and hasattr(q_val, "imag"):
-                geometric_components.extend([float(q_val.real), float(q_val.imag)])
-            else:
-                geometric_components.append(float(q_val))
+        Returns:
+            Canonical geometric form array
+        """
+        geometric_features = manifold_structure.get("geometric_features", [])
 
-        if not geometric_components:
-            return torch.tensor([1.0], dtype=torch.float32).numpy()
+        if not geometric_features:
+            return np.array([])
 
-        geometric_tensor = torch.tensor(geometric_components, dtype=torch.float32)
-        norm = torch.norm(geometric_tensor).item()
-        geometric_array = geometric_tensor.numpy()
+        features_array = np.array(geometric_features)
 
-        if norm > self.mathematical_precision:
-            canonical_form = geometric_array / norm
-            return canonical_form
-        else:
-            return torch.tensor([1.0], dtype=torch.float32).numpy()
+        normalized_features = (features_array /
+                               (np.linalg.norm(features_array) + 1e-10))
 
-    def _compute_differential_invariants(self, manifold_structure: Dict[str, Any]) -> Dict[str, float]:
-        """Compute differential geometric invariants."""
+        return normalized_features
+
+    def _compute_differential_invariants(
+        self, manifold_structure: Dict[str, Any]
+    ) -> Dict[str, float]:
+        """
+        Compute differential geometric invariants.
+
+        Args:
+            manifold_structure: Manifold structure data
+
+        Returns:
+            Dictionary of differential invariants
+        """
         invariants = {}
 
-        if "q_value" in manifold_structure and "field_position" in manifold_structure:
-            q_val = manifold_structure["q_value"]
-            field_pos = manifold_structure["field_position"]
+        field_pos = manifold_structure["field_position"]
 
-            if hasattr(q_val, "real") and hasattr(q_val, "imag"):
-                q_magnitude = abs(q_val)
-                q_phase = math.atan2(float(q_val.imag), float(q_val.real))
-            else:
-                q_magnitude = abs(float(q_val))
-                q_phase = 0.0
+        if len(field_pos) >= 2:
+            x, y = field_pos[0], field_pos[1]
 
-            if hasattr(field_pos, "__len__") and len(field_pos) >= 2:
-                pos_x, pos_y = float(field_pos[0]), float(field_pos[1])
-            else:
-                pos_x, pos_y = float(field_pos), 0.0
-
-            mean_curvature = q_magnitude / (1 + pos_x**2 + pos_y**2)
-            invariants["mean_curvature"] = float(mean_curvature)
-
-            q_mag_tensor = torch.tensor(q_magnitude, dtype=torch.float32)
-            q_phase_tensor = torch.tensor(q_phase, dtype=torch.float32)
-            pos_factor_tensor = torch.tensor(1 + pos_x**2 + pos_y**2, dtype=torch.float32)
-            gaussian_curvature = (q_mag_tensor * torch.cos(q_phase_tensor) / (pos_factor_tensor ** 2)).item()
-            invariants["gaussian_curvature"] = float(gaussian_curvature)
-
-            mean_curv_tensor = torch.tensor(mean_curvature, dtype=torch.float32)
-            gauss_curv_tensor = torch.tensor(gaussian_curvature, dtype=torch.float32)
-            discriminant = torch.abs(mean_curv_tensor**2 - gauss_curv_tensor)
-            sqrt_discriminant = torch.sqrt(discriminant)
-            principal_curvature_1 = (mean_curv_tensor + sqrt_discriminant).item()
-            principal_curvature_2 = (mean_curv_tensor - sqrt_discriminant).item()
-            invariants["principal_curvature_1"] = float(principal_curvature_1)
-            invariants["principal_curvature_2"] = float(principal_curvature_2)
+            invariants["scalar_curvature"] = (2 * x * y /
+                                              (1 + x**2 + y**2))
+            invariants["mean_curvature"] = ((x + y) /
+                                            math.sqrt(1 + x**2 + y**2))
+            invariants["gaussian_curvature"] = (x * y /
+                                                (1 + x**2 + y**2)**2)
+        else:
+            invariants["scalar_curvature"] = 0.0
+            invariants["mean_curvature"] = 0.0
+            invariants["gaussian_curvature"] = 0.0
 
         return invariants
 
-    def _extract_q_component_relationships(self, agent: ConceptualChargeAgent) -> Dict[str, Any]:
-        """Extract Q-component relationships for coherence analysis."""
+    def _extract_q_component_relationships(
+        self, agent: ConceptualChargeAgent
+    ) -> Dict[str, Any]:
+        """
+        Extract Q-component relationships using direct dataclass access.
+
+        Args:
+            agent: ConceptualChargeAgent with Q_components
+
+        Returns:
+            Q-component relationship data
+        """
         relationships = {}
 
-        if hasattr(agent, "Q_components") and agent.Q_components:
-            relationships["components"] = agent.Q_components
+        q_components = agent.Q_components
 
-            component_magnitudes = {}
-            component_phases = {}
+        magnitudes = {}
+        phases = {}
 
-            for comp_name, comp_value in agent.Q_components.items():
-                if hasattr(comp_value, "real") and hasattr(comp_value, "imag"):
-                    magnitude = abs(comp_value)
-                    phase = math.atan2(float(comp_value.imag), float(comp_value.real))
-                else:
-                    magnitude = abs(float(comp_value))
-                    phase = 0.0
+        complex_component_names = ["T_tensor", "E_trajectory", "phi_semantic",
+                                   "phase_factor", "Q_value"]
 
-                component_magnitudes[comp_name] = magnitude
-                component_phases[comp_name] = phase
+        for comp_name in complex_component_names:
+            comp_value = getattr(q_components, comp_name)
+            real_part = float(comp_value.real)
+            imag_part = float(comp_value.imag)
 
-            relationships["magnitudes"] = component_magnitudes
-            relationships["phases"] = component_phases
+            magnitude = math.sqrt(real_part**2 + imag_part**2)
+            phase = math.atan2(imag_part, real_part)
 
-        if hasattr(agent, "breathing_q_coefficients") and agent.breathing_q_coefficients:
-            relationships["breathing_coefficients"] = agent.breathing_q_coefficients
+            magnitudes[comp_name] = magnitude
+            phases[comp_name] = phase
 
-        return relationships
-
-    def _compute_relationship_invariants(self, q_relationships: Dict[str, Any]) -> Dict[str, float]:
-        """Compute invariant relationships between Q-components."""
-        invariants = {}
-
-        if "magnitudes" not in q_relationships or "phases" not in q_relationships:
-            return invariants
-
-        magnitudes = q_relationships["magnitudes"]
-        phases = q_relationships["phases"]
-
-        if len(magnitudes) < 2:
-            return invariants
+        relationships["magnitudes"] = magnitudes
+        relationships["phases"] = phases
 
         magnitude_values = list(magnitudes.values())
         phase_values = list(phases.values())
 
-        for i, (name_i, mag_i) in enumerate(magnitudes.items()):
-            for j, (name_j, mag_j) in enumerate(magnitudes.items()):
-                if i < j and mag_j > self.mathematical_precision:
-                    ratio_key = f"magnitude_ratio_{name_i}_{name_j}"
-                    invariants[ratio_key] = mag_i / mag_j
+        magnitude_correlations = np.zeros((len(magnitude_values),
+                                           len(magnitude_values)))
+        for i, mag_i in enumerate(magnitude_values):
+            for j, mag_j in enumerate(magnitude_values):
+                if i != j and mag_j != 0:
+                    magnitude_correlations[i, j] = mag_i / mag_j
 
-        for i, (name_i, phase_i) in enumerate(phases.items()):
-            for j, (name_j, phase_j) in enumerate(phases.items()):
-                if i < j:
+        phase_correlations = np.zeros((len(phase_values),
+                                       len(phase_values)))
+        for i, phase_i in enumerate(phase_values):
+            for j, phase_j in enumerate(phase_values):
+                if i != j:
                     phase_diff = abs(phase_i - phase_j)
-                    phase_diff = min(phase_diff, 2 * math.pi - phase_diff)  # Normalize to [0, π]
-                    diff_key = f"phase_diff_{name_i}_{name_j}"
-                    invariants[diff_key] = phase_diff
+                    phase_correlations[i, j] = min(phase_diff,
+                                                   2 * math.pi - phase_diff)
 
-        if magnitude_values:
-            mag_tensor = torch.tensor(magnitude_values, dtype=torch.float32)
-            invariants["total_magnitude"] = torch.sum(mag_tensor).item()
-            invariants["magnitude_mean"] = torch.mean(mag_tensor).item()
-            invariants["magnitude_std"] = torch.std(mag_tensor).item()
+        relationships["magnitude_correlations"] = magnitude_correlations
+        relationships["phase_correlations"] = phase_correlations
 
-        if phase_values:
-            phase_tensor = torch.tensor(phase_values, dtype=torch.float32)
-            phase_cos_tensor = torch.cos(phase_tensor)
-            phase_sin_tensor = torch.sin(phase_tensor)
-            phase_cos_mean = torch.mean(phase_cos_tensor).item()
-            phase_sin_mean = torch.mean(phase_sin_tensor).item()
-            invariants["phase_circular_mean"] = math.atan2(phase_sin_mean, phase_cos_mean)
-            cos_tensor = torch.tensor(phase_cos_mean, dtype=torch.float32)
-            sin_tensor = torch.tensor(phase_sin_mean, dtype=torch.float32)
-            magnitude = torch.sqrt(cos_tensor**2 + sin_tensor**2)
-            invariants["phase_circular_variance"] = (1 - magnitude).item()
+        return relationships
+
+    def _compute_relationship_invariants(
+        self, q_relationships: Dict[str, Any]
+    ) -> Dict[str, float]:
+        """
+        Compute invariant relationships between Q-components.
+
+        Args:
+            q_relationships: Q-component relationship data
+
+        Returns:
+            Relationship invariant values
+        """
+        invariants = {}
+
+        magnitudes = q_relationships["magnitudes"]
+        phases = q_relationships["phases"]
+
+        magnitude_values = list(magnitudes.values())
+
+        if len(magnitude_values) > 1:
+            invariants["magnitude_ratio_sum"] = sum(magnitude_values)
+            invariants["magnitude_ratio_product"] = np.prod(magnitude_values)
+            invariants["magnitude_variance"] = float(np.var(magnitude_values))
+        else:
+            invariants["magnitude_ratio_sum"] = 0.0
+            invariants["magnitude_ratio_product"] = 0.0
+            invariants["magnitude_variance"] = 0.0
+
+        phase_values = list(phases.values())
+        if len(phase_values) > 1:
+            phase_differences = []
+            for i in range(len(phase_values)):
+                for j in range(i + 1, len(phase_values)):
+                    diff = abs(phase_values[i] - phase_values[j])
+                    normalized_diff = min(diff, 2 * math.pi - diff)
+                    phase_differences.append(normalized_diff)
+
+            if phase_differences:
+                invariant_values = [v for v in phase_differences
+                                    if math.isfinite(v)]
+                if invariant_values:
+                    invariants["phase_coherence_measure"] = (
+                        np.mean(invariant_values))
+                    invariants["phase_stability_measure"] = (
+                        1.0 / (1.0 + np.var(invariant_values)))
+                else:
+                    invariants["phase_coherence_measure"] = 0.0
+                    invariants["phase_stability_measure"] = 0.0
+            else:
+                invariants["phase_coherence_measure"] = 0.0
+                invariants["phase_stability_measure"] = 0.0
 
         return invariants
 
-    def _compute_mathematical_ratios(self, q_relationships: Dict[str, Any]) -> np.ndarray:
-        """Compute essential mathematical ratios between components."""
-        if "magnitudes" not in q_relationships:
-            return torch.tensor([1.0], dtype=torch.float32).numpy()
+    def _compute_mathematical_ratios(
+        self, q_relationships: Dict[str, Any]
+    ) -> np.ndarray:
+        """
+        Compute essential mathematical ratios between components.
 
-        magnitudes = q_relationships["magnitudes"]
-        magnitude_values = list(magnitudes.values())
+        Args:
+            q_relationships: Q-component relationship data
+
+        Returns:
+            Mathematical ratio signature array
+        """
+        magnitude_correlations = q_relationships["magnitude_correlations"]
+        phase_correlations = q_relationships["phase_correlations"]
+
+        magnitude_values = list(q_relationships["magnitudes"].values())
 
         if len(magnitude_values) < 2:
-            return torch.tensor([1.0], dtype=torch.float32).numpy()
+            return np.array([])
 
-        ratios = []
-        for i in range(len(magnitude_values)):
-            for j in range(i + 1, len(magnitude_values)):
-                mag_i, mag_j = magnitude_values[i], magnitude_values[j]
-                if mag_j > self.mathematical_precision:
-                    ratio = mag_i / mag_j
-                    ratios.append(ratio)
-                elif mag_i > self.mathematical_precision:
-                    ratios.append(1e6)  # Large ratio for near-zero denominator
+        ratio_signature = np.concatenate([
+            magnitude_correlations.flatten(),
+            phase_correlations.flatten()
+        ])
 
-        if not ratios:
-            raise ValueError("Mathematical ratios computation failed - no valid ratios - RATIO ANALYSIS IMPOSSIBLE")
-        return torch.tensor(ratios, dtype=torch.float32).numpy()
+        finite_ratios = ratio_signature[np.isfinite(ratio_signature)]
 
-    def _compute_phase_relationship_topology(self, agent: ConceptualChargeAgent) -> np.ndarray:
-        """Compute phase relationship topology structure."""
-        if not hasattr(agent, "Q_components") or not agent.Q_components:
-            raise ValueError("Phase relationship topology requires Q_components on agent - TOPOLOGY ANALYSIS IMPOSSIBLE")
+        return finite_ratios
 
-        phases = []
-        for comp_name, comp_value in agent.Q_components.items():
-            if hasattr(comp_value, "real") and hasattr(comp_value, "imag"):
-                phase = math.atan2(float(comp_value.imag), float(comp_value.real))
-                phases.append(phase)
-            else:
-                phases.append(0.0)
+    def _compute_phase_relationship_topology(
+        self, agent: ConceptualChargeAgent
+    ) -> np.ndarray:
+        """
+        Compute phase relationship topology using direct dataclass access.
 
-        if len(phases) < 2:
-            raise ValueError(f"Phase relationship topology requires ≥2 phases, got {len(phases)} - TOPOLOGY ANALYSIS IMPOSSIBLE")
+        Args:
+            agent: ConceptualChargeAgent with Q_components
 
-        n_phases = len(phases)
-        phase_matrix = torch.zeros((n_phases, n_phases), dtype=torch.float32)
+        Returns:
+            Phase relationship topology array
+        """
+        q_components = agent.Q_components
 
-        for i in range(n_phases):
-            for j in range(n_phases):
-                if i != j:
-                    phase_diff = abs(phases[i] - phases[j])
-                    phase_diff = min(phase_diff, 2 * math.pi - phase_diff)
-                    phase_matrix[i, j] = phase_diff
-
-        triu_indices = torch.triu_indices(n_phases, n_phases, offset=1)
-        topology_signature = phase_matrix[triu_indices[0], triu_indices[1]].numpy()
-        return topology_signature
-
-    def _compute_structure_preservation_score(
-        self, relationship_invariants: Dict[str, float], mathematical_ratios: np.ndarray
-    ) -> float:
-        """Compute how well mathematical structure is preserved."""
-        preservation_components = []
-
-        if relationship_invariants:
-            invariant_values = [v for v in relationship_invariants.values() if math.isfinite(v)]
-            if invariant_values:
-                invariant_tensor = torch.tensor(invariant_values, dtype=torch.float32)
-                mean_invariant = torch.mean(invariant_tensor).item()
-                std_invariant = torch.std(invariant_tensor).item()
-                cv = std_invariant / (abs(mean_invariant) + self.mathematical_precision)
-                preservation_score = 1.0 / (1.0 + cv)  # Higher score for lower variation
-                preservation_components.append(preservation_score)
-
-        if len(mathematical_ratios) > 0:
-            ratios_tensor = torch.tensor(mathematical_ratios, dtype=torch.float32)
-            finite_mask = torch.isfinite(ratios_tensor)
-            finite_ratios = ratios_tensor[finite_mask].numpy()
-            if len(finite_ratios) > 1:
-                finite_tensor = torch.tensor(finite_ratios, dtype=torch.float32)
-                ratio_cv = torch.std(finite_tensor).item() / (torch.mean(finite_tensor).item() + self.mathematical_precision)
-                ratio_preservation = 1.0 / (1.0 + ratio_cv)
-                preservation_components.append(ratio_preservation)
-
-        if preservation_components:
-            preservation_tensor = torch.tensor(preservation_components, dtype=torch.float32)
-            overall_preservation = torch.mean(preservation_tensor).item()
-            return float(overall_preservation)
-        else:
-            return 1.0  # Perfect preservation if no variation to measure
-
-    def _generate_coherence_fingerprint(
-        self, relationship_invariants: Dict[str, float], mathematical_ratios: np.ndarray, phase_topology: np.ndarray
-    ) -> str:
-        """Generate coherence fingerprint from mathematical relationships."""
-        fingerprint_components = []
-
-        if relationship_invariants:
-            sorted_keys = sorted(relationship_invariants.keys())
-            invariant_signature = "_".join(f"{relationship_invariants[key]:.6f}" for key in sorted_keys)
-            fingerprint_components.append(f"inv_{invariant_signature}")
-
-        if len(mathematical_ratios) > 0:
-            ratio_signature = "_".join(f"{r:.6f}" for r in mathematical_ratios[:10])  # First 10 ratios
-            fingerprint_components.append(f"ratio_{ratio_signature}")
-
-        if len(phase_topology) > 0:
-            topology_signature = "_".join(f"{t:.6f}" for t in phase_topology[:10])  # First 10 topology elements
-            fingerprint_components.append(f"topo_{topology_signature}")
-
-        coherence_string = "|".join(fingerprint_components)
-        return hashlib.sha256(coherence_string.encode()).hexdigest()[:16]
-
-    def _generate_mathematical_object_id(
-        self,
-        topological_invariants: TopologicalInvariants,
-        canonical_signature: CanonicalMathematicalSignature,
-        information_identity: InformationTheoreticIdentity,
-    ) -> str:
-        """Generate unique mathematical identifier for the object."""
-        id_components = [
-            topological_invariants.topological_fingerprint,
-            canonical_signature.formula_structure_hash,
-            information_identity.information_theoretical_fingerprint,
+        complex_components = [
+            q_components.T_tensor,
+            q_components.E_trajectory,
+            q_components.phi_semantic,
+            q_components.phase_factor,
+            q_components.Q_value
         ]
 
-        combined_id = "_".join(id_components)
-        mathematical_id = hashlib.sha256(combined_id.encode()).hexdigest()[:32]
+        phase_topology = np.zeros((len(complex_components),
+                                   len(complex_components)))
 
-        return f"MATH_OBJ_{mathematical_id}"
+        for i, comp_i in enumerate(complex_components):
+            for j, comp_j in enumerate(complex_components):
+                real_part = float(comp_i.real)
+                imag_part = float(comp_i.imag)
+                other_real = float(comp_j.real)
+                other_imag = float(comp_j.imag)
+
+                phase_i = math.atan2(imag_part, real_part)
+                phase_j = math.atan2(other_imag, other_real)
+
+                phase_diff = abs(phase_i - phase_j)
+                normalized_diff = min(phase_diff, 2 * math.pi - phase_diff)
+
+                phase_topology[i, j] = normalized_diff
+
+        return phase_topology
+
+    def _compute_structure_preservation_score(
+        self,
+        q_relationships: Dict[str, Any],
+        agent: ConceptualChargeAgent
+    ) -> float:
+        """
+        Compute mathematical structure preservation score.
+
+        Args:
+            q_relationships: Q-component relationship data
+            agent: ConceptualChargeAgent with structure
+
+        Returns:
+            Structure preservation score
+        """
+        relationship_invariants = q_relationships.get(
+            "magnitude_correlations")
+
+        if (relationship_invariants is None or
+                relationship_invariants.size == 0):
+            return 0.0
+
+        eigenvalues = np.linalg.eigvals(relationship_invariants)
+        positive_eigenvalues = np.sum(np.real(eigenvalues) > 0)
+        total_eigenvalues = len(eigenvalues)
+
+        if total_eigenvalues > 0:
+            preservation_score = positive_eigenvalues / total_eigenvalues
+        else:
+            preservation_score = 0.0
+
+        return float(preservation_score)
+
+    def _generate_coherence_fingerprint(
+        self,
+        relationship_invariants: Dict[str, float],
+        ratio_signatures: np.ndarray
+    ) -> str:
+        """
+        Generate mathematical coherence fingerprint.
+
+        Args:
+            relationship_invariants: Relationship invariant data
+            ratio_signatures: Mathematical ratio signatures
+
+        Returns:
+            Coherence fingerprint string
+        """
+        if not relationship_invariants:
+            return "empty_coherence"
+
+        sorted_keys = sorted(relationship_invariants.keys())
+        invariant_string = "_".join([f"{relationship_invariants[key]:.6f}"
+                                     for key in sorted_keys])
+
+        if len(ratio_signatures) > 0:
+            ratio_sum = np.sum(ratio_signatures)
+            ratio_mean = np.mean(ratio_signatures)
+            ratio_string = f"{ratio_sum:.6f}_{ratio_mean:.6f}"
+        else:
+            ratio_string = "0.0_0.0"
+
+        fingerprint_string = f"{invariant_string}_{ratio_string}"
+        return hashlib.sha256(fingerprint_string.encode()).hexdigest()[:16]
+
+    def _generate_mathematical_object_id(
+        self, profile_data: Dict[str, Any]
+    ) -> str:
+        """
+        Generate unique mathematical object identifier.
+
+        Args:
+            profile_data: Complete profile data
+
+        Returns:
+            Unique mathematical object ID
+        """
+        topological = profile_data["topological"]
+        canonical = profile_data["canonical"]
+
+        id_string = (f"{topological.topological_fingerprint}_"
+                     f"{canonical.formula_structure_hash}")
+
+        full_hash = hashlib.sha256(id_string.encode()).hexdigest()
+
+        return f"math_obj_{full_hash[:16]}"
 
     def _compute_identity_confidence(
-        self,
-        topological_invariants: TopologicalInvariants,
-        canonical_signature: CanonicalMathematicalSignature,
-        persistence_features: PersistenceHomologyFeatures,
-        information_identity: InformationTheoreticIdentity,
-        geometric_invariants: GeometricInvariants,
-        mathematical_coherence: MathematicalCoherence,
+        self, profile_data: Dict[str, Any]
     ) -> float:
-        """Compute mathematical confidence in identity determination."""
-        confidence_components = []
+        """
+        Compute mathematical identity confidence score.
 
-        topo_confidence = 1.0 - abs(topological_invariants.euler_characteristic - 2.0) / 4.0
-        confidence_components.append(max(0.0, min(1.0, topo_confidence)))
+        Args:
+            profile_data: Complete profile data
 
-        canon_confidence = mathematical_coherence.mathematical_structure_preservation_score
-        confidence_components.append(canon_confidence)
+        Returns:
+            Identity confidence score
+        """
+        confidence_factors = []
 
-        if persistence_features.topological_persistence_rank > 0:
-            persistence_confidence = min(1.0, persistence_features.topological_persistence_rank / 10.0)
+        topological = profile_data["topological"]
+        if topological.betti_numbers:
+            confidence_factors.append(0.9)
         else:
-            persistence_confidence = 0.5  # Neutral confidence for no persistence features
-        confidence_components.append(persistence_confidence)
+            confidence_factors.append(0.5)
 
-        info_confidence = min(1.0, information_identity.mathematical_information_complexity / 10.0)
-        confidence_components.append(info_confidence)
+        canonical = profile_data["canonical"]
+        if len(canonical.canonical_form_coefficients) > 0:
+            confidence_factors.append(0.85)
+        else:
+            confidence_factors.append(0.3)
 
-        geom_confidence = min(1.0, abs(geometric_invariants.geometric_genus))
-        confidence_components.append(geom_confidence)
+        information = profile_data["information"]
+        if information.entropy_signature_pattern.size > 0:
+            confidence_factors.append(0.8)
+        else:
+            confidence_factors.append(0.4)
 
-        confidence_tensor = torch.tensor(confidence_components, dtype=torch.float32)
-        overall_confidence = torch.mean(confidence_tensor).item()
+        coherence = profile_data["coherence"]
+        if coherence.q_component_relationship_invariants:
+            confidence_factors.append(0.75)
+        else:
+            confidence_factors.append(0.2)
+
+        overall_confidence = np.mean(confidence_factors)
+
         return float(overall_confidence)
 
+    def _compare_topological_invariants(
+        self, orig: TopologicalInvariants, current: TopologicalInvariants
+    ) -> float:
+        """
+        Compare topological invariants for consistency.
 
-    def _compare_topological_invariants(self, orig: TopologicalInvariants, current: TopologicalInvariants) -> float:
-        """Compare topological invariants for consistency."""
-        consistency_components = []
+        Args:
+            orig: Original topological invariants
+            current: Current topological invariants
 
-        euler_diff = abs(orig.euler_characteristic - current.euler_characteristic)
-        euler_consistency = 1.0 - min(1.0, euler_diff / 4.0)
-        consistency_components.append(euler_consistency)
+        Returns:
+            Consistency score [0, 1]
+        """
+        consistency_scores = []
+
+        euler_diff = abs(orig.euler_characteristic -
+                         current.euler_characteristic)
+        euler_consistency = 1.0 / (1.0 + euler_diff)
+        consistency_scores.append(euler_consistency)
 
         genus_diff = abs(orig.genus_signature - current.genus_signature)
-        genus_consistency = 1.0 - min(1.0, genus_diff / 2.0)
-        consistency_components.append(genus_consistency)
+        genus_consistency = 1.0 / (1.0 + genus_diff)
+        consistency_scores.append(genus_consistency)
 
-        rank_consistency = 1.0 if orig.fundamental_group_rank == current.fundamental_group_rank else 0.5
-        consistency_components.append(rank_consistency)
+        rank_diff = abs(orig.fundamental_group_rank -
+                        current.fundamental_group_rank)
+        rank_consistency = 1.0 / (1.0 + rank_diff)
+        consistency_scores.append(rank_consistency)
 
-        if len(orig.betti_numbers) == len(current.betti_numbers):
-            betti_matches = sum(1 for a, b in zip(orig.betti_numbers, current.betti_numbers) if a == b)
-            betti_consistency = betti_matches / len(orig.betti_numbers) if orig.betti_numbers else 1.0
+        if orig.betti_numbers and current.betti_numbers:
+            betti_diff = sum(abs(a - b) for a, b in
+                             zip(orig.betti_numbers, current.betti_numbers))
+            betti_consistency = 1.0 / (1.0 + betti_diff)
         else:
             betti_consistency = 0.5
-        consistency_components.append(betti_consistency)
+        consistency_scores.append(betti_consistency)
 
-        consistency_tensor = torch.tensor(consistency_components, dtype=torch.float32)
-        return torch.mean(consistency_tensor).item()
+        fingerprint_match = (1.0 if orig.topological_fingerprint ==
+                             current.topological_fingerprint else 0.0)
+        consistency_scores.append(fingerprint_match)
+
+        return float(np.mean(consistency_scores))
 
     def _compare_canonical_signatures(
-        self, orig: CanonicalMathematicalSignature, current: CanonicalMathematicalSignature
+        self,
+        orig: CanonicalMathematicalSignature,
+        current: CanonicalMathematicalSignature
     ) -> float:
-        """Compare canonical mathematical signatures for consistency."""
-        hash_match = 1.0 if orig.formula_structure_hash == current.formula_structure_hash else 0.0
+        """
+        Compare canonical mathematical signatures.
 
-        genus_diff = abs(orig.mathematical_genus - current.mathematical_genus)
-        genus_consistency = 1.0 - min(1.0, genus_diff / 2.0)
+        Args:
+            orig: Original canonical signature
+            current: Current canonical signature
 
-        species_match = 1.0 if orig.mathematical_species_id == current.mathematical_species_id else 0.0
+        Returns:
+            Consistency score [0, 1]
+        """
+        consistency_scores = []
 
-        if (
-            orig.canonical_form_coefficients.shape == current.canonical_form_coefficients.shape
-            and orig.canonical_form_coefficients.size > 0
-        ):
-            orig_tensor = torch.tensor(orig.canonical_form_coefficients, dtype=torch.float32)
-            current_tensor = torch.tensor(current.canonical_form_coefficients, dtype=torch.float32)
-            coeff_diff = torch.norm(orig_tensor - current_tensor).item()
-            coeff_consistency = 1.0 - min(1.0, coeff_diff)
+        hash_match = (1.0 if orig.formula_structure_hash ==
+                      current.formula_structure_hash else 0.0)
+        consistency_scores.append(hash_match)
+
+        genus_diff = abs(orig.mathematical_genus -
+                         current.mathematical_genus)
+        genus_consistency = 1.0 / (1.0 + genus_diff)
+        consistency_scores.append(genus_consistency)
+
+        species_match = (1.0 if orig.mathematical_species_id ==
+                         current.mathematical_species_id else 0.0)
+        consistency_scores.append(species_match)
+
+        if (orig.canonical_form_coefficients.size > 0 and
+                current.canonical_form_coefficients.size > 0):
+            min_length = min(len(orig.canonical_form_coefficients),
+                             len(current.canonical_form_coefficients))
+            coeff_diff = np.sum(np.abs(
+                orig.canonical_form_coefficients[:min_length] -
+                current.canonical_form_coefficients[:min_length]))
+            coeff_consistency = 1.0 / (1.0 + coeff_diff)
         else:
             coeff_consistency = 0.5
+        consistency_scores.append(coeff_consistency)
 
-        consistency_components = [hash_match, genus_consistency, species_match, coeff_consistency]
-        consistency_tensor = torch.tensor(consistency_components, dtype=torch.float32)
-        return torch.mean(consistency_tensor).item()
+        return float(np.mean(consistency_scores))
 
     def _compare_information_identities(
-        self, orig: InformationTheoreticIdentity, current: InformationTheoreticIdentity
+        self,
+        orig: InformationTheoreticIdentity,
+        current: InformationTheoreticIdentity
     ) -> float:
-        """Compare information-theoretic identities for consistency."""
-        consistency_components = []
+        """
+        Compare information-theoretic identities.
 
-        if (
-            orig.entropy_signature_pattern.shape == current.entropy_signature_pattern.shape
-            and orig.entropy_signature_pattern.size > 0
-        ):
-            orig_entropy = torch.tensor(orig.entropy_signature_pattern, dtype=torch.float32)
-            current_entropy = torch.tensor(current.entropy_signature_pattern, dtype=torch.float32)
-            entropy_diff = torch.norm(orig_entropy - current_entropy).item()
-            entropy_consistency = 1.0 - min(
-                1.0, entropy_diff / np.linalg.norm(orig.entropy_signature_pattern + self.mathematical_precision)
-            )
+        Args:
+            orig: Original information identity
+            current: Current information identity
+
+        Returns:
+            Consistency score [0, 1]
+        """
+        consistency_scores = []
+
+        fingerprint_match = (
+            1.0 if orig.information_theoretical_fingerprint ==
+            current.information_theoretical_fingerprint else 0.0)
+        consistency_scores.append(fingerprint_match)
+
+        coherence_diff = abs(orig.coherence_information_content -
+                             current.coherence_information_content)
+        coherence_consistency = 1.0 / (1.0 + coherence_diff)
+        consistency_scores.append(coherence_consistency)
+
+        complexity_diff = abs(orig.mathematical_information_complexity -
+                              current.mathematical_information_complexity)
+        complexity_consistency = 1.0 / (1.0 + complexity_diff)
+        consistency_scores.append(complexity_consistency)
+
+        if (orig.entropy_signature_pattern.size > 0 and
+                current.entropy_signature_pattern.size > 0):
+            entropy_diff = np.sum(np.abs(
+                orig.entropy_signature_pattern -
+                current.entropy_signature_pattern))
+            entropy_consistency = 1.0 / (1.0 + entropy_diff)
         else:
             entropy_consistency = 0.5
-        consistency_components.append(entropy_consistency)
+        consistency_scores.append(entropy_consistency)
 
-        if (
-            orig.mutual_information_matrix.shape == current.mutual_information_matrix.shape
-            and orig.mutual_information_matrix.size > 0
-        ):
-            mi_diff = np.linalg.norm(orig.mutual_information_matrix - current.mutual_information_matrix)
-            mi_consistency = 1.0 - min(
-                1.0, mi_diff / np.linalg.norm(orig.mutual_information_matrix + self.mathematical_precision)
-            )
+        if (orig.mutual_information_matrix.size > 0 and
+                current.mutual_information_matrix.size > 0):
+            mi_diff = np.sum(np.abs(orig.mutual_information_matrix -
+                                    current.mutual_information_matrix))
+            mi_consistency = 1.0 / (1.0 + mi_diff)
         else:
             mi_consistency = 0.5
-        consistency_components.append(mi_consistency)
+        consistency_scores.append(mi_consistency)
 
-        fingerprint_match = (
-            1.0 if orig.information_theoretical_fingerprint == current.information_theoretical_fingerprint else 0.0
-        )
-        consistency_components.append(fingerprint_match)
+        return float(np.mean(consistency_scores))
 
-        coherence_diff = abs(orig.coherence_information_content - current.coherence_information_content)
-        coherence_consistency = 1.0 - min(
-            1.0, coherence_diff / (abs(orig.coherence_information_content) + self.mathematical_precision)
-        )
-        consistency_components.append(coherence_consistency)
+    def _compare_geometric_invariants(
+        self, orig: GeometricInvariants, current: GeometricInvariants
+    ) -> float:
+        """
+        Compare geometric invariants.
 
-        consistency_tensor = torch.tensor(consistency_components, dtype=torch.float32)
-        return torch.mean(consistency_tensor).item()
+        Args:
+            orig: Original geometric invariants
+            current: Current geometric invariants
 
-    def _compare_geometric_invariants(self, orig: GeometricInvariants, current: GeometricInvariants) -> float:
-        """Compare geometric invariants for consistency."""
-        consistency_components = []
+        Returns:
+            Consistency score [0, 1]
+        """
+        consistency_scores = []
 
-        if orig.curvature_signature.shape == current.curvature_signature.shape and orig.curvature_signature.size > 0:
-            curvature_diff = np.linalg.norm(orig.curvature_signature - current.curvature_signature)
-            curvature_consistency = 1.0 - min(
-                1.0, curvature_diff / (np.linalg.norm(orig.curvature_signature) + self.mathematical_precision)
-            )
-        else:
-            curvature_consistency = 0.5
-        consistency_components.append(curvature_consistency)
-
-        topology_match = 1.0 if orig.manifold_topology_hash == current.manifold_topology_hash else 0.0
-        consistency_components.append(topology_match)
+        topology_match = (1.0 if orig.manifold_topology_hash ==
+                          current.manifold_topology_hash else 0.0)
+        consistency_scores.append(topology_match)
 
         genus_diff = abs(orig.geometric_genus - current.geometric_genus)
-        genus_consistency = 1.0 - min(1.0, genus_diff / (abs(orig.geometric_genus) + self.mathematical_precision))
-        consistency_components.append(genus_consistency)
+        genus_consistency = 1.0 / (1.0 + genus_diff)
+        consistency_scores.append(genus_consistency)
 
-        if (
-            orig.canonical_geometric_form.shape == current.canonical_geometric_form.shape
-            and orig.canonical_geometric_form.size > 0
-        ):
-            geom_form_diff = np.linalg.norm(orig.canonical_geometric_form - current.canonical_geometric_form)
-            geom_form_consistency = 1.0 - min(1.0, geom_form_diff)
+        if (orig.curvature_signature.size > 0 and
+                current.curvature_signature.size > 0):
+            curvature_diff = np.sum(np.abs(orig.curvature_signature -
+                                           current.curvature_signature))
+            curvature_consistency = 1.0 / (1.0 + curvature_diff)
         else:
-            geom_form_consistency = 0.5
-        consistency_components.append(geom_form_consistency)
+            curvature_consistency = 0.5
+        consistency_scores.append(curvature_consistency)
 
-        consistency_tensor = torch.tensor(consistency_components, dtype=torch.float32)
-        return torch.mean(consistency_tensor).item()
+        return float(np.mean(consistency_scores))
 
-    def _compare_mathematical_coherence(self, orig: MathematicalCoherence, current: MathematicalCoherence) -> float:
-        """Compare mathematical coherence for consistency."""
-        consistency_components = []
+    def _compare_mathematical_coherence(
+        self, orig: MathematicalCoherence, current: MathematicalCoherence
+    ) -> float:
+        """
+        Compare mathematical coherence structures.
 
-        orig_keys = set(orig.q_component_relationship_invariants.keys())
-        current_keys = set(current.q_component_relationship_invariants.keys())
-        common_keys = orig_keys.intersection(current_keys)
+        Args:
+            orig: Original mathematical coherence
+            current: Current mathematical coherence
 
-        if common_keys:
-            invariant_consistency_scores = []
-            for key in common_keys:
-                orig_val = orig.q_component_relationship_invariants[key]
-                current_val = current.q_component_relationship_invariants[key]
-                val_diff = abs(orig_val - current_val)
-                val_consistency = 1.0 - min(1.0, val_diff / (abs(orig_val) + self.mathematical_precision))
-                invariant_consistency_scores.append(val_consistency)
-            invariant_consistency = np.mean(invariant_consistency_scores)
-        else:
-            invariant_consistency = 0.5
-        consistency_components.append(invariant_consistency)
-
-        if (
-            orig.mathematical_ratio_signatures.shape == current.mathematical_ratio_signatures.shape
-            and orig.mathematical_ratio_signatures.size > 0
-        ):
-            ratio_diff = np.linalg.norm(orig.mathematical_ratio_signatures - current.mathematical_ratio_signatures)
-            ratio_consistency = 1.0 - min(
-                1.0, ratio_diff / (np.linalg.norm(orig.mathematical_ratio_signatures) + self.mathematical_precision)
-            )
-        else:
-            ratio_consistency = 0.5
-        consistency_components.append(ratio_consistency)
-
-        if (
-            orig.phase_relationship_topology.shape == current.phase_relationship_topology.shape
-            and orig.phase_relationship_topology.size > 0
-        ):
-            phase_diff = np.linalg.norm(orig.phase_relationship_topology - current.phase_relationship_topology)
-            phase_consistency = 1.0 - min(
-                1.0, phase_diff / (np.linalg.norm(orig.phase_relationship_topology) + self.mathematical_precision)
-            )
-        else:
-            phase_consistency = 0.5
-        consistency_components.append(phase_consistency)
+        Returns:
+            Consistency score [0, 1]
+        """
+        consistency_scores = []
 
         fingerprint_match = (
-            1.0 if orig.coherence_mathematical_fingerprint == current.coherence_mathematical_fingerprint else 0.0
-        )
-        consistency_components.append(fingerprint_match)
+            1.0 if orig.coherence_mathematical_fingerprint ==
+            current.coherence_mathematical_fingerprint else 0.0)
+        consistency_scores.append(fingerprint_match)
 
-        consistency_tensor = torch.tensor(consistency_components, dtype=torch.float32)
-        return torch.mean(consistency_tensor).item()
+        preservation_diff = abs(
+            orig.mathematical_structure_preservation_score -
+            current.mathematical_structure_preservation_score)
+        preservation_consistency = 1.0 / (1.0 + preservation_diff)
+        consistency_scores.append(preservation_consistency)
+
+        if (orig.q_component_relationship_invariants and
+                current.q_component_relationship_invariants):
+            rel_invariants1 = np.mean(
+                list(orig.q_component_relationship_invariants.values()))
+            rel_invariants2 = np.mean(
+                list(current.q_component_relationship_invariants.values()))
+            invariants_diff = abs(rel_invariants1 - rel_invariants2)
+            invariants_consistency = 1.0 / (1.0 + invariants_diff)
+        else:
+            invariants_consistency = 0.5
+        consistency_scores.append(invariants_consistency)
+
+        return float(np.mean(consistency_scores))
 
     def _compute_mathematical_similarity(
-        self, profile1: MathematicalObjectIdentityProfile, profile2: MathematicalObjectIdentityProfile
+        self,
+        profile1: MathematicalObjectIdentityProfile,
+        profile2: MathematicalObjectIdentityProfile
     ) -> Tuple[float, Dict[str, float]]:
         """Compute mathematical similarity between two identity profiles."""
         similarity_components = {}
 
-        similarity_components["topological"] = self._compare_topological_invariants(
-            profile1.topological_invariants, profile2.topological_invariants
-        )
+        similarity_components["topological"] = (
+            self._compare_topological_invariants(
+                profile1.topological_invariants,
+                profile2.topological_invariants
+            ))
 
-        similarity_components["canonical"] = self._compare_canonical_signatures(
-            profile1.canonical_signature, profile2.canonical_signature
-        )
+        similarity_components["canonical"] = (
+            self._compare_canonical_signatures(
+                profile1.canonical_signature,
+                profile2.canonical_signature
+            ))
 
-        similarity_components["information"] = self._compare_information_identities(
-            profile1.information_identity, profile2.information_identity
-        )
+        similarity_components["information"] = (
+            self._compare_information_identities(
+                profile1.information_identity,
+                profile2.information_identity
+            ))
 
-        similarity_components["geometric"] = self._compare_geometric_invariants(
-            profile1.geometric_invariants, profile2.geometric_invariants
-        )
+        similarity_components["geometric"] = (
+            self._compare_geometric_invariants(
+                profile1.geometric_invariants,
+                profile2.geometric_invariants
+            ))
 
-        similarity_components["coherence"] = self._compare_mathematical_coherence(
-            profile1.mathematical_coherence, profile2.mathematical_coherence
-        )
+        similarity_components["coherence"] = (
+            self._compare_mathematical_coherence(
+                profile1.mathematical_coherence,
+                profile2.mathematical_coherence
+            ))
 
         overall_similarity = np.mean(list(similarity_components.values()))
 
         return overall_similarity, similarity_components
 
-
-    def _compare_topological_invariants(self, invariants1: TopologicalInvariants, invariants2: TopologicalInvariants) -> float:
+    def _compare_topological_invariants_similarity(
+        self, invariants1: TopologicalInvariants,
+        invariants2: TopologicalInvariants
+    ) -> float:
         """
-        Compare topological invariants using scipy.spatial.distance - NO MORE IMPORT THEATER!
-        
-        Uses actual pdist and squareform for proper distance calculations.
+        Compare topological invariants using scipy.spatial.distance.
         """
         features1 = np.array([
             invariants1.euler_characteristic,
             invariants1.genus_signature,
             float(invariants1.fundamental_group_rank),
-            np.mean(invariants1.betti_numbers) if invariants1.betti_numbers else 0.0
+            (np.mean(invariants1.betti_numbers)
+             if invariants1.betti_numbers else 0.0)
         ])
-        
+
         features2 = np.array([
             invariants2.euler_characteristic,
             invariants2.genus_signature,
             float(invariants2.fundamental_group_rank),
-            np.mean(invariants2.betti_numbers) if invariants2.betti_numbers else 0.0
+            (np.mean(invariants2.betti_numbers)
+             if invariants2.betti_numbers else 0.0)
         ])
-        
+
         feature_matrix = np.stack([features1, features2])
-        
+
         distances = pdist(feature_matrix, metric='euclidean')
-        distance = distances[0]  # Only one pairwise distance
-        
+        distance = distances[0]
+
         similarity = 1.0 / (1.0 + distance)
         return float(similarity)
 
-    def _compare_canonical_signatures(self, sig1: CanonicalMathematicalSignature, sig2: CanonicalMathematicalSignature) -> float:
+    def _compare_canonical_signatures_similarity(
+        self, sig1: CanonicalMathematicalSignature,
+        sig2: CanonicalMathematicalSignature
+    ) -> float:
         """
-        Compare canonical signatures using scipy.spatial.distance.
+        Compare canonical signatures using scipy.spatial.distance with proper
+        tensor handling.
         """
+        complexity1 = (float(np.linalg.norm(sig1.canonical_form_coefficients))
+                       if sig1.canonical_form_coefficients.size > 0 else 0.0)
+        complexity2 = (float(np.linalg.norm(sig2.canonical_form_coefficients))
+                       if sig2.canonical_form_coefficients.size > 0 else 0.0)
+
+        rel_size1 = (float(sig1.component_relationship_matrix.size)
+                     if sig1.component_relationship_matrix.size > 0 else 0.0)
+        rel_size2 = (float(sig2.component_relationship_matrix.size)
+                     if sig2.component_relationship_matrix.size > 0 else 0.0)
+
         features1 = np.array([
-            sig1.mathematical_complexity_measure,
+            complexity1,
             sig1.mathematical_genus,
-            len(sig1.component_relationships_matrix) if sig1.component_relationships_matrix else 0.0
+            rel_size1
         ])
-        
+
         features2 = np.array([
-            sig2.mathematical_complexity_measure,
+            complexity2,
             sig2.mathematical_genus,
-            len(sig2.component_relationships_matrix) if sig2.component_relationships_matrix else 0.0
+            rel_size2
         ])
-        
+
         feature_matrix = np.stack([features1, features2])
         distances = pdist(feature_matrix, metric='cosine')
         distance = distances[0]
-        
-        similarity = 1.0 - distance  # Cosine distance to similarity
+
+        similarity = 1.0 - distance
         return float(max(0.0, similarity))
 
-    def _compare_information_identities(self, info1: InformationTheoreticIdentity, info2: InformationTheoreticIdentity) -> float:
+    def _compare_information_identities_similarity(
+        self, info1: InformationTheoreticIdentity,
+        info2: InformationTheoreticIdentity
+    ) -> float:
         """
-        Compare information signatures using scipy.spatial.distance.
+        Compare information signatures using scipy.spatial.distance with
+        proper tensor handling.
         """
-        features1 = np.array([
-            info1.entropy_signature,
-            info1.information_density,
-            info1.mutual_information_profile
-        ])
-        
-        features2 = np.array([
-            info2.entropy_signature,
-            info2.information_density,
-            info2.mutual_information_profile
-        ])
-        
-        feature_matrix = np.stack([features1, features2])
-        distances = pdist(feature_matrix, metric='manhattan')
-        distance = distances[0]
-        
-        similarity = 1.0 / (1.0 + distance)
-        return float(similarity)
+        entropy1 = (float(np.linalg.norm(info1.entropy_signature_pattern))
+                    if info1.entropy_signature_pattern.size > 0 else 0.0)
+        entropy2 = (float(np.linalg.norm(info2.entropy_signature_pattern))
+                    if info2.entropy_signature_pattern.size > 0 else 0.0)
 
-    def _compare_geometric_invariants(self, geom1: GeometricInvariants, geom2: GeometricInvariants) -> float:
-        """
-        Compare geometric invariants using scipy.spatial.distance.
-        """
-        features1 = np.array([
-            geom1.curvature_signature,
-            geom1.manifold_dimension_estimate,
-            geom1.geodesic_distance_profile
-        ])
-        
-        features2 = np.array([
-            geom2.curvature_signature,
-            geom2.manifold_dimension_estimate,
-            geom2.geodesic_distance_profile
-        ])
-        
-        feature_matrix = np.stack([features1, features2])
-        distances = pdist(feature_matrix, metric='chebyshev')
-        distance = distances[0]
-        
-        similarity = 1.0 / (1.0 + distance)
-        return float(similarity)
+        mi1 = (float(np.linalg.norm(info1.mutual_information_matrix))
+               if info1.mutual_information_matrix.size > 0 else 0.0)
+        mi2 = (float(np.linalg.norm(info2.mutual_information_matrix))
+               if info2.mutual_information_matrix.size > 0 else 0.0)
 
-    def _compare_mathematical_coherence(self, coherence1: MathematicalCoherence, coherence2: MathematicalCoherence) -> float:
-        """
-        Compare mathematical coherence using scipy.spatial.distance.
-        """
         features1 = np.array([
-            coherence1.component_consistency_score,
-            coherence1.relationship_coherence_measure,
-            coherence1.mathematical_self_consistency_score
+            entropy1,
+            info1.coherence_information_content,
+            info1.mathematical_information_complexity,
+            mi1
         ])
-        
+
         features2 = np.array([
-            coherence2.component_consistency_score,
-            coherence2.relationship_coherence_measure,
-            coherence2.mathematical_self_consistency_score
+            entropy2,
+            info2.coherence_information_content,
+            info2.mathematical_information_complexity,
+            mi2
         ])
-        
+
         feature_matrix = np.stack([features1, features2])
         distances = pdist(feature_matrix, metric='euclidean')
-        
-        distance_matrix = squareform(distances)
-        distance = distances[0]  # Get the actual distance
-        
+        distance = distances[0]
+
         similarity = 1.0 / (1.0 + distance)
         return float(similarity)
 
+    def _compare_geometric_invariants_similarity(
+        self, geom1: GeometricInvariants, geom2: GeometricInvariants
+    ) -> float:
+        """
+        Compare geometric invariants using spatial distance metrics.
+        """
+        curvature1 = (float(np.linalg.norm(geom1.curvature_signature))
+                      if geom1.curvature_signature.size > 0 else 0.0)
+        curvature2 = (float(np.linalg.norm(geom2.curvature_signature))
+                      if geom2.curvature_signature.size > 0 else 0.0)
 
-    def _compute_topological_inheritance(self, parent: TopologicalInvariants, child: TopologicalInvariants) -> float:
-        """Compute topological inheritance between parent and child objects."""
+        canonical1 = (float(np.linalg.norm(geom1.canonical_geometric_form))
+                      if geom1.canonical_geometric_form.size > 0 else 0.0)
+        canonical2 = (float(np.linalg.norm(geom2.canonical_geometric_form))
+                      if geom2.canonical_geometric_form.size > 0 else 0.0)
+
+        features1 = np.array([
+            curvature1,
+            geom1.geometric_genus,
+            canonical1
+        ])
+
+        features2 = np.array([
+            curvature2,
+            geom2.geometric_genus,
+            canonical2
+        ])
+
+        feature_matrix = np.stack([features1, features2])
+        distances = pdist(feature_matrix, metric='euclidean')
+        distance = distances[0]
+
+        similarity = 1.0 / (1.0 + distance)
+        return float(similarity)
+
+    def _compare_mathematical_coherence_similarity(
+        self, coherence1: MathematicalCoherence,
+        coherence2: MathematicalCoherence
+    ) -> float:
+        """
+        Compare mathematical coherence structures using relationship
+        invariants.
+        """
+        rel_invariants1 = (
+            np.mean(list(coherence1.q_component_relationship_invariants
+                         .values()))
+            if coherence1.q_component_relationship_invariants else 0.0)
+        rel_invariants2 = (
+            np.mean(list(coherence2.q_component_relationship_invariants
+                         .values()))
+            if coherence2.q_component_relationship_invariants else 0.0)
+
+        ratios1 = (float(np.linalg.norm(
+            coherence1.mathematical_ratio_signatures))
+            if coherence1.mathematical_ratio_signatures.size > 0 else 0.0)
+        ratios2 = (float(np.linalg.norm(
+            coherence2.mathematical_ratio_signatures))
+            if coherence2.mathematical_ratio_signatures.size > 0 else 0.0)
+
+        features1 = np.array([
+            rel_invariants1,
+            coherence1.mathematical_structure_preservation_score,
+            ratios1
+        ])
+
+        features2 = np.array([
+            rel_invariants2,
+            coherence2.mathematical_structure_preservation_score,
+            ratios2
+        ])
+
+        feature_matrix = np.stack([features1, features2])
+        distances = pdist(feature_matrix, metric='euclidean')
+        distance = distances[0]
+
+        similarity = 1.0 / (1.0 + distance)
+        return float(similarity)
+
+    def _compute_topological_inheritance(
+        self, parent: TopologicalInvariants, child: TopologicalInvariants
+    ) -> float:
         return self._compare_topological_invariants(parent, child)
 
     def _compute_canonical_inheritance(
-        self, parent: CanonicalMathematicalSignature, child: CanonicalMathematicalSignature
+        self, parent: CanonicalMathematicalSignature,
+        child: CanonicalMathematicalSignature
     ) -> float:
-        """Compute canonical signature inheritance."""
         return self._compare_canonical_signatures(parent, child)
 
     def _compute_information_inheritance(
-        self, parent: InformationTheoreticIdentity, child: InformationTheoreticIdentity
+        self, parent: InformationTheoreticIdentity,
+        child: InformationTheoreticIdentity
     ) -> float:
-        """Compute information-theoretic inheritance."""
         return self._compare_information_identities(parent, child)
 
-    def _compute_geometric_inheritance(self, parent: GeometricInvariants, child: GeometricInvariants) -> float:
-        """Compute geometric inheritance."""
+    def _compute_geometric_inheritance(
+        self, parent: GeometricInvariants, child: GeometricInvariants
+    ) -> float:
         return self._compare_geometric_invariants(parent, child)
 
-    def _compute_coherence_inheritance(self, parent: MathematicalCoherence, child: MathematicalCoherence) -> float:
-        """Compute mathematical coherence inheritance."""
+    def _compute_coherence_inheritance(
+        self, parent: MathematicalCoherence, child: MathematicalCoherence
+    ) -> float:
         return self._compare_mathematical_coherence(parent, child)

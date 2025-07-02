@@ -286,19 +286,20 @@ class QuantumCognitionDimensionEstimator:
 
         for agent in agents:
             q_comps = agent.Q_components
+            # Convert MPS tensors to CPU before JAX conversion
             field_vector = jnp.array(
                 [
-                    q_comps.Q_value.real,
-                    q_comps.Q_value.imag,
-                    q_comps.gamma,
-                    q_comps.T_tensor.real,
-                    q_comps.T_tensor.imag,
-                    q_comps.E_trajectory.real,
-                    q_comps.E_trajectory.imag,
-                    q_comps.phi_semantic.real,
-                    q_comps.phi_semantic.imag,
-                    q_comps.theta_components.total,
-                    q_comps.psi_persistence,
+                    q_comps.Q_value.real.cpu() if hasattr(q_comps.Q_value.real, 'cpu') else q_comps.Q_value.real,
+                    q_comps.Q_value.imag.cpu() if hasattr(q_comps.Q_value.imag, 'cpu') else q_comps.Q_value.imag,
+                    q_comps.gamma.cpu() if hasattr(q_comps.gamma, 'cpu') else q_comps.gamma,
+                    q_comps.T_tensor.real.cpu() if hasattr(q_comps.T_tensor.real, 'cpu') else q_comps.T_tensor.real,
+                    q_comps.T_tensor.imag.cpu() if hasattr(q_comps.T_tensor.imag, 'cpu') else q_comps.T_tensor.imag,
+                    q_comps.E_trajectory.real.cpu() if hasattr(q_comps.E_trajectory.real, 'cpu') else q_comps.E_trajectory.real,
+                    q_comps.E_trajectory.imag.cpu() if hasattr(q_comps.E_trajectory.imag, 'cpu') else q_comps.E_trajectory.imag,
+                    q_comps.phi_semantic.real.cpu() if hasattr(q_comps.phi_semantic.real, 'cpu') else q_comps.phi_semantic.real,
+                    q_comps.phi_semantic.imag.cpu() if hasattr(q_comps.phi_semantic.imag, 'cpu') else q_comps.phi_semantic.imag,
+                    q_comps.theta_components.total.cpu() if hasattr(q_comps.theta_components.total, 'cpu') else q_comps.theta_components.total,
+                    q_comps.psi_persistence.cpu() if hasattr(q_comps.psi_persistence, 'cpu') else q_comps.psi_persistence,
                 ]
             )
             field_vectors.append(field_vector)
@@ -325,7 +326,7 @@ class QuantumCognitionDimensionEstimator:
         metric_approx = jnp.zeros((n_states, n_states))
 
         field_energies = jnp.array(
-            [abs(agent.Q_components.Q_value) ** 2 for agent in agents]
+            [abs(agent.Q_components.Q_value.cpu() if hasattr(agent.Q_components.Q_value, 'cpu') else agent.Q_components.Q_value) ** 2 for agent in agents]
         )
         energy_sorted_indices = jnp.argsort(field_energies)[::-1]
 

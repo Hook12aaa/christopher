@@ -28,6 +28,7 @@ from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Tuple, Callable, Union
 
 import numpy as np
+import torch
 
 from scipy.integrate import solve_ivp, odeint
 from scipy.sparse import diags
@@ -41,6 +42,10 @@ from Sysnpire.model.liquid.conceptual_charge_agent import ConceptualChargeAgent
 from Sysnpire.utils.logger import get_logger
 
 logger = get_logger(__name__)
+
+# Dependency availability flags
+SCIPY_AVAILABLE = True
+JAX_AVAILABLE = True
 
 
 @dataclass
@@ -188,7 +193,6 @@ class CoupledFieldRegulation:
 
         return FieldState(q_real, q_imag, regulation, 0.0, self.spatial_grid)
 
-    @jit
     def q_field_dynamics(
         self, q_real: jnp.ndarray, q_imag: jnp.ndarray, regulation: jnp.ndarray, t: float
     ) -> Tuple[jnp.ndarray, jnp.ndarray]:
@@ -227,7 +231,6 @@ class CoupledFieldRegulation:
 
         return dq_real_dt, dq_imag_dt
 
-    @jit
     def regulation_field_dynamics(
         self, q_real: jnp.ndarray, q_imag: jnp.ndarray, regulation: jnp.ndarray, t: float
     ) -> jnp.ndarray:
@@ -262,31 +265,6 @@ class CoupledFieldRegulation:
 
         return dr_dt
 
-    def regulation_field_dynamics(
-        self, q_real: np.ndarray, q_imag: np.ndarray, regulation: np.ndarray, t: float
-    ) -> np.ndarray:
-        """
-        Compute regulation field evolution dynamics.
-        
-        Implements: dR/dt = D_R ∇²R + S_R(Q) + D_R(R)
-        Where:
-        - D_R ∇²R: regulation field diffusion
-        - S_R(Q): source term from Q-field coupling
-        - D_R(R): regulation field self-damping
-        """
-        q_magnitude = np.sqrt(q_real**2 + q_imag**2)
-        
-        diffusion_r = self.params.regulation_diffusion_coeff * self.laplacian.dot(regulation)
-        
-        source_coupling = self.params.regulation_coupling_strength * (q_magnitude**2 - regulation)
-        
-        damping_r = -self.params.regulation_damping_coeff * regulation
-        
-        stability_term = -self.params.regulation_stability_coeff * regulation**3
-        
-        dr_dt = diffusion_r + source_coupling + damping_r + stability_term
-        
-        return dr_dt
 
     def solve_implicit_regulation_step(
         self, regulation: np.ndarray, q_magnitude: np.ndarray, dt: float
@@ -312,7 +290,6 @@ class CoupledFieldRegulation:
         
         return regulation_new
 
-    @jit
     def coupled_field_ode_system(self, t: float, y: jnp.ndarray) -> jnp.ndarray:
         """
         Coupled ODE system for field evolution using JAX JIT compilation.

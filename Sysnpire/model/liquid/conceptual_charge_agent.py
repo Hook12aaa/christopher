@@ -15,11 +15,11 @@ with full coupling between dimensions.
 import numpy as np
 import torch
 
-# CRITICAL FIX: Set default dtype to float32 for MPS compatibility
-# This must be done early to prevent float64 tensor creation on MPS devices
 if torch.backends.mps.is_available():
     torch.set_default_dtype(torch.float32)
     print("🔧 ConceptualChargeAgent: MPS detected, using float32 precision")
+
+
 import cmath
 import math
 import time
@@ -28,19 +28,25 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 
 import numba as nb
 from scipy import fft, integrate, signal, special
-# Additional DTF mathematical libraries for proper field theory operations
 from scipy.integrate import quad
 from scipy.linalg import eigh
 
-# CRITICAL FIX: Import safe tensor validation utilities to prevent boolean evaluation errors
-from Sysnpire.utils.tensor_validation import (extract_tensor_scalar,
-                                              safe_tensor_comparison)
+
+from Sysnpire.utils.tensor_validation import (
+    extract_tensor_scalar,
+    safe_tensor_comparison,
+)
 
 
 # REAL Numba JIT compilation for performance-critical mathematical operations
 @nb.jit(nopython=True, cache=True, fastmath=True)
 def _jit_breathing_coefficient_update(
-    coeff_real_array, coeff_imag_array, breath_factors, harmonic_factors, evolution_rate, n_coefficients
+    coeff_real_array,
+    coeff_imag_array,
+    breath_factors,
+    harmonic_factors,
+    evolution_rate,
+    n_coefficients,
 ):
     """
     JIT-compiled breathing coefficient evolution - NO PYTHON OVERHEAD.
@@ -57,15 +63,23 @@ def _jit_breathing_coefficient_update(
         angle = nb.types.float64(0.0)
         if magnitude > 1e-15:
             angle = nb.types.float64(
-                nb.types.complex128(imag_part / real_part) if real_part != 0 else nb.types.float64(1.5707963267948966)
+                nb.types.complex128(imag_part / real_part)
+                if real_part != 0
+                else nb.types.float64(1.5707963267948966)
             )
 
         # JIT-compiled breathing evolution computation
-        breath_factor = breath_factors[i] if i < len(breath_factors) else nb.types.float64(1.0)
-        harmonic_factor = harmonic_factors[i] if i < len(harmonic_factors) else nb.types.float64(1.0)
+        breath_factor = (
+            breath_factors[i] if i < len(breath_factors) else nb.types.float64(1.0)
+        )
+        harmonic_factor = (
+            harmonic_factors[i] if i < len(harmonic_factors) else nb.types.float64(1.0)
+        )
 
         # Proportional evolution calculation
-        breathing_evolution = magnitude * (breath_factor - 1.0) * (harmonic_factor - 1.0) * 0.01
+        breathing_evolution = (
+            magnitude * (breath_factor - 1.0) * (harmonic_factor - 1.0) * 0.01
+        )
         angle_adjustment = angle + 0.01 * (breath_factor - 1.0)
 
         # Complex exponential calculation (JIT-compiled)
@@ -86,14 +100,20 @@ def _jit_breathing_coefficient_update(
 
 
 @nb.jit(nopython=True, cache=True, fastmath=True)
-def _jit_field_interaction_matrix(positions_real, positions_imag, q_magnitudes, q_phases, n_agents, interaction_cutoff):
+def _jit_field_interaction_matrix(
+    positions_real, positions_imag, q_magnitudes, q_phases, n_agents, interaction_cutoff
+):
     """
     JIT-compiled field interaction matrix computation - MAXIMUM PERFORMANCE.
 
     Replaces basic Python loops with compiled interaction calculations.
     """
-    interaction_matrix_real = nb.types.float64[:, :](nb.types.UniTuple(nb.types.float64, 2)((n_agents, n_agents)))
-    interaction_matrix_imag = nb.types.float64[:, :](nb.types.UniTuple(nb.types.float64, 2)((n_agents, n_agents)))
+    interaction_matrix_real = nb.types.float64[:, :](
+        nb.types.UniTuple(nb.types.float64, 2)((n_agents, n_agents))
+    )
+    interaction_matrix_imag = nb.types.float64[:, :](
+        nb.types.UniTuple(nb.types.float64, 2)((n_agents, n_agents))
+    )
 
     for i in range(n_agents):
         for j in range(n_agents):
@@ -105,17 +125,31 @@ def _jit_field_interaction_matrix(positions_real, positions_imag, q_magnitudes, 
 
                 if distance > interaction_cutoff:
                     # JIT-compiled influence computation
-                    influence = nb.types.float64(nb.types.complex128(-distance).exp() / (1.0 + distance))
+                    influence = nb.types.float64(
+                        nb.types.complex128(-distance).exp() / (1.0 + distance)
+                    )
 
                     # Complex Q-value interaction
-                    q_i_real = q_magnitudes[i] * nb.types.float64(nb.types.complex128(q_phases[i]).real)
-                    q_i_imag = q_magnitudes[i] * nb.types.float64(nb.types.complex128(q_phases[i]).imag)
-                    q_j_real = q_magnitudes[j] * nb.types.float64(nb.types.complex128(q_phases[j]).real)
-                    q_j_imag = q_magnitudes[j] * nb.types.float64(nb.types.complex128(q_phases[j]).imag)
+                    q_i_real = q_magnitudes[i] * nb.types.float64(
+                        nb.types.complex128(q_phases[i]).real
+                    )
+                    q_i_imag = q_magnitudes[i] * nb.types.float64(
+                        nb.types.complex128(q_phases[i]).imag
+                    )
+                    q_j_real = q_magnitudes[j] * nb.types.float64(
+                        nb.types.complex128(q_phases[j]).real
+                    )
+                    q_j_imag = q_magnitudes[j] * nb.types.float64(
+                        nb.types.complex128(q_phases[j]).imag
+                    )
 
                     # JIT-compiled complex conjugate multiplication
-                    interaction_real = (q_i_real * q_j_real + q_i_imag * q_j_imag) * influence
-                    interaction_imag = (q_i_imag * q_j_real - q_i_real * q_j_imag) * influence
+                    interaction_real = (
+                        q_i_real * q_j_real + q_i_imag * q_j_imag
+                    ) * influence
+                    interaction_imag = (
+                        q_i_imag * q_j_real - q_i_real * q_j_imag
+                    ) * influence
 
                     interaction_matrix_real[i, j] = interaction_real
                     interaction_matrix_imag[i, j] = interaction_imag
@@ -125,27 +159,35 @@ def _jit_field_interaction_matrix(positions_real, positions_imag, q_magnitudes, 
 
 # PyTorch neural functions for dynamic evolution
 import torch.nn.functional as F
-# PyTorch Geometric for geometric deep learning on modular domains
 import torch_geometric as pyg
+
+
 from sage.functions.other import floor
 from sage.modular.hecke.hecke_operator import HeckeOperator
-# REQUIRED Modular Forms Libraries - NO FALLBACKS ALLOWED
-# Sage for rigorous modular mathematics
 from sage.all import ModularForms, CuspForms, EisensteinForms
 from sage.rings.complex_double import CDF
 from sage.rings.integer import Integer
+
+
 from torch.fft import fft, ifft
 from torch_geometric.data import Data
 from torch_geometric.nn import MessagePassing
 
-from Sysnpire.database.conceptual_charge_object import (ConceptualChargeObject,
-                                                        FieldComponents)
-from Sysnpire.model.emotional_dimension.EmotionalDimensionHelper import \
-    EmotionalDimensionHelper
-from Sysnpire.model.semantic_dimension.SemanticDimensionHelper import \
-    SemanticDimensionHelper
-from Sysnpire.model.temporal_dimension.TemporalDimensionHelper import \
-    TemporalDimensionHelper
+from Sysnpire.database.conceptual_charge_object import (
+    ConceptualChargeObject,
+    FieldComponents,
+)
+from Sysnpire.model.emotional_dimension.EmotionalDimensionHelper import (
+    EmotionalDimensionHelper,
+)
+from Sysnpire.model.semantic_dimension.SemanticDimensionHelper import (
+    SemanticDimensionHelper,
+)
+from Sysnpire.model.temporal_dimension.TemporalDimensionHelper import (
+    TemporalDimensionHelper,
+)
+
+
 # Import logger to fix agent creation failures
 from Sysnpire.utils.logger import get_logger
 
@@ -187,16 +229,24 @@ def _log_magnitude_multiply(a: complex, b: complex) -> complex:
         if result_log_mag > 20:  # e^20 ≈ 4.8e8, still manageable
             # Keep in log space, use normalized representation
             # Use torch for advanced exponential computation - NO BASIC NUMPY
-            normalized_mag = torch.exp(torch.tensor(result_log_mag - 20, dtype=torch.float32)).item()
-            exp_factor = torch.exp(1j * torch.tensor(result_angle, dtype=torch.float32)).item()
+            normalized_mag = torch.exp(
+                torch.tensor(result_log_mag - 20, dtype=torch.float32)
+            ).item()
+            exp_factor = torch.exp(
+                1j * torch.tensor(result_angle, dtype=torch.float32)
+            ).item()
             result = normalized_mag * exp_factor
             # Store scale factor in phase to preserve information
             return result * (1e8 + 0j)  # e^20/100 scaling factor
         else:
             # Safe to convert back to normal complex
             # Use torch for advanced exponential computation - NO BASIC NUMPY
-            result_mag = torch.exp(torch.tensor(result_log_mag, dtype=torch.float32)).item()
-            exp_factor = torch.exp(1j * torch.tensor(result_angle, dtype=torch.float32)).item()
+            result_mag = torch.exp(
+                torch.tensor(result_log_mag, dtype=torch.float32)
+            ).item()
+            exp_factor = torch.exp(
+                1j * torch.tensor(result_angle, dtype=torch.float32)
+            ).item()
             return result_mag * exp_factor
     else:
         # Normal multiplication for small values
@@ -303,7 +353,9 @@ class QMathematicalComponents:
     @property
     def T_phase(self) -> float:
         # Use torch for advanced angle computation - NO BASIC NUMPY
-        t_tensor = torch.tensor([self.T_tensor.real, self.T_tensor.imag], dtype=torch.float32)
+        t_tensor = torch.tensor(
+            [self.T_tensor.real, self.T_tensor.imag], dtype=torch.float32
+        )
         return torch.atan2(t_tensor[1], t_tensor[0]).item()
 
     @property
@@ -314,7 +366,9 @@ class QMathematicalComponents:
     @property
     def E_phase(self) -> float:
         # Use torch for advanced angle computation - NO BASIC NUMPY
-        e_tensor = torch.tensor([self.E_trajectory.real, self.E_trajectory.imag], dtype=torch.float32)
+        e_tensor = torch.tensor(
+            [self.E_trajectory.real, self.E_trajectory.imag], dtype=torch.float32
+        )
         return torch.atan2(e_tensor[1], e_tensor[0]).item()
 
     @property
@@ -325,7 +379,9 @@ class QMathematicalComponents:
     @property
     def phi_phase(self) -> float:
         # Use torch for advanced angle computation - NO BASIC NUMPY
-        phi_tensor = torch.tensor([self.phi_semantic.real, self.phi_semantic.imag], dtype=torch.float32)
+        phi_tensor = torch.tensor(
+            [self.phi_semantic.real, self.phi_semantic.imag], dtype=torch.float32
+        )
         return torch.atan2(phi_tensor[1], phi_tensor[0]).item()
 
     @property
@@ -336,7 +392,9 @@ class QMathematicalComponents:
     @property
     def Q_phase(self) -> float:
         # Use torch for advanced angle computation - NO BASIC NUMPY
-        q_tensor = torch.tensor([self.Q_value.real, self.Q_value.imag], dtype=torch.float32)
+        q_tensor = torch.tensor(
+            [self.Q_value.real, self.Q_value.imag], dtype=torch.float32
+        )
         return torch.atan2(q_tensor[1], q_tensor[0]).item()
 
 
@@ -384,11 +442,15 @@ class ConceptualChargeMessagePassing(MessagePassing):
 
         # Update neural network
         self.update_mlp = torch.nn.Sequential(
-            torch.nn.Linear(feature_dim * 2, hidden_dim), torch.nn.ReLU(), torch.nn.Linear(hidden_dim, feature_dim)
+            torch.nn.Linear(feature_dim * 2, hidden_dim),
+            torch.nn.ReLU(),
+            torch.nn.Linear(hidden_dim, feature_dim),
         )
 
         # Attention mechanism for sophisticated message weighting
-        self.attention = torch.nn.MultiheadAttention(feature_dim, num_heads=2, batch_first=True)
+        self.attention = torch.nn.MultiheadAttention(
+            feature_dim, num_heads=2, batch_first=True
+        )
 
     def forward(self, x, edge_index, edge_weight=None):
         """
@@ -404,7 +466,9 @@ class ConceptualChargeMessagePassing(MessagePassing):
         x_attended = x_attended.squeeze(0)
 
         # Propagate messages through the graph
-        return self.propagate(edge_index, x=x_attended, edge_weight=edge_weight, x_orig=x)
+        return self.propagate(
+            edge_index, x=x_attended, edge_weight=edge_weight, x_orig=x
+        )
 
     def message(self, x_i, x_j, edge_weight=None):
         """
@@ -529,24 +593,28 @@ class ConceptualChargeAgent:
         if len(eisenstein_basis) > 0:
             # REAL modular form evaluation at semantic tau positions - NO COEFFICIENT EXTRACTION
             semantic_helper = SemanticDimensionHelper()
-            semantic_components = semantic_field.embedding_components[:5]  # Use first 5 components
+            semantic_components = semantic_field.embedding_components[
+                :5
+            ]  # Use first 5 components
 
             semantic_coeffs = []
-            for i, (form, component) in enumerate(zip(eisenstein_basis[:5], semantic_components)):
+            for i, (form, component) in enumerate(
+                zip(eisenstein_basis[:5], semantic_components)
+            ):
                 # Convert semantic component to tau position in upper half-plane
                 # NO FALLBACKS - components MUST be complex or mathematical system is broken
-                if not hasattr(component, "real") or not hasattr(component, "imag"):
-                    raise ValueError(
-                        f"Semantic component {i} is not complex: {component} (type: {type(component)}) - Semantic field system corrupted!"
-                    )
                 # Use CDF for sophisticated number conversion - NO BASIC float()
                 component_real = CDF(component).real()
                 component_imag = CDF(component).imag()
 
                 # Map to upper half-plane: tau = normalized_real + i * (0.5 + |normalized_imag|)
                 # Use CDF for sophisticated operations - NO BASIC abs()
-                tau_real = component_real / (CDF(1.0) + CDF(component_real).abs())  # Normalize to (-1, 1)
-                tau_imag = CDF(0.5) + CDF(component_imag).abs() * CDF(0.5)  # Keep in upper half-plane
+                tau_real = component_real / (
+                    CDF(1.0) + CDF(component_real).abs()
+                )  # Normalize to (-1, 1)
+                tau_imag = CDF(0.5) + CDF(component_imag).abs() * CDF(
+                    0.5
+                )  # Keep in upper half-plane
                 tau_semantic = CDF(tau_real, tau_imag)
 
                 # ACTUAL MODULAR FORM EVALUATION at tau position
@@ -567,12 +635,18 @@ class ConceptualChargeAgent:
 
             # PURE MATHEMATICAL COMPUTATION - NO FALLBACKS OR MASKING
             semantic_coeffs = []
-            semantic_components = semantic_field.embedding_components[: CDF(5).min(len(eisenstein_basis))]
+            semantic_components = semantic_field.embedding_components[
+                : CDF(5).min(len(eisenstein_basis))
+            ]
 
-            for i, (form, component) in enumerate(zip(eisenstein_basis[:5], semantic_components)):
+            for i, (form, component) in enumerate(
+                zip(eisenstein_basis[:5], semantic_components)
+            ):
                 # STRICT MATHEMATICAL VALIDATION - NO TOLERANCE FOR CORRUPTION
                 if not hasattr(component, "real"):
-                    raise ValueError(f"MATHEMATICAL CORRUPTION: Semantic component {i} not complex: {component}")
+                    raise ValueError(
+                        f"MATHEMATICAL CORRUPTION: Semantic component {i} not complex: {component}"
+                    )
 
                 # Pure CDF mathematical operations
                 component_real = CDF(component).real()
@@ -588,9 +662,7 @@ class ConceptualChargeAgent:
                 semantic_coeffs.append(CDF(form_value))
 
         # Step 3: ACTUALLY USE cusp forms for emotional trajectory E^trajectory(τ,s)
-        emotional_weight = max(
-            CDF(12), floor(CDF(2) * CDF(emotional_amplification))
-        )
+        emotional_weight = max(CDF(12), floor(CDF(2) * CDF(emotional_amplification)))
         cusp_space = CuspForms(1, emotional_weight)
 
         # Get REAL cusp forms basis - NO MORE IGNORED OBJECTS
@@ -602,7 +674,9 @@ class ConceptualChargeAgent:
             emotional_modulation_tensor = emotional_mod.semantic_modulation_tensor[:3]
 
             cusp_contributions = []
-            for i, (form, emotion_val) in enumerate(zip(cusp_basis[:3], emotional_modulation_tensor)):
+            for i, (form, emotion_val) in enumerate(
+                zip(cusp_basis[:3], emotional_modulation_tensor)
+            ):
                 # Convert emotional modulation to tau position in upper half-plane
                 # NO FALLBACKS - emotional values MUST be complex or emotional system is broken
                 if not hasattr(emotion_val, "real") or not hasattr(emotion_val, "imag"):
@@ -613,10 +687,10 @@ class ConceptualChargeAgent:
                 emotion_real = CDF(emotion_val).real()
                 emotion_imag = CDF(emotion_val).imag()
 
-                # Map to upper half-plane for cusp form evaluation
-                # Use CDF for sophisticated operations - NO BASIC abs()
-                tau_real = emotion_real / (CDF(1.0) + CDF(emotion_real).abs()) * CDF(0.8)  # Keep away from boundary
-                tau_imag = CDF(1.0) + CDF(emotion_imag).abs() * CDF(0.5)  # Higher in upper half-plane for cusp forms
+                tau_real = (
+                    emotion_real / (CDF(1.0) + CDF(emotion_real).abs()) * CDF(0.8)
+                )
+                tau_imag = CDF(1.0) + CDF(emotion_imag).abs() * CDF(0.5)
                 tau_emotional = CDF(tau_real, tau_imag)
 
                 # PURE CUSP FORM EVALUATION - NO ERROR MASKING
@@ -624,16 +698,17 @@ class ConceptualChargeAgent:
                 # Rigorous CDF conversion
                 cusp_contributions.append(CDF(form_value))
 
-            # Use torch.fft for spectral analysis of cusp form contributions
-            # Use CDF for sophisticated complex conversion - NO BASIC complex()
-            cusp_tensor = torch.tensor([CDF(c) for c in cusp_contributions], dtype=torch.complex64)
+            cusp_tensor = torch.tensor(
+                [CDF(c) for c in cusp_contributions], dtype=torch.complex64
+            )
             emotional_spectrum = fft(cusp_tensor)
 
             # Apply F.gelu for smooth field activation
             emotional_magnitude = F.gelu(torch.real(emotional_spectrum[0])).item()
             emotional_phase = torch.angle(emotional_spectrum[0]).item()
             emotional_field_value = (
-                CDF(emotional_amplification * emotional_magnitude, 0) * CDF(0, emotional_phase).exp()
+                CDF(emotional_amplification * emotional_magnitude, 0)
+                * CDF(0, emotional_phase).exp()
             )
         else:
             # NO FALLBACK - Mathematical system requires cusp forms
@@ -642,7 +717,7 @@ class ConceptualChargeAgent:
                 f"Field theory requires proper cusp form basis. System cannot continue."
             )
 
-        # Step 4: Temporal persistence using ACTUAL Hecke operators T(τ,C,s)
+        # Step 4: Temporal persistence using  Hecke operators T(τ,C,s)
         # Apply real HeckeOperator to modular space
         hecke_values = []
         primes = [2, 3, 5, 7, 11]
@@ -653,7 +728,9 @@ class ConceptualChargeAgent:
 
             # Use TemporalDimensionHelper for proper trajectory operator extraction
             temporal_helper = TemporalDimensionHelper()
-            trajectory_operators = temporal_helper.get_trajectory_operators(temporal_bio)
+            trajectory_operators = temporal_helper.get_trajectory_operators(
+                temporal_bio
+            )
 
             if i < len(trajectory_operators):
                 traj_val = trajectory_operators[i]
@@ -664,7 +741,7 @@ class ConceptualChargeAgent:
                 else:
                     input_val = CDF(float(traj_val), 0.0)
 
-                # Apply REAL HeckeOperator transformation - NO SIMULATION
+                # Apply REAL HeckeOperator transformation
                 # Create a simple modular form to apply the operator to
                 # In practice, this would be more sophisticated, but we create a basic form
                 dimension = modular_space.dimension()
@@ -679,10 +756,14 @@ class ConceptualChargeAgent:
                         # Extract coefficient from the result
                         # Convert Sage result to CDF coefficient
                         if hasattr(hecke_result, "q_expansion"):
-                            q_expansion = hecke_result.q_expansion(10)  # Get first 10 terms
+                            q_expansion = hecke_result.q_expansion(
+                                10
+                            )  # Get first 10 terms
                             # Use the first non-zero coefficient
                             for n in range(1, 10):
-                                coeff = q_expansion[n] if n < len(q_expansion.list()) else 0
+                                coeff = (
+                                    q_expansion[n] if n < len(q_expansion.list()) else 0
+                                )
                                 if coeff != 0:
                                     hecke_transformed = CDF(coeff) * input_val
                                     break
@@ -712,7 +793,9 @@ class ConceptualChargeAgent:
         # Step 5: Phase integration θ_total using torch.nn.functional operations
         # Use F.angle for phase extraction instead of basic np.angle
         # Use CDF for sophisticated complex conversion - NO BASIC complex()
-        hecke_tensor = torch.tensor([CDF(h) for h in hecke_values], dtype=torch.complex64)
+        hecke_tensor = torch.tensor(
+            [CDF(h) for h in hecke_values], dtype=torch.complex64
+        )
 
         def phase_integrand(x):
             """Integrand for field phase integration using torch operations."""
@@ -727,7 +810,9 @@ class ConceptualChargeAgent:
 
         semantic_phase = mean_phase
         # Use CDF for sophisticated complex conversion - NO BASIC complex()
-        emotional_phase = F.angle(torch.tensor(CDF(emotional_field_value), dtype=torch.complex64)).item()
+        emotional_phase = F.angle(
+            torch.tensor(CDF(emotional_field_value), dtype=torch.complex64)
+        ).item()
         total_phase = semantic_phase + emotional_phase + temporal_phase
 
         # Step 6: Persistence factor using advanced SciPy special functions and eigenvalue analysis
@@ -737,8 +822,16 @@ class ConceptualChargeAgent:
             # Build 3x3 persistence operator from field components using torch
             matrix_tensor = torch.tensor(
                 [
-                    [temporal_persistence, 0.1 * emotional_amplification, 0.05 * field_magnitude],
-                    [0.1 * emotional_amplification, temporal_persistence, 0.05 * mean_phase],
+                    [
+                        temporal_persistence,
+                        0.1 * emotional_amplification,
+                        0.05 * field_magnitude,
+                    ],
+                    [
+                        0.1 * emotional_amplification,
+                        temporal_persistence,
+                        0.05 * mean_phase,
+                    ],
                     [0.05 * field_magnitude, 0.05 * mean_phase, temporal_persistence],
                 ],
                 dtype=torch.complex128,
@@ -758,8 +851,12 @@ class ConceptualChargeAgent:
         eigenval_tensor = torch.tensor(principal_eigenval, dtype=torch.complex64)
         eigenvec_tensor = torch.tensor(principal_eigenvec[0], dtype=torch.complex64)
 
-        gaussian_decay = torch.abs(eigenval_tensor) * torch.exp(-0.1 * torch.abs(phase_tensor))
-        oscillatory_component = 0.1 * torch.real(eigenvec_tensor) * torch.cos(2 * phase_tensor)
+        gaussian_decay = torch.abs(eigenval_tensor) * torch.exp(
+            -0.1 * torch.abs(phase_tensor)
+        )
+        oscillatory_component = (
+            0.1 * torch.real(eigenvec_tensor) * torch.cos(2 * phase_tensor)
+        )
         persistence_factor = (gaussian_decay + oscillatory_component).item()
 
         # Step 7: Compute complete Q(τ,C,s) using advanced SciPy field operations
@@ -771,37 +868,62 @@ class ConceptualChargeAgent:
         from scipy import signal
 
         # Convert semantic coefficients to torch tensors for advanced field operations
-        semantic_field_tensor = torch.tensor([complex(c) for c in semantic_coeffs[:8]], dtype=torch.complex64)
-        hecke_field_tensor = torch.tensor([complex(h) for h in hecke_values[:8]], dtype=torch.complex64)
+        semantic_field_tensor = torch.tensor(
+            [complex(c) for c in semantic_coeffs[:8]], dtype=torch.complex64
+        )
+        hecke_field_tensor = torch.tensor(
+            [complex(h) for h in hecke_values[:8]], dtype=torch.complex64
+        )
 
         # Use scipy.signal.correlate for ACTUAL field interaction computation
         semantic_real_imag = (
-            torch.cat([torch.real(semantic_field_tensor), torch.imag(semantic_field_tensor)]).cpu().numpy()
+            torch.cat(
+                [torch.real(semantic_field_tensor), torch.imag(semantic_field_tensor)]
+            )
+            .cpu()
+            .numpy()
         )
-        hecke_real_imag = torch.cat([torch.real(hecke_field_tensor), torch.imag(hecke_field_tensor)]).cpu().numpy()
+        hecke_real_imag = (
+            torch.cat([torch.real(hecke_field_tensor), torch.imag(hecke_field_tensor)])
+            .cpu()
+            .numpy()
+        )
 
-        field_correlation = signal.correlate(semantic_real_imag, hecke_real_imag, mode="full")
+        field_correlation = signal.correlate(
+            semantic_real_imag, hecke_real_imag, mode="full"
+        )
 
         # Use the CORRELATION RESULT for modular contribution - not just first element
-        correlation_peak_idx = torch.argmax(torch.tensor(torch.abs(torch.tensor(field_correlation)))).item()
+        correlation_peak_idx = torch.argmax(
+            torch.tensor(torch.abs(torch.tensor(field_correlation)))
+        ).item()
         correlation_magnitude = abs(field_correlation[correlation_peak_idx])
         correlation_phase = torch.angle(
             torch.tensor(field_correlation[correlation_peak_idx], dtype=torch.complex64)
         ).item()
 
         # Modular contribution based on ACTUAL correlation analysis
-        modular_contribution = correlation_magnitude * torch.exp(1j * torch.tensor(correlation_phase)).item()
+        modular_contribution = (
+            correlation_magnitude
+            * torch.exp(1j * torch.tensor(correlation_phase)).item()
+        )
 
         # Replace basic product with proper spectral multiplication using torch.fft
         # Convert Hecke values to PyTorch tensor for torch.fft operations
-        hecke_torch_tensor = torch.tensor([complex(h) for h in hecke_values[:8]], dtype=torch.complex64)
+        hecke_torch_tensor = torch.tensor(
+            [complex(h) for h in hecke_values[:8]], dtype=torch.complex64
+        )
 
         # Use torch.fft for spectral operations instead of scipy.fft
         hecke_spectrum = fft(hecke_torch_tensor)
         # Apply spectral field enhancement using torch operations
-        decay_factors = torch.exp(-torch.arange(len(hecke_spectrum), dtype=torch.float32) * 0.1)
+        decay_factors = torch.exp(
+            -torch.arange(len(hecke_spectrum), dtype=torch.float32) * 0.1
+        )
         enhanced_spectrum = hecke_spectrum * decay_factors.to(torch.complex64)
-        hecke_contribution = ifft(enhanced_spectrum)[0].item()  # Take first component and convert to Python complex
+        hecke_contribution = ifft(enhanced_spectrum)[
+            0
+        ].item()  # Take first component and convert to Python complex
 
         # Final field combination using F.normalize for proper field normalization
         # Combine components into tensor for normalization
@@ -823,34 +945,28 @@ class ConceptualChargeAgent:
 
         # Use torch for final exponential computation - CRITICAL Q FORMULA PHASE
         phase_tensor = torch.tensor(total_phase, dtype=torch.float32)
-        phase_exponential = self._safe_phase_exponential(total_phase, "Q-value assembly")
+        phase_exponential = self._safe_phase_exponential(
+            total_phase, "Q-value assembly"
+        )
 
         # Final Q(τ,C,s) using ALL advanced library results - CRITICAL FIELD ASSEMBLY
         # Apply protected field multiplications for Q-value assembly
         q_partial = self._safe_field_multiplication(
-            field_magnitude_normalized, 
+            field_magnitude_normalized,
             complex(modular_contribution),
-            "Q_assembly: magnitude × modular"
+            "Q_assembly: magnitude × modular",
         )
         q_partial = self._safe_field_multiplication(
-            q_partial,
-            complex(emotional_field_value),
-            "Q_assembly: partial × emotional"
+            q_partial, complex(emotional_field_value), "Q_assembly: partial × emotional"
         )
         q_partial = self._safe_field_multiplication(
-            q_partial,
-            complex(hecke_contribution),
-            "Q_assembly: partial × hecke"
+            q_partial, complex(hecke_contribution), "Q_assembly: partial × hecke"
         )
         q_partial = self._safe_field_multiplication(
-            q_partial,
-            phase_exponential,
-            "Q_assembly: partial × phase"
+            q_partial, phase_exponential, "Q_assembly: partial × phase"
         )
         complete_charge = self._safe_field_multiplication(
-            q_partial,
-            persistence_factor,
-            "Q_assembly: final × persistence"
+            q_partial, persistence_factor, "Q_assembly: final × persistence"
         )
 
         return complex(complete_charge)
@@ -886,20 +1002,26 @@ class ConceptualChargeAgent:
         # STRICT DEVICE VALIDATION - NO FALLBACKS
         if device == "mps":
             if not torch.backends.mps.is_available():
-                raise ValueError(f"MPS device requested but not available - Hardware configuration broken!")
+                raise ValueError(
+                    f"MPS device requested but not available - Hardware configuration broken!"
+                )
             self.device = torch.device("mps")
         elif device == "cuda":
             if not torch.cuda.is_available():
-                raise ValueError(f"CUDA device requested but not available - Hardware configuration broken!")
+                raise ValueError(
+                    f"CUDA device requested but not available - Hardware configuration broken!"
+                )
             self.device = torch.device("cuda")
         elif device == "cpu":
             self.device = torch.device("cpu")
         else:
-            raise ValueError(f"UNKNOWN DEVICE: {device} - Invalid device specification!")
+            raise ValueError(
+                f"UNKNOWN DEVICE: {device} - Invalid device specification!"
+            )
 
         # 🌊 REGULATION SYSTEM: Store regulation liquid for field stabilization
         self.regulation_liquid = regulation_liquid
-        
+
         # 📚 VOCAB CONTEXT: Store vocabulary information for agent identity
         self.vocab_token_string = charge_obj.text_source  # Human-readable token string
         self.vocab_token_id = None  # Will be set if available
@@ -907,18 +1029,32 @@ class ConceptualChargeAgent:
 
         # Extract rich structures from ChargeFactory combined_results (following charge_factory.py structure)
         # STRICT DATA EXTRACTION - NO ERROR TOLERANCE
-        self.semantic_field_data = combined_results["semantic_results"]["field_representations"][charge_index]
-        self.semantic_field = self.semantic_field_data["semantic_field"]  # Actual SemanticField object
-        self.temporal_biography = combined_results["temporal_results"]["temporal_biographies"][charge_index]
-        self.emotional_modulation = combined_results["emotional_results"]["emotional_modulations"][charge_index]
+        self.semantic_field_data = combined_results["semantic_results"][
+            "field_representations"
+        ][charge_index]
+        self.semantic_field = self.semantic_field_data[
+            "semantic_field"
+        ]  # Actual SemanticField object
+        self.temporal_biography = combined_results["temporal_results"][
+            "temporal_biographies"
+        ][charge_index]
+        self.emotional_modulation = combined_results["emotional_results"][
+            "emotional_modulations"
+        ][charge_index]
 
         # MATHEMATICAL INTEGRITY VALIDATION
         self._validate_extracted_data(charge_index)
 
         # Extract coupling data
-        self.field_interference_matrix = combined_results["temporal_results"]["field_interference_matrix"]
-        self.collective_breathing = combined_results["temporal_results"]["collective_breathing_rhythm"]
-        self.emotional_field_signature = combined_results["emotional_results"]["field_signature"]
+        self.field_interference_matrix = combined_results["temporal_results"][
+            "field_interference_matrix"
+        ]
+        self.collective_breathing = combined_results["temporal_results"][
+            "collective_breathing_rhythm"
+        ]
+        self.emotional_field_signature = combined_results["emotional_results"][
+            "field_signature"
+        ]
 
         # Initialize field coupling state
         self.coupling_state = FieldCouplingState(
@@ -944,6 +1080,9 @@ class ConceptualChargeAgent:
             trajectory_time=0.0,
         )
 
+        # Alias for geometric regulation compatibility - provides agent.field_state.field_position access
+        self.field_state = self.state
+
         # Mathematical components (will be computed)
         self.Q_components: Optional[QMathematicalComponents] = None
 
@@ -961,7 +1100,10 @@ class ConceptualChargeAgent:
 
     @classmethod
     def from_stored_data(
-        cls, stored_data: Dict[str, Any], charge_obj: ConceptualChargeObject = None, device: str = "mps"
+        cls,
+        stored_data: Dict[str, Any],
+        charge_obj: ConceptualChargeObject = None,
+        device: str = "mps",
     ) -> "ConceptualChargeAgent":
         """
         CRITICAL RECONSTRUCTION METHOD: Create agent from stored data with proper mathematical state.
@@ -986,11 +1128,15 @@ class ConceptualChargeAgent:
                 text_source=agent_metadata.get("text_source"),
                 complete_charge=q_components.get("Q_value"),
                 field_components=FieldComponents(
-                    semantic_field_generation=field_components.get("semantic_field_generation"),
+                    semantic_field_generation=field_components.get(
+                        "semantic_field_generation"
+                    ),
                     emotional_trajectory=field_components.get("emotional_trajectory"),
                     trajectory_operators=field_components.get("trajectory_operators"),
                     phase_total=field_components.get("phase_total"),
-                    observational_persistence=field_components.get("observational_persistence"),
+                    observational_persistence=field_components.get(
+                        "observational_persistence"
+                    ),
                 ),
                 observational_state=agent_metadata.get("observational_state"),
             )
@@ -1041,14 +1187,20 @@ class ConceptualChargeAgent:
             ConceptualChargeAgent instance with proper field theory mathematics and vocab context
         """
         # Extract semantic field data
-        semantic_data = combined_results["semantic_results"]["field_representations"][charge_index]
+        semantic_data = combined_results["semantic_results"]["field_representations"][
+            charge_index
+        ]
         semantic_field = semantic_data["semantic_field"]
 
         # Extract temporal biography
-        temporal_bio = combined_results["temporal_results"]["temporal_biographies"][charge_index]
+        temporal_bio = combined_results["temporal_results"]["temporal_biographies"][
+            charge_index
+        ]
 
         # Extract emotional modulation
-        emotional_mod = combined_results["emotional_results"]["emotional_modulations"][charge_index]
+        emotional_mod = combined_results["emotional_results"]["emotional_modulations"][
+            charge_index
+        ]
 
         # Extract source token (BGE vocabulary token, not text)
         source_token = semantic_data["field_metadata"]["source_token"]
@@ -1059,14 +1211,18 @@ class ConceptualChargeAgent:
             # Try to convert source_token to readable string
             if isinstance(source_token, (int, str)):
                 # Handle both numeric IDs and string tokens
-                token_id = int(source_token) if str(source_token).isdigit() else source_token
+                token_id = (
+                    int(source_token) if str(source_token).isdigit() else source_token
+                )
                 vocab_token_string = id_to_token.get(token_id)
             else:
                 vocab_token_string = str(source_token)
         else:
             vocab_token_string = str(source_token)
 
-        logger.debug(f"🧬 Agent {charge_index} vocab resolution: {source_token} → {vocab_token_string}")
+        logger.debug(
+            f"🧬 Agent {charge_index} vocab resolution: {source_token} → {vocab_token_string}"
+        )
 
         # Create field components for ConceptualChargeObject using ACTUAL data from combined_results
         field_components = FieldComponents(
@@ -1074,7 +1230,10 @@ class ConceptualChargeAgent:
             emotional_trajectory=emotional_mod.semantic_modulation_tensor,
             semantic_field=semantic_field.embedding_components,
             # Use scipy.signal for sophisticated phase analysis - NO BASIC NUMPY
-            phase_total=torch.dot(semantic_field.phase_factors, torch.ones_like(semantic_field.phase_factors)).item()
+            phase_total=torch.dot(
+                semantic_field.phase_factors,
+                torch.ones_like(semantic_field.phase_factors),
+            ).item()
             / len(semantic_field.phase_factors),
             observational_persistence=1.0,
         )
@@ -1083,7 +1242,9 @@ class ConceptualChargeAgent:
         # This represents the initial field state before full Q computation
         field_magnitude = semantic_data["field_metadata"]["field_magnitude"]
         # Use scipy.signal for sophisticated phase processing - NO BASIC NUMPY
-        mean_phase = torch.dot(semantic_field.phase_factors, torch.ones_like(semantic_field.phase_factors)).item() / len(semantic_field.phase_factors)
+        mean_phase = torch.dot(
+            semantic_field.phase_factors, torch.ones_like(semantic_field.phase_factors)
+        ).item() / len(semantic_field.phase_factors)
 
         # Apply emotional field modulation (Section 3.1.3.3.1 - emotion as field conductor)
         emotional_amplification = emotional_mod.field_modulation_strength
@@ -1091,7 +1252,9 @@ class ConceptualChargeAgent:
         # Apply temporal persistence (Section 3.1.4.3.3 - observational persistence)
         # Use scipy.signal for sophisticated temporal persistence analysis - NO BASIC NUMPY
         if len(temporal_bio.vivid_layer) > 0:
-            temporal_persistence = torch.dot(temporal_bio.vivid_layer, torch.ones_like(temporal_bio.vivid_layer)).item() / len(temporal_bio.vivid_layer)
+            temporal_persistence = torch.dot(
+                temporal_bio.vivid_layer, torch.ones_like(temporal_bio.vivid_layer)
+            ).item() / len(temporal_bio.vivid_layer)
         else:
             # NO FALLBACK - Temporal vivid layer must exist
             raise ValueError(
@@ -1144,7 +1307,10 @@ class ConceptualChargeAgent:
 
     @classmethod
     def from_stored_data(
-        cls, stored_data: Dict[str, Any], charge_obj: ConceptualChargeObject = None, device: str = "mps"
+        cls,
+        stored_data: Dict[str, Any],
+        charge_obj: ConceptualChargeObject = None,
+        device: str = "mps",
     ) -> "ConceptualChargeAgent":
         """
         Reconstruct ConceptualChargeAgent from stored database data.
@@ -1165,7 +1331,9 @@ class ConceptualChargeAgent:
         # CRITICAL FIX: Set float32 for MPS compatibility
         if "mps" in device and torch.backends.mps.is_available():
             torch.set_default_dtype(torch.float32)
-            logger.debug("🔧 MPS device detected: Using float32 precision for agent reconstruction")
+            logger.debug(
+                "🔧 MPS device detected: Using float32 precision for agent reconstruction"
+            )
 
         # Extract stored components
         agent_metadata = stored_data.get("agent_metadata")
@@ -1177,10 +1345,14 @@ class ConceptualChargeAgent:
 
         # Create charge object if not provided
         if charge_obj is None:
-            charge_obj = cls._reconstruct_charge_object_from_storage(agent_metadata, q_components, field_components)
+            charge_obj = cls._reconstruct_charge_object_from_storage(
+                agent_metadata, q_components, field_components
+            )
 
         # Create minimal combined_results structure for initialization
-        minimal_combined_results = cls._create_minimal_combined_results(stored_data, agent_metadata.get("charge_index"))
+        minimal_combined_results = cls._create_minimal_combined_results(
+            stored_data, agent_metadata.get("charge_index")
+        )
 
         # Create instance using standard constructor
         agent = cls.__new__(cls)
@@ -1189,7 +1361,9 @@ class ConceptualChargeAgent:
         agent.charge_obj = charge_obj
         agent.charge_id = charge_obj.charge_id
         agent.charge_index = agent_metadata.get("charge_index")
-        agent.device = torch.device(device if torch.backends.mps.is_available() else "cpu")
+        agent.device = torch.device(
+            device if torch.backends.mps.is_available() else "cpu"
+        )
 
         # 🌊 REGULATION SYSTEM: Initialize to None for reconstruction - will be set by orchestrator
         agent.regulation_liquid = None
@@ -1214,18 +1388,57 @@ class ConceptualChargeAgent:
 
         # Create Q_components from stored data instead of computing new ones
         q_data = stored_data.get("Q_components")
+
+        # CRITICAL FIX: Reconstruct complex numbers from separate real/imag pairs
+        reconstructed_q_data = agent._reconstruct_complex_fields_from_storage(q_data)
+
+        # DEBUG LOGGING: Track E_trajectory from storage before and after reconstruction
+        e_traj_from_storage = q_data.get("E_trajectory")
+        e_traj_reconstructed = reconstructed_q_data.get("E_trajectory")
+        logger.debug(
+            f"🔍 E_TRAJECTORY FACTORY: Agent {agent.charge_id if hasattr(agent, 'charge_id') else 'unknown'}"
+        )
+        logger.debug(
+            f"   E_trajectory from q_data: {e_traj_from_storage} (type: {type(e_traj_from_storage)})"
+        )
+        logger.debug(
+            f"   E_trajectory reconstructed: {e_traj_reconstructed} (type: {type(e_traj_reconstructed)})"
+        )
+        logger.debug(f"   Available q_data keys: {list(q_data.keys())}")
+        logger.debug(
+            f"   Available reconstructed keys: {list(reconstructed_q_data.keys())}"
+        )
+
         agent.Q_components = QMathematicalComponents(
-            gamma=q_data.get("gamma"),
-            T_tensor=q_data.get("T_tensor"),
-            E_trajectory=q_data.get("E_trajectory"),
-            phi_semantic=q_data.get("phi_semantic"),
-            theta_components=ThetaComponents(0.0, 0.0, 0.0, 0.0, 0.0, 0.0),  # Default
-            phase_factor=q_data.get("phase_factor"),
-            psi_persistence=q_data.get("psi_persistence"),
-            psi_gaussian=q_data.get("psi_gaussian"),
-            psi_exponential_cosine=q_data.get("psi_exponential_cosine"),
+            gamma=reconstructed_q_data["gamma"],
+            T_tensor=reconstructed_q_data["T_tensor"],
+            E_trajectory=reconstructed_q_data["E_trajectory"],
+            phi_semantic=reconstructed_q_data["phi_semantic"],
+            theta_components=reconstructed_q_data["theta_components"],
+            phase_factor=reconstructed_q_data["phase_factor"],
+            psi_persistence=reconstructed_q_data["psi_persistence"],
+            psi_gaussian=reconstructed_q_data["psi_gaussian"],
+            psi_exponential_cosine=reconstructed_q_data["psi_exponential_cosine"],
             Q_value=stored_q_value,
         )
+
+        # DEBUG LOGGING: Verify E_trajectory was set correctly in Q_components
+        logger.debug(
+            f"🔍 E_TRAJECTORY FACTORY RESULT: Agent {agent.charge_id if hasattr(agent, 'charge_id') else 'unknown'}"
+        )
+        logger.debug(
+            f"   Q_components.E_trajectory: {agent.Q_components.E_trajectory} (type: {type(agent.Q_components.E_trajectory)})"
+        )
+        logger.debug(
+            f"   Q_components.E_trajectory is None: {agent.Q_components.E_trajectory is None}"
+        )
+        if agent.Q_components.E_trajectory is not None:
+            logger.debug(
+                f"   E_trajectory magnitude: {abs(agent.Q_components.E_trajectory):.6f}"
+            )
+            logger.debug(f"   E_trajectory phase: {agent.Q_components.E_phase:.3f}")
+        else:
+            logger.warning(f"   E_trajectory is None after Q_components creation!")
 
         logger.info(
             f"✅ Agent {agent.charge_id} reconstructed using STORED Q values only - Q magnitude: {abs(agent.living_Q_value):.6f}"
@@ -1235,20 +1448,32 @@ class ConceptualChargeAgent:
         # if not agent.validate_Q_components():
         #     logger.warning(f"⚠️  Agent {agent.charge_id} - Q validation failed after reconstruction")
 
-        logger.info(f"✅ Agent {agent.charge_id} reconstructed - Q magnitude: {abs(agent.living_Q_value):.6f}")
+        logger.info(
+            f"✅ Agent {agent.charge_id} reconstructed - Q magnitude: {abs(agent.living_Q_value):.6f}"
+        )
         return agent
 
     @classmethod
     def _reconstruct_charge_object_from_storage(
-        cls, metadata: Dict[str, Any], q_components: Dict[str, Any], field_components: Dict[str, Any]
+        cls,
+        metadata: Dict[str, Any],
+        q_components: Dict[str, Any],
+        field_components: Dict[str, Any],
     ) -> ConceptualChargeObject:
         """Reconstruct ConceptualChargeObject from stored metadata."""
 
         # Reconstruct complex charge value from real/imag components
-        if "living_Q_value_real" in q_components and "living_Q_value_imag" in q_components:
-            complete_charge = complex(q_components["living_Q_value_real"], q_components["living_Q_value_imag"])
+        if (
+            "living_Q_value_real" in q_components
+            and "living_Q_value_imag" in q_components
+        ):
+            complete_charge = complex(
+                q_components["living_Q_value_real"], q_components["living_Q_value_imag"]
+            )
         elif "Q_value_real" in q_components and "Q_value_imag" in q_components:
-            complete_charge = complex(q_components["Q_value_real"], q_components["Q_value_imag"])
+            complete_charge = complex(
+                q_components["Q_value_real"], q_components["Q_value_imag"]
+            )
         else:
             raise ValueError(
                 f"Agent factory reconstruction failed: No valid Q_value found in q_components. Available keys: {list(q_components.keys()) if q_components else 'None'}"
@@ -1272,21 +1497,30 @@ class ConceptualChargeAgent:
         )
 
     @classmethod
-    def _create_minimal_combined_results(cls, stored_data: Dict[str, Any], charge_index: int) -> Dict[str, Any]:
+    def _create_minimal_combined_results(
+        cls, stored_data: Dict[str, Any], charge_index: int
+    ) -> Dict[str, Any]:
         """Create minimal combined_results structure for reconstruction."""
 
         # This creates a minimal structure that won't break the initialization
         # but isn't used for actual mathematical computation (we restore directly)
         return {
             "semantic_results": {
-                "field_representations": [{"semantic_field": None, "field_metadata": {"source_token": "reconstructed"}}]
+                "field_representations": [
+                    {
+                        "semantic_field": None,
+                        "field_metadata": {"source_token": "reconstructed"},
+                    }
+                ]
             },
             "temporal_results": {
                 "temporal_biographies": [None],
                 # Use scipy.linalg instead of basic numpy - NO BASIC OPERATIONS
                 "field_interference_matrix": np.identity(1, dtype=complex),
                 # Use torch for sophisticated tensor creation - NO BASIC NUMPY
-                "collective_breathing_rhythm": {"collective_frequency": torch.tensor([1.0], dtype=torch.float32)},
+                "collective_breathing_rhythm": {
+                    "collective_frequency": torch.tensor([1.0], dtype=torch.float32)
+                },
             },
             "emotional_results": {
                 "emotional_modulations": [None],
@@ -1307,13 +1541,54 @@ class ConceptualChargeAgent:
             return float(value)
         elif isinstance(value, complex):
             return float(value.real)
-        elif isinstance(value, dict) and "_type" in value and value["_type"] == "complex":
+        elif (
+            isinstance(value, dict) and "_type" in value and value["_type"] == "complex"
+        ):
             return float(value["real"])
         else:
             # DIRECT FLOAT CONVERSION - NO ERROR MASKING
             return float(value)
 
-    def _restore_mathematical_state_from_storage(self, stored_data: Dict[str, Any]) -> None:
+    def _reconstruct_complex_fields_from_storage(
+        self, q_data: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """
+        Reconstruct complex fields from separate real/imag pairs in stored Q_components data.
+
+        This fixes the issue where stored data has E_trajectory_real/E_trajectory_imag but
+        Q_components creation expects E_trajectory as a single complex value.
+
+        NO DEFAULTS, NO FALLBACKS - Either the data exists or it fails.
+        """
+        if not q_data:
+            raise ValueError("Q_components data is missing - cannot reconstruct")
+
+        reconstructed = q_data.copy()
+
+        # List of complex fields that need reconstruction
+        complex_fields = ["E_trajectory", "T_tensor", "phi_semantic", "phase_factor"]
+
+        for field in complex_fields:
+            real_key = f"{field}_real"
+            imag_key = f"{field}_imag"
+
+            # Check if we have both real and imag components
+            if real_key in q_data and imag_key in q_data:
+                real_val = q_data[real_key]
+                imag_val = q_data[imag_key]
+
+                # NO NONE CHECKS - Either the values exist or it fails
+                complex_val = complex(float(real_val), float(imag_val))
+                reconstructed[field] = complex_val
+                logger.debug(
+                    f"🔍 COMPLEX RECONSTRUCT: {field} = {complex_val} (from {real_val} + {imag_val}j)"
+                )
+
+        return reconstructed
+
+    def _restore_mathematical_state_from_storage(
+        self, stored_data: Dict[str, Any]
+    ) -> None:
         """Restore complete mathematical state from stored data."""
 
         q_components = stored_data.get("Q_components")
@@ -1346,7 +1621,10 @@ class ConceptualChargeAgent:
             logger.debug(f"✅ Complex number restoration completed successfully")
 
         # Restore living Q value from storage with proper complex number handling
-        if "living_Q_value_real" in q_components and "living_Q_value_imag" in q_components:
+        if (
+            "living_Q_value_real" in q_components
+            and "living_Q_value_imag" in q_components
+        ):
             real_val = self._extract_float_value(q_components["living_Q_value_real"])
             imag_val = self._extract_float_value(q_components["living_Q_value_imag"])
             self.living_Q_value = complex(real_val, imag_val)
@@ -1385,29 +1663,42 @@ class ConceptualChargeAgent:
             logger.error(
                 f"❌ CRITICAL: Complex number validation failed during reconstruction for agent {getattr(self, 'charge_id', 'unknown')}"
             )
-            logger.error(f"   This will cause comparison errors during evolution simulation!")
+            logger.error(
+                f"   This will cause comparison errors during evolution simulation!"
+            )
             # Log the original q_components for debugging
             logger.error(f"   Original q_components keys: {list(q_components.keys())}")
             for key, value in q_components.items():
                 if isinstance(value, dict) and "_type" in value:
                     logger.error(f"   {key}: {value} (type: {type(value)})")
         else:
-            logger.debug(f"✅ Complex number validation passed for agent {getattr(self, 'charge_id', 'unknown')}")
+            logger.debug(
+                f"✅ Complex number validation passed for agent {getattr(self, 'charge_id', 'unknown')}"
+            )
 
         # ADDITIONAL VALIDATION: Check persistence layers contain only real numbers
         if hasattr(self, "temporal_biography") and self.temporal_biography:
             persistence_layers_to_check = [
                 ("vivid_layer", getattr(self.temporal_biography, "vivid_layer", None)),
-                ("character_layer", getattr(self.temporal_biography, "character_layer", None)),
+                (
+                    "character_layer",
+                    getattr(self.temporal_biography, "character_layer", None),
+                ),
             ]
 
             persistence_validation_failed = False
             for layer_name, layer_data in persistence_layers_to_check:
                 if layer_data is not None and len(layer_data) > 0:
                     # Use torch for sophisticated complex type checking - NO BASIC NUMPY
-                    if torch.is_complex(torch.tensor(layer_data)) or any(torch.is_complex(torch.tensor(item)) for item in layer_data):
-                        logger.error(f"❌ PERSISTENCE LAYER ERROR: {layer_name} contains complex numbers!")
-                        logger.error(f"   This will cause max() comparison errors during persistence calculations!")
+                    if torch.is_complex(torch.tensor(layer_data)) or any(
+                        torch.is_complex(torch.tensor(item)) for item in layer_data
+                    ):
+                        logger.error(
+                            f"❌ PERSISTENCE LAYER ERROR: {layer_name} contains complex numbers!"
+                        )
+                        logger.error(
+                            f"   This will cause max() comparison errors during persistence calculations!"
+                        )
                         persistence_validation_failed = True
 
             if persistence_validation_failed:
@@ -1473,13 +1764,65 @@ class ConceptualChargeAgent:
                 complex_val = complex(real_val, imag_val)
                 setattr(self, agent_attr, complex_val)
 
+                # DEBUG LOGGING: Track E_trajectory restoration specifically
+                if stored_name == "E_trajectory":
+                    logger.debug(
+                        f"🔍 E_TRAJECTORY RESTORE: Agent {getattr(self, 'charge_id', 'unknown')}"
+                    )
+                    logger.debug(
+                        f"   Raw storage keys: {real_key}={q_components.get(real_key)}, {imag_key}={q_components.get(imag_key)}"
+                    )
+                    logger.debug(
+                        f"   Extracted values: real={real_val}, imag={imag_val}"
+                    )
+                    logger.debug(
+                        f"   Complex value created: {complex_val} (type: {type(complex_val)})"
+                    )
+                    logger.debug(f"   E_trajectory is None: {complex_val is None}")
+                    logger.debug(f"   Setting agent.{agent_attr} = {complex_val}")
+            else:
+                # DEBUG LOGGING: Track missing E_trajectory keys
+                if stored_name == "E_trajectory":
+                    logger.warning(
+                        f"🔍 E_TRAJECTORY MISSING: Agent {getattr(self, 'charge_id', 'unknown')}"
+                    )
+                    logger.warning(
+                        f"   Missing keys: {real_key} in q_components: {real_key in q_components}"
+                    )
+                    logger.warning(
+                        f"   Missing keys: {imag_key} in q_components: {imag_key in q_components}"
+                    )
+                    logger.warning(
+                        f"   Available q_components keys: {list(q_components.keys())}"
+                    )
+                    logger.warning(
+                        f"   Agent {agent_attr} will remain unset from restoration"
+                    )
+
         # Restore other Q-component values
         if "gamma" in q_components:
             self.gamma = q_components["gamma"]
         if "psi_persistence" in q_components:
             self.psi_persistence = q_components["psi_persistence"]
 
+        # DEBUG LOGGING: Final verification of E_trajectory restoration
         logger.debug(f"🔧 Mathematical state restored for agent {self.charge_id}")
+        logger.debug(f"🔍 E_TRAJECTORY FINAL: Agent {self.charge_id}")
+        logger.debug(
+            f"   Agent E_trajectory: {getattr(self, 'E_trajectory', 'NOT_SET')} (type: {type(getattr(self, 'E_trajectory', None))})"
+        )
+        logger.debug(
+            f"   Agent E_trajectory is None: {getattr(self, 'E_trajectory', None) is None}"
+        )
+        if hasattr(self, "Q_components") and self.Q_components is not None:
+            logger.debug(
+                f"   Q_components.E_trajectory: {self.Q_components.E_trajectory} (type: {type(self.Q_components.E_trajectory)})"
+            )
+            logger.debug(
+                f"   Q_components.E_trajectory is None: {self.Q_components.E_trajectory is None}"
+            )
+        else:
+            logger.debug(f"   Q_components not set or None")
 
     def _restore_field_and_agent_state(self, stored_data: Dict[str, Any]) -> None:
         """Restore field components and agent state."""
@@ -1494,23 +1837,37 @@ class ConceptualChargeAgent:
 
         class SemanticField:
             def __init__(self, embedding_components, phase_factors=None, device=None):
-                self.device = device or torch.device('cpu')
+                self.device = device or torch.device("cpu")
                 if embedding_components is not None:
                     if hasattr(embedding_components, "cpu"):
-                        self.embedding_components = embedding_components.to(device=self.device, dtype=torch.float32)
+                        self.embedding_components = embedding_components.to(
+                            device=self.device, dtype=torch.float32
+                        )
                     else:
-                        self.embedding_components = torch.tensor(embedding_components, device=self.device, dtype=torch.float32)
+                        self.embedding_components = torch.tensor(
+                            embedding_components,
+                            device=self.device,
+                            dtype=torch.float32,
+                        )
                 else:
-                    self.embedding_components = torch.zeros(384, device=self.device, dtype=torch.float32)
+                    self.embedding_components = torch.zeros(
+                        384, device=self.device, dtype=torch.float32
+                    )
 
                 # MPS-safe tensor conversion for phase factors
                 if phase_factors is not None:
                     if hasattr(phase_factors, "cpu"):
-                        self.phase_factors = phase_factors.to(device=self.device, dtype=torch.float32)
+                        self.phase_factors = phase_factors.to(
+                            device=self.device, dtype=torch.float32
+                        )
                     else:
-                        self.phase_factors = torch.tensor(phase_factors, device=self.device, dtype=torch.float32)
+                        self.phase_factors = torch.tensor(
+                            phase_factors, device=self.device, dtype=torch.float32
+                        )
                 else:
-                    self.phase_factors = torch.ones(1024, device=self.device, dtype=torch.float32)
+                    self.phase_factors = torch.ones(
+                        1024, device=self.device, dtype=torch.float32
+                    )
 
             def evaluate_at(self, position_x: np.ndarray) -> complex:
                 """
@@ -1524,7 +1881,9 @@ class ConceptualChargeAgent:
                 if len(position_x) > 0:
                     position_tensor = torch.tensor(position_x, dtype=torch.float32)
                     position_magnitude = torch.norm(position_tensor).item()
-                    position_factor = 1.0 + 0.1 * torch.sin(torch.tensor(position_magnitude)).item()
+                    position_factor = (
+                        1.0 + 0.1 * torch.sin(torch.tensor(position_magnitude)).item()
+                    )
                 else:
                     # NO FALLBACK - Position must have non-zero dimension
                     raise ValueError(
@@ -1533,20 +1892,33 @@ class ConceptualChargeAgent:
                     )
 
                 # Compute phase factors using torch operations for advanced field computation
-                phase_tensor = torch.tensor(self.phase_factors[: len(self.embedding_components)], dtype=torch.float32)
+                phase_tensor = torch.tensor(
+                    self.phase_factors[: len(self.embedding_components)],
+                    dtype=torch.float32,
+                )
                 phase_factors = torch.exp(1j * phase_tensor)
 
                 # Convert embedding components to tensor for advanced operations
-                embedding_tensor = torch.tensor(self.embedding_components, dtype=torch.complex64)
+                embedding_tensor = torch.tensor(
+                    self.embedding_components, dtype=torch.complex64
+                )
 
                 # Combine embedding components with phase modulation using torch operations
                 modulated_embeddings = embedding_tensor * phase_factors
-                field_real = torch.mean(torch.real(modulated_embeddings)).item() * position_factor
-                field_imag = torch.mean(torch.imag(modulated_embeddings)).item() * position_factor
+                field_real = (
+                    torch.mean(torch.real(modulated_embeddings)).item()
+                    * position_factor
+                )
+                field_imag = (
+                    torch.mean(torch.imag(modulated_embeddings)).item()
+                    * position_factor
+                )
 
                 return complex(field_real, field_imag)
 
-        self.semantic_field = SemanticField(semantic_embedding, semantic_phase_factors, self.device)
+        self.semantic_field = SemanticField(
+            semantic_embedding, semantic_phase_factors, self.device
+        )
 
         # CRITICAL: Initialize semantic_field_data with required field_metadata - NO FALLBACKS
         # Use scipy.signal for sophisticated field magnitude computation - NO BASIC NUMPY
@@ -1554,7 +1926,9 @@ class ConceptualChargeAgent:
 
         if len(self.semantic_field.embedding_components) > 0:
             embedding_signal = self.semantic_field.embedding_components
-            correlation_result = torch.dot(embedding_signal, embedding_signal) / len(embedding_signal)
+            correlation_result = torch.dot(embedding_signal, embedding_signal) / len(
+                embedding_signal
+            )
             field_magnitude = torch.sqrt(correlation_result).item()
         else:
             # NO FALLBACK - Semantic field must have embedding components
@@ -1577,33 +1951,57 @@ class ConceptualChargeAgent:
             trajectory_operators = temporal_biography["trajectory_operators"]
 
         # Get frequency evolution from stored data if available
-        frequency_evolution = temporal_biography.get("frequency_evolution") if temporal_biography else []
+        frequency_evolution = (
+            temporal_biography.get("frequency_evolution") if temporal_biography else []
+        )
 
         class TemporalBiography:
-            def __init__(self, trajectory_operators, frequency_evolution=None, device=None, parent_agent=None):
-                self.device = device or torch.device('cpu')
+            def __init__(
+                self,
+                trajectory_operators,
+                frequency_evolution=None,
+                device=None,
+                parent_agent=None,
+            ):
+                self.device = device or torch.device("cpu")
                 self.parent_agent = parent_agent
-                
+
                 if trajectory_operators is not None and len(trajectory_operators) > 0:
                     if hasattr(trajectory_operators, "cpu"):
-                        self.trajectory_operators = trajectory_operators.to(device=self.device, dtype=torch.complex64)
+                        self.trajectory_operators = trajectory_operators.to(
+                            device=self.device, dtype=torch.complex64
+                        )
                     else:
-                        self.trajectory_operators = torch.tensor(trajectory_operators, device=self.device, dtype=torch.complex64)
+                        self.trajectory_operators = torch.tensor(
+                            trajectory_operators,
+                            device=self.device,
+                            dtype=torch.complex64,
+                        )
                 else:
-                    self.trajectory_operators = torch.tensor([1.0], device=self.device, dtype=torch.complex64)
+                    self.trajectory_operators = torch.tensor(
+                        [1.0], device=self.device, dtype=torch.complex64
+                    )
 
                 if frequency_evolution is not None and len(frequency_evolution) > 0:
                     if hasattr(frequency_evolution, "cpu"):
-                        self.frequency_evolution = frequency_evolution.to(device=self.device, dtype=torch.float32)
+                        self.frequency_evolution = frequency_evolution.to(
+                            device=self.device, dtype=torch.float32
+                        )
                     else:
-                        self.frequency_evolution = torch.tensor(frequency_evolution, device=self.device, dtype=torch.float32)
+                        self.frequency_evolution = torch.tensor(
+                            frequency_evolution, device=self.device, dtype=torch.float32
+                        )
                 else:
-                    self.frequency_evolution = torch.tensor([1.0], device=self.device, dtype=torch.float32)
+                    self.frequency_evolution = torch.tensor(
+                        [1.0], device=self.device, dtype=torch.float32
+                    )
 
                 # CRITICAL FIX: Initialize field_interference_signature - required for FieldCouplingState
                 if len(self.trajectory_operators) > 0:
                     mean_traj = torch.mean(self.trajectory_operators)
-                    self.field_interference_signature = complex(mean_traj.real.item(), mean_traj.imag.item())
+                    self.field_interference_signature = complex(
+                        mean_traj.real.item(), mean_traj.imag.item()
+                    )
                 else:
                     # NO FALLBACK - Trajectory operators must exist
                     raise ValueError(
@@ -1613,14 +2011,24 @@ class ConceptualChargeAgent:
 
                 if temporal_biography and "breathing_coherence" in temporal_biography:
                     raw_breathing_coherence = temporal_biography["breathing_coherence"]
-                    logger.info(f"🔍 AGENT_RECONSTRUCTION: Raw breathing_coherence from temporal_biography: {raw_breathing_coherence} (type: {type(raw_breathing_coherence)})")
+                    logger.info(
+                        f"🔍 AGENT_RECONSTRUCTION: Raw breathing_coherence from temporal_biography: {raw_breathing_coherence} (type: {type(raw_breathing_coherence)})"
+                    )
                     self.breathing_coherence = float(raw_breathing_coherence)
-                    logger.info(f"🔍 AGENT_RECONSTRUCTION: Agent {getattr(self, 'charge_id', 'unknown')} converted breathing_coherence: {self.breathing_coherence} (finite: {math.isfinite(self.breathing_coherence)})")
-                    print(f"DEBUG: Agent {getattr(self, 'charge_id', 'unknown')} using stored breathing_coherence: {self.breathing_coherence}")
+                    logger.info(
+                        f"🔍 AGENT_RECONSTRUCTION: Agent {getattr(self, 'charge_id', 'unknown')} converted breathing_coherence: {self.breathing_coherence} (finite: {math.isfinite(self.breathing_coherence)})"
+                    )
+                    print(
+                        f"DEBUG: Agent {getattr(self, 'charge_id', 'unknown')} using stored breathing_coherence: {self.breathing_coherence}"
+                    )
                 elif len(self.frequency_evolution) > 0:
                     # 🌊 REGULATION-PROTECTED BREATHING COHERENCE CALCULATION
                     if self.parent_agent is not None:
-                        freq_var = self.parent_agent._safe_breathing_coherence_calculation(self.frequency_evolution)
+                        freq_var = (
+                            self.parent_agent._safe_breathing_coherence_calculation(
+                                self.frequency_evolution
+                            )
+                        )
                     else:
                         # Fallback if no parent agent provided
                         freq_var = torch.var(self.frequency_evolution).item()
@@ -1639,65 +2047,123 @@ class ConceptualChargeAgent:
 
                 # phase_coordination - required for breathing coordination
                 self.phase_coordination = (
-                    self.frequency_evolution.clone() if len(self.frequency_evolution) > 0 else torch.tensor([1.0], dtype=torch.float32)
+                    self.frequency_evolution.clone()
+                    if len(self.frequency_evolution) > 0
+                    else torch.tensor([1.0], dtype=torch.float32)
                 )
 
-                # CRITICAL FIX: Initialize missing vivid_layer and character_layer for Q computation persistence
-                # ENSURE REAL VALUES ONLY - extract real parts if trajectory_operators contain complex numbers
-                if len(self.trajectory_operators) > 0:
-                    self.vivid_layer = torch.abs(self.trajectory_operators).to(dtype=torch.float32)
-                else:
-                    self.vivid_layer = torch.tensor([1.0], device=self.device, dtype=torch.float32)
+        # Create TemporalBiography with proper layers
+        self.temporal_biography = TemporalBiography(
+            trajectory_operators, frequency_evolution, self.device, self
+        )
 
-                if len(self.frequency_evolution) > 0:
-                    self.character_layer = torch.abs(self.frequency_evolution).to(dtype=torch.float32)
-                else:
-                    self.character_layer = torch.tensor([1.0], device=self.device, dtype=torch.float32)
+        # CRITICAL FIX: Add missing vivid_layer and character_layer to TemporalBiography
+        # ENSURE REAL VALUES ONLY - extract real parts if trajectory_operators contain complex numbers
+        if len(self.temporal_biography.trajectory_operators) > 0:
+            self.temporal_biography.vivid_layer = torch.abs(
+                self.temporal_biography.trajectory_operators
+            ).to(dtype=torch.float32)
+        else:
+            self.temporal_biography.vivid_layer = torch.tensor(
+                [1.0], device=self.device, dtype=torch.float32
+            )
 
-        self.temporal_biography = TemporalBiography(trajectory_operators, frequency_evolution, self.device, self)
+        if len(self.temporal_biography.frequency_evolution) > 0:
+            self.temporal_biography.character_layer = torch.abs(
+                self.temporal_biography.frequency_evolution
+            ).to(dtype=torch.float32)
+        else:
+            self.temporal_biography.character_layer = torch.tensor(
+                [1.0], device=self.device, dtype=torch.float32
+            )
 
         # Create emotional modulation object from stored data
         emotional_trajectory = field_components.get("emotional_trajectory")
+        logger.debug(
+            f"🔍 DEBUG: Reconstruction emotional_trajectory from field_components: {type(emotional_trajectory)} = {emotional_trajectory is not None}"
+        )
+        if emotional_trajectory is not None:
+            logger.debug(
+                f"   - Shape: {getattr(emotional_trajectory, 'shape', 'N/A')}, Device: {getattr(emotional_trajectory, 'device', 'N/A')}"
+            )
+
         if emotional_modulation and "emotional_trajectory" in emotional_modulation:
             emotional_trajectory = emotional_modulation["emotional_trajectory"]
+            logger.debug(
+                f"🔍 DEBUG: Using emotional_trajectory from emotional_modulation: {type(emotional_trajectory)}"
+            )
 
+        logger.debug(
+            f"🔍 DEBUG: Final emotional_trajectory before EmotionalModulation init: {emotional_trajectory is not None}"
+        )
 
         class EmotionalModulation:
             def __init__(self, emotional_trajectory, device):
                 self.device = device
-                
+                logger.debug(
+                    f"🔍 DEBUG: EmotionalModulation.__init__ received: {type(emotional_trajectory)} = {emotional_trajectory is not None}"
+                )
+
                 if emotional_trajectory is not None and len(emotional_trajectory) > 0:
                     if hasattr(emotional_trajectory, "cpu"):
-                        self.emotional_trajectory = emotional_trajectory.to(device=self.device, dtype=torch.float32)
+                        self.emotional_trajectory = emotional_trajectory.to(
+                            device=self.device, dtype=torch.float32
+                        )
                     else:
-                        self.emotional_trajectory = torch.tensor(emotional_trajectory, device=self.device, dtype=torch.float32)
-                    
+                        self.emotional_trajectory = torch.tensor(
+                            emotional_trajectory,
+                            device=self.device,
+                            dtype=torch.float32,
+                        )
+
                     # FIX: Replace any NaN values in emotional_trajectory with default values
                     nan_mask = torch.isnan(self.emotional_trajectory)
                     if torch.any(nan_mask):
-                        logger.warning(f"🔧 EmotionalModulation: Replacing {torch.sum(nan_mask).item()} NaN values in emotional_trajectory")
-                        self.emotional_trajectory = torch.where(nan_mask, torch.tensor(18.0, device=self.device, dtype=torch.float32), self.emotional_trajectory)
+                        logger.warning(
+                            f"🔧 EmotionalModulation: Replacing {torch.sum(nan_mask).item()} NaN values in emotional_trajectory"
+                        )
+                        self.emotional_trajectory = torch.where(
+                            nan_mask,
+                            torch.tensor(18.0, device=self.device, dtype=torch.float32),
+                            self.emotional_trajectory,
+                        )
                 else:
-                    self.emotional_trajectory = torch.tensor([1.0], device=self.device, dtype=torch.float32)
+                    self.emotional_trajectory = torch.tensor(
+                        [1.0], device=self.device, dtype=torch.float32
+                    )
 
                 self.semantic_modulation_tensor = self.emotional_trajectory.clone()
 
                 if len(self.emotional_trajectory) > 0:
                     mean_emot = torch.mean(self.emotional_trajectory).item()
                     if not math.isfinite(mean_emot):
-                        logger.warning(f"🔧 EmotionalModulation: NaN detected in emotional_trajectory mean, using fallback")
+                        logger.warning(
+                            f"🔧 EmotionalModulation: NaN detected in emotional_trajectory mean, using fallback"
+                        )
                         mean_emot = 1.0
                     self.unified_phase_shift = complex(float(mean_emot), 0.1)
                 else:
                     self.unified_phase_shift = complex(1.0, 0.1)
 
                 num_points = min(len(self.emotional_trajectory), 5)
-                self.trajectory_attractors = torch.linspace(0.5, 2.0, num_points, device=self.device, dtype=torch.float32)
+                self.trajectory_attractors = torch.linspace(
+                    0.5, 2.0, num_points, device=self.device, dtype=torch.float32
+                )
 
-                self.resonance_frequencies = torch.tensor([1.0, 2.0, 3.0, 5.0, 8.0], device=self.device, dtype=torch.float32)
+                self.resonance_frequencies = torch.tensor(
+                    [1.0, 2.0, 3.0, 5.0, 8.0], device=self.device, dtype=torch.float32
+                )
 
-        self.emotional_modulation = EmotionalModulation(emotional_trajectory, self.device)
-
+        self.emotional_modulation = EmotionalModulation(
+            emotional_trajectory, self.device
+        )
+        logger.debug(
+            f"🔍 DEBUG: EmotionalModulation created, has emotional_trajectory: {hasattr(self.emotional_modulation, 'emotional_trajectory')}"
+        )
+        if hasattr(self.emotional_modulation, "emotional_trajectory"):
+            logger.debug(
+                f"   - emotional_modulation.emotional_trajectory is None: {self.emotional_modulation.emotional_trajectory is None}"
+            )
 
         # Initialize minimal state and coupling structures for reconstruction
         self.state = AgentFieldState(
@@ -1709,16 +2175,23 @@ class ConceptualChargeAgent:
             trajectory_time=0.0,
         )
 
+        # Alias for geometric regulation compatibility - provides agent.field_state.field_position access
+        self.field_state = self.state
+
         # CRITICAL: Initialize ALL required mathematical components - NO FALLBACKS
 
         # Initialize field_interference_matrix - required for Q computation
         # Use scipy.linalg for sophisticated matrix operations - NO BASIC NUMPY
-        self.field_interference_matrix = np.identity(1, dtype=complex)  # Complex identity matrix for field coupling
+        self.field_interference_matrix = np.identity(
+            1, dtype=complex
+        )  # Complex identity matrix for field coupling
 
         # Initialize breathing coefficients - complete mathematical structure required
         self._initialize_breathing_q_expansion_for_reconstruction()
         # Use torch for sophisticated tensor creation - NO BASIC NUMPY
-        self.collective_breathing = {"collective_frequency": torch.tensor([1.0], dtype=torch.float32)}
+        self.collective_breathing = {
+            "collective_frequency": torch.tensor([1.0], dtype=torch.float32)
+        }
         self.breath_frequency = 0.1
         self.breath_amplitude = 1.0
         self.breath_phase = 0.0
@@ -1726,7 +2199,9 @@ class ConceptualChargeAgent:
         # CRITICAL FIX: Initialize missing emotional_field_signature for Q computation
         class EmotionalFieldSignature:
             def __init__(self):
-                self.field_modulation_strength = 1.0  # Required for coupling_state initialization
+                self.field_modulation_strength = (
+                    1.0  # Required for coupling_state initialization
+                )
                 self.phase_coherence = 0.5
                 self.emotional_amplitude = 1.0
 
@@ -1765,30 +2240,48 @@ class ConceptualChargeAgent:
 
         missing_attrs = [attr for attr in required_attrs if not hasattr(self, attr)]
         if missing_attrs:
-            logger.error(f"❌ CRITICAL: Missing mathematical components after reconstruction: {missing_attrs}")
-            raise ValueError(f"Reconstruction failed - missing required mathematical components: {missing_attrs}")
+            logger.error(
+                f"❌ CRITICAL: Missing mathematical components after reconstruction: {missing_attrs}"
+            )
+            raise ValueError(
+                f"Reconstruction failed - missing required mathematical components: {missing_attrs}"
+            )
 
         # Validate mathematical component structures
         validation_errors = []
 
         if not isinstance(self.tau_position, complex):
-            validation_errors.append(f"tau_position must be complex, got {type(self.tau_position)}")
+            validation_errors.append(
+                f"tau_position must be complex, got {type(self.tau_position)}"
+            )
 
-        if not isinstance(self.breathing_q_coefficients, dict) or len(self.breathing_q_coefficients) == 0:
+        if (
+            not isinstance(self.breathing_q_coefficients, dict)
+            or len(self.breathing_q_coefficients) == 0
+        ):
             validation_errors.append(
                 f"breathing_q_coefficients must be non-empty dict, got {type(self.breathing_q_coefficients)}"
             )
 
-        if not hasattr(self.geometric_features, "shape") or len(self.geometric_features) != 4:
+        if (
+            not hasattr(self.geometric_features, "shape")
+            or len(self.geometric_features) != 4
+        ):
             validation_errors.append(
                 f"geometric_features must be tensor with 4 elements, got shape {getattr(self.geometric_features, 'shape', 'unknown')}"
             )
 
         if validation_errors:
-            logger.error(f"❌ CRITICAL: Mathematical component validation errors: {validation_errors}")
-            raise ValueError(f"Reconstruction failed - invalid mathematical components: {validation_errors}")
+            logger.error(
+                f"❌ CRITICAL: Mathematical component validation errors: {validation_errors}"
+            )
+            raise ValueError(
+                f"Reconstruction failed - invalid mathematical components: {validation_errors}"
+            )
 
-        logger.info(f"✅ All mathematical components properly initialized for agent {self.charge_id}")
+        logger.info(
+            f"✅ All mathematical components properly initialized for agent {self.charge_id}"
+        )
 
         logger.debug(f"🔧 Field and agent state restored for agent {self.charge_id}")
 
@@ -1804,11 +2297,16 @@ class ConceptualChargeAgent:
         self.tau_position = complex(real_part, imag_part)
 
         # Modular weight determines transformation behavior - derive from semantic field
-        if hasattr(self.semantic_field, "embedding_components") and len(self.semantic_field.embedding_components) > 0:
+        if (
+            hasattr(self.semantic_field, "embedding_components")
+            and len(self.semantic_field.embedding_components) > 0
+        ):
             # Use scipy special functions for sophisticated averaging - NO BASIC NUMPY
             # Use torch for sophisticated absolute value - NO BASIC NUMPY
             abs_components = torch.abs(self.semantic_field.embedding_components)
-            field_magnitude = torch.logsumexp(abs_components, dim=0).item() / len(abs_components)
+            field_magnitude = torch.logsumexp(abs_components, dim=0).item() / len(
+                abs_components
+            )
         else:
             field_magnitude = 1.0
         self.modular_weight = max(2, int(2 * field_magnitude))  # Even weight ≥ 2
@@ -1827,12 +2325,19 @@ class ConceptualChargeAgent:
 
         # Create geometric node features for PyTorch Geometric operations
         self.geometric_features = torch.tensor(
-            [self.tau_position.real, self.tau_position.imag, self.modular_weight, self.emotional_conductivity],
+            [
+                self.tau_position.real,
+                self.tau_position.imag,
+                self.modular_weight,
+                self.emotional_conductivity,
+            ],
             dtype=torch.float32,
             device=self.device,
         )
 
-        logger.debug(f"🔧 Modular geometry initialized: τ={self.tau_position}, weight={self.modular_weight}")
+        logger.debug(
+            f"🔧 Modular geometry initialized: τ={self.tau_position}, weight={self.modular_weight}"
+        )
 
     def _initialize_breathing_q_expansion_for_reconstruction(self):
         """Initialize complete breathing q-coefficients during reconstruction - NO FALLBACKS."""
@@ -1842,12 +2347,18 @@ class ConceptualChargeAgent:
 
         # Create complex q-coefficients: semantic (real) + temporal (imaginary)
         self.breathing_q_coefficients = {}
-        max_coeffs = min(1024, len(semantic_components)) if semantic_components is not None else 128
+        max_coeffs = (
+            min(1024, len(semantic_components))
+            if semantic_components is not None
+            else 128
+        )
 
         for n in range(max_coeffs):
             # Real part from semantic field strength
             if semantic_components is not None and n < len(semantic_components):
-                real_part = float(semantic_components[n])  # Ensure proper scalar conversion
+                real_part = float(
+                    semantic_components[n]
+                )  # Ensure proper scalar conversion
             else:
                 real_part = 0.1  # Minimal real component
 
@@ -1857,7 +2368,9 @@ class ConceptualChargeAgent:
                 and self.temporal_biography.frequency_evolution is not None
                 and n < len(self.temporal_biography.frequency_evolution)
             ):
-                imag_part = float(self.temporal_biography.frequency_evolution[n])  # Ensure proper scalar conversion
+                imag_part = float(
+                    self.temporal_biography.frequency_evolution[n]
+                )  # Ensure proper scalar conversion
             else:
                 imag_part = 0.1  # Minimal imaginary component
 
@@ -1872,7 +2385,9 @@ class ConceptualChargeAgent:
 
             self.breathing_q_coefficients[n] = coeff
 
-        logger.debug(f"🔧 Breathing q-coefficients initialized: {len(self.breathing_q_coefficients)} coefficients")
+        logger.debug(
+            f"🔧 Breathing q-coefficients initialized: {len(self.breathing_q_coefficients)} coefficients"
+        )
 
         # FINAL VALIDATION of all initialized coefficients
         for n, coeff in self.breathing_q_coefficients.items():
@@ -1894,7 +2409,9 @@ class ConceptualChargeAgent:
                 traj_val = trajectory_ops[i]
                 # Use torch for sophisticated complex type checking - NO BASIC NUMPY
                 if torch.is_complex(torch.tensor(traj_val)):
-                    self.hecke_eigenvalues[p] = complex(float(traj_val.real), float(traj_val.imag))
+                    self.hecke_eigenvalues[p] = complex(
+                        float(traj_val.real), float(traj_val.imag)
+                    )
                 else:
                     self.hecke_eigenvalues[p] = complex(float(traj_val), 0.0)
             else:
@@ -1902,7 +2419,9 @@ class ConceptualChargeAgent:
 
         # Initialize L-function coefficients for Q computation
         self.l_function_coefficients = {}
-        for n in range(1, min(50, len(self.emotional_modulation.semantic_modulation_tensor) + 1)):
+        for n in range(
+            1, min(50, len(self.emotional_modulation.semantic_modulation_tensor) + 1)
+        ):
             base_coeff = self.emotional_modulation.semantic_modulation_tensor[
                 n % len(self.emotional_modulation.semantic_modulation_tensor)
             ].item()
@@ -1914,9 +2433,13 @@ class ConceptualChargeAgent:
                 ],
                 dtype=torch.float32,
             )
-            emotional_phase = torch.atan2(unified_tensor[1], unified_tensor[0]).item() * n / 10
+            emotional_phase = (
+                torch.atan2(unified_tensor[1], unified_tensor[0]).item() * n / 10
+            )
             # Use protected phase exponential for L-function emotional modulation
-            exp_factor = self._safe_phase_exponential(emotional_phase, f"L-function coefficient n={n}")
+            exp_factor = self._safe_phase_exponential(
+                emotional_phase, f"L-function coefficient n={n}"
+            )
             self.l_function_coefficients[n] = base_coeff * exp_factor
 
         # Initialize Hecke adaptivity for agent interactions
@@ -1938,23 +2461,34 @@ class ConceptualChargeAgent:
         """
         # Validate semantic field data
         if not hasattr(self.semantic_field, "embedding_components"):
-            raise ValueError(f"Charge {charge_index} - semantic_field missing embedding_components")
+            raise ValueError(
+                f"Charge {charge_index} - semantic_field missing embedding_components"
+            )
 
         if hasattr(self.semantic_field, "embedding_components"):
             embedding_components = self.semantic_field.embedding_components
             # Use torch for sophisticated tensor operations - NO BASIC NUMPY
-            if torch.all(torch.abs(torch.tensor(embedding_components, dtype=torch.float32)) < 1e-12):
+            if torch.all(
+                torch.abs(torch.tensor(embedding_components, dtype=torch.float32))
+                < 1e-12
+            ):
                 # NO WARNINGS FOR MATHEMATICAL FAILURES - this breaks semantic computation
                 raise ValueError(
                     f"Charge {charge_index} - All semantic embedding components near zero - Semantic dimension system failed!"
                 )
 
-            if np.any(np.isnan(embedding_components)) or np.any(np.isinf(embedding_components)):
-                raise ValueError(f"Charge {charge_index} - Invalid semantic embedding components (NaN/Inf)")
+            if np.any(np.isnan(embedding_components)) or np.any(
+                np.isinf(embedding_components)
+            ):
+                raise ValueError(
+                    f"Charge {charge_index} - Invalid semantic embedding components (NaN/Inf)"
+                )
 
         # Validate temporal biography data
         if not hasattr(self.temporal_biography, "trajectory_operators"):
-            raise ValueError(f"Charge {charge_index} - temporal_biography missing trajectory_operators")
+            raise ValueError(
+                f"Charge {charge_index} - temporal_biography missing trajectory_operators"
+            )
 
         trajectory_ops = self.temporal_biography.trajectory_operators
         if len(trajectory_ops) == 0:
@@ -1963,17 +2497,23 @@ class ConceptualChargeAgent:
                 f"Charge {charge_index} - Empty trajectory_operators array - Temporal dimension system failed!"
             )
         # Use torch for sophisticated tensor operations - NO BASIC NUMPY
-        elif torch.all(torch.abs(torch.tensor(trajectory_ops, dtype=torch.float32)) < 1e-12):
+        elif torch.all(
+            torch.abs(torch.tensor(trajectory_ops, dtype=torch.float32)) < 1e-12
+        ):
             # NO WARNINGS - zero operators break T_tensor computation
             raise ValueError(
                 f"Charge {charge_index} - All trajectory operators near zero - Will cause T_tensor=0j mathematical failure!"
             )
 
         if np.any(np.isnan(trajectory_ops)) or np.any(np.isinf(trajectory_ops)):
-            raise ValueError(f"Charge {charge_index} - Invalid trajectory operators (NaN/Inf)")
+            raise ValueError(
+                f"Charge {charge_index} - Invalid trajectory operators (NaN/Inf)"
+            )
 
         # Validate vivid and character layers for persistence
-        if hasattr(self.temporal_biography, "vivid_layer") and hasattr(self.temporal_biography, "character_layer"):
+        if hasattr(self.temporal_biography, "vivid_layer") and hasattr(
+            self.temporal_biography, "character_layer"
+        ):
             vivid_layer = self.temporal_biography.vivid_layer
             character_layer = self.temporal_biography.character_layer
 
@@ -1984,7 +2524,9 @@ class ConceptualChargeAgent:
                 )
 
             # Use torch for sophisticated tensor operations - NO BASIC NUMPY
-            if torch.all(torch.tensor(vivid_layer, dtype=torch.float32) < 1e-10) and torch.all(torch.tensor(character_layer, dtype=torch.float32) < 1e-10):
+            if torch.all(
+                torch.tensor(vivid_layer, dtype=torch.float32) < 1e-10
+            ) and torch.all(torch.tensor(character_layer, dtype=torch.float32) < 1e-10):
                 # NO WARNINGS - tiny values cause mathematical underflow
                 raise ValueError(
                     f"Charge {charge_index} - Persistence layers extremely small - Will cause mathematical underflow!"
@@ -1992,14 +2534,20 @@ class ConceptualChargeAgent:
 
         # Validate emotional modulation data
         if not hasattr(self.emotional_modulation, "semantic_modulation_tensor"):
-            raise ValueError(f"Charge {charge_index} - emotional_modulation missing semantic_modulation_tensor")
+            raise ValueError(
+                f"Charge {charge_index} - emotional_modulation missing semantic_modulation_tensor"
+            )
 
         if not hasattr(self.emotional_modulation, "unified_phase_shift"):
-            raise ValueError(f"Charge {charge_index} - emotional_modulation missing unified_phase_shift")
+            raise ValueError(
+                f"Charge {charge_index} - emotional_modulation missing unified_phase_shift"
+            )
 
         modulation_tensor = self.emotional_modulation.semantic_modulation_tensor
         if np.any(np.isnan(modulation_tensor)) or np.any(np.isinf(modulation_tensor)):
-            raise ValueError(f"Charge {charge_index} - Invalid emotional modulation tensor (NaN/Inf)")
+            raise ValueError(
+                f"Charge {charge_index} - Invalid emotional modulation tensor (NaN/Inf)"
+            )
 
         # Check for identical modulations (uniqueness validation)
         if hasattr(self, "_global_modulation_check"):
@@ -2017,7 +2565,9 @@ class ConceptualChargeAgent:
         """
         if self.Q_components is None:
             # NO WARNINGS - missing Q_components means mathematical system is broken
-            raise ValueError(f"Agent {self.charge_id} - Q_components not yet computed - Mathematical state corrupted!")
+            raise ValueError(
+                f"Agent {self.charge_id} - Q_components not yet computed - Mathematical state corrupted!"
+            )
 
         issues = []
 
@@ -2043,11 +2593,15 @@ class ConceptualChargeAgent:
         # phase_factor magnitude should be close to 1.0 (complex exponential)
         phase_magnitude = abs(self.Q_components.phase_factor)
         if not (0.5 <= phase_magnitude <= 1.5):
-            issues.append(f"|phase_factor|={phase_magnitude:.6f} outside [0.5, 1.5] (should be ≈1.0)")
+            issues.append(
+                f"|phase_factor|={phase_magnitude:.6f} outside [0.5, 1.5] (should be ≈1.0)"
+            )
 
         # psi_persistence should be 0.001-2.0 range
         if not (0.001 <= self.Q_components.psi_persistence <= 2.0):
-            issues.append(f"psi_persistence={self.Q_components.psi_persistence:.6f} outside [0.001, 2.0]")
+            issues.append(
+                f"psi_persistence={self.Q_components.psi_persistence:.6f} outside [0.001, 2.0]"
+            )
 
         # Final Q magnitude should be 0.0001-20.0 range
         Q_magnitude = abs(self.Q_components.Q_value)
@@ -2070,7 +2624,9 @@ class ConceptualChargeAgent:
                     or np.isinf(component_value.real)
                     or np.isinf(component_value.imag)
                 ):
-                    issues.append(f"{component_name} contains NaN/Inf: {component_value}")
+                    issues.append(
+                        f"{component_name} contains NaN/Inf: {component_value}"
+                    )
             elif np.isnan(component_value) or np.isinf(component_value):
                 issues.append(f"{component_name} is NaN/Inf: {component_value}")
 
@@ -2107,7 +2663,9 @@ class ConceptualChargeAgent:
             return complex(float(form_value.real()), float(form_value.imag()))
         else:
             # This should NEVER happen for weight >= 4
-            raise ValueError(f"No Eisenstein forms available for weight {weight} - mathematical integrity violated!")
+            raise ValueError(
+                f"No Eisenstein forms available for weight {weight} - mathematical integrity violated!"
+            )
 
     def _evaluate_breathing_eisenstein_series(self, tau_complex, harmonic_number=1):
         """
@@ -2117,17 +2675,30 @@ class ConceptualChargeAgent:
         """
         # Use different weights for different harmonics
         base_weight = 4
-        harmonic_weight = base_weight + (harmonic_number % 8) * 2  # Vary weight with harmonic
+        harmonic_weight = (
+            base_weight + (harmonic_number % 8) * 2
+        )  # Vary weight with harmonic
 
         # Evaluate Eisenstein series at tau position
-        eisenstein_value = self._evaluate_eisenstein_at_tau(tau_complex, harmonic_weight)
+        eisenstein_value = self._evaluate_eisenstein_at_tau(
+            tau_complex, harmonic_weight
+        )
 
         # Extract breathing amplitude from modular form magnitude
-        breathing_amplitude = abs(eisenstein_value) / 100.0  # Scale to reasonable breathing range
-        breathing_phase = torch.angle(torch.tensor(eisenstein_value, dtype=torch.complex64)).item()
+        breathing_amplitude = (
+            abs(eisenstein_value) / 100.0
+        )  # Scale to reasonable breathing range
+        breathing_phase = torch.angle(
+            torch.tensor(eisenstein_value, dtype=torch.complex64)
+        ).item()
 
         # REAL modular breathing factor
-        return 1.0 + self.breath_amplitude * breathing_amplitude * torch.cos(torch.tensor(breathing_phase)).item()
+        return (
+            1.0
+            + self.breath_amplitude
+            * breathing_amplitude
+            * torch.cos(torch.tensor(breathing_phase)).item()
+        )
 
     def _initialize_living_modular_form(self):
         """
@@ -2202,14 +2773,18 @@ class ConceptualChargeAgent:
             # Create living coefficient
             base_coeff = complex(real_part, imag_part)
             # Use protected phase exponential for breathing coefficient reconstruction
-            phase_factor = self._safe_phase_exponential(phase, f"breathing reconstruction n={n}")
+            phase_factor = self._safe_phase_exponential(
+                phase, f"breathing reconstruction n={n}"
+            )
 
             # VALIDATE intermediate calculations
             if not (math.isfinite(base_coeff.real) and math.isfinite(base_coeff.imag)):
                 raise ValueError(
                     f"Agent {self.charge_id}: RECONSTRUCTION base_coeff[{n}] is {base_coeff} - base complex creation corrupted!"
                 )
-            if not (math.isfinite(phase_factor.real) and math.isfinite(phase_factor.imag)):
+            if not (
+                math.isfinite(phase_factor.real) and math.isfinite(phase_factor.imag)
+            ):
                 raise ValueError(
                     f"Agent {self.charge_id}: RECONSTRUCTION phase_factor[{n}] is {phase_factor} - exponential phase computation corrupted!"
                 )
@@ -2217,7 +2792,9 @@ class ConceptualChargeAgent:
             final_coeff = base_coeff * phase_factor
 
             # VALIDATE final coefficient before assignment
-            if not (math.isfinite(final_coeff.real) and math.isfinite(final_coeff.imag)):
+            if not (
+                math.isfinite(final_coeff.real) and math.isfinite(final_coeff.imag)
+            ):
                 raise ValueError(
                     f"Agent {self.charge_id}: RECONSTRUCTION final_coeff[{n}] is {final_coeff} - coefficient reconstruction corrupted! base={base_coeff}, phase_factor={phase_factor}"
                 )
@@ -2262,7 +2839,9 @@ class ConceptualChargeAgent:
                 traj_val = trajectory_ops[i]
                 # Use torch for sophisticated complex type checking - NO BASIC NUMPY
                 if torch.is_complex(torch.tensor(traj_val)):
-                    self.hecke_eigenvalues[p] = complex(float(traj_val.real), float(traj_val.imag))
+                    self.hecke_eigenvalues[p] = complex(
+                        float(traj_val.real), float(traj_val.imag)
+                    )
                 else:
                     self.hecke_eigenvalues[p] = complex(float(traj_val), 0.0)
             else:
@@ -2282,17 +2861,27 @@ class ConceptualChargeAgent:
         self.l_function_coefficients = {}
         for n in range(1, min(100, len(modulation_tensor) + 1)):
             # Coefficient from modulation tensor with emotional phase
-            base_coeff = modulation_tensor[n - 1] if n - 1 < len(modulation_tensor) else 1.0
+            base_coeff = (
+                modulation_tensor[n - 1] if n - 1 < len(modulation_tensor) else 1.0
+            )
             # Use torch for advanced angle computation - NO BASIC NUMPY
-            phase_tensor = torch.tensor([unified_phase.real, unified_phase.imag], dtype=torch.float32)
-            emotional_phase = torch.atan2(phase_tensor[1], phase_tensor[0]).item() * n / 10
+            phase_tensor = torch.tensor(
+                [unified_phase.real, unified_phase.imag], dtype=torch.float32
+            )
+            emotional_phase = (
+                torch.atan2(phase_tensor[1], phase_tensor[0]).item() * n / 10
+            )
 
             # Use protected phase exponential for L-function emotional modulation
-            exp_factor = self._safe_phase_exponential(emotional_phase, f"L-function coefficient n={n}")
+            exp_factor = self._safe_phase_exponential(
+                emotional_phase, f"L-function coefficient n={n}"
+            )
             self.l_function_coefficients[n] = base_coeff * exp_factor
 
         # Emotional conductor strength affects L-function evolution
-        self.emotional_conductivity = self.emotional_modulation.field_modulation_strength
+        self.emotional_conductivity = (
+            self.emotional_modulation.field_modulation_strength
+        )
 
     def _initialize_modular_geometry(self):
         """Position agent in modular fundamental domain."""
@@ -2311,7 +2900,12 @@ class ConceptualChargeAgent:
 
         # Create geometric node features for PyTorch Geometric - REQUIRED (NO FALLBACKS)
         self.geometric_features = torch.tensor(
-            [self.tau_position.real, self.tau_position.imag, self.modular_weight, self.emotional_conductivity],
+            [
+                self.tau_position.real,
+                self.tau_position.imag,
+                self.modular_weight,
+                self.emotional_conductivity,
+            ],
             dtype=torch.float32,
             device=self.device,
         )
@@ -2361,8 +2955,12 @@ class ConceptualChargeAgent:
 
         # REAL modular breathing using Eisenstein series evaluation
         # Convert breathing phase to complex tau in upper half-plane
-        tau_breathing = complex(0.5, 0.5 + abs(self.breath_phase) * 0.1)  # Keep in upper half-plane
-        breath_factor = self._evaluate_breathing_eisenstein_series(tau_breathing, harmonic_number=1)
+        tau_breathing = complex(
+            0.5, 0.5 + abs(self.breath_phase) * 0.1
+        )  # Keep in upper half-plane
+        breath_factor = self._evaluate_breathing_eisenstein_series(
+            tau_breathing, harmonic_number=1
+        )
 
         # ACTUAL JIT USAGE: Prepare coefficient arrays for high-performance compiled computation
         n_coefficients = len(self.breathing_q_coefficients)
@@ -2371,10 +2969,12 @@ class ConceptualChargeAgent:
         # Convert complex coefficients to separate real/imaginary arrays for JIT processing
         # Use torch for sophisticated tensor creation - NO BASIC NUMPY
         coeff_real_array = torch.tensor(
-            [self.breathing_q_coefficients[n].real for n in coefficient_indices], dtype=torch.float64
+            [self.breathing_q_coefficients[n].real for n in coefficient_indices],
+            dtype=torch.float64,
         ).numpy()
         coeff_imag_array = torch.tensor(
-            [self.breathing_q_coefficients[n].imag for n in coefficient_indices], dtype=torch.float64
+            [self.breathing_q_coefficients[n].imag for n in coefficient_indices],
+            dtype=torch.float64,
         ).numpy()
 
         # Prepare breathing factors using REAL Eisenstein series evaluation
@@ -2384,8 +2984,12 @@ class ConceptualChargeAgent:
 
         for i, n in enumerate(coefficient_indices):
             # REAL harmonic breathing using Eisenstein series at different tau positions
-            harmonic_tau = complex(0.5 + n * 0.01, 0.5 + abs(self.breath_phase * (1 + n / 100)) * 0.1)
-            harmonic_factor = self._evaluate_breathing_eisenstein_series(harmonic_tau, harmonic_number=n + 1)
+            harmonic_tau = complex(
+                0.5 + n * 0.01, 0.5 + abs(self.breath_phase * (1 + n / 100)) * 0.1
+            )
+            harmonic_factor = self._evaluate_breathing_eisenstein_series(
+                harmonic_tau, harmonic_number=n + 1
+            )
 
             # VALIDATE breathing factors before JIT processing
             if not math.isfinite(breath_factor):
@@ -2419,7 +3023,10 @@ class ConceptualChargeAgent:
             jit_updated_coeff = complex(updated_real[i], updated_imag[i])
 
             # VALIDATE JIT results
-            if not (math.isfinite(jit_updated_coeff.real) and math.isfinite(jit_updated_coeff.imag)):
+            if not (
+                math.isfinite(jit_updated_coeff.real)
+                and math.isfinite(jit_updated_coeff.imag)
+            ):
                 raise ValueError(
                     f"Agent {self.charge_id}: JIT breathing update produced invalid coefficient {jit_updated_coeff} for index {n}"
                 )
@@ -2434,7 +3041,9 @@ class ConceptualChargeAgent:
                 )
 
             # Use torch for advanced phase computation - NO BASIC NUMPY
-            coeff_tensor = torch.tensor([jit_updated_coeff.real, jit_updated_coeff.imag], dtype=torch.float32)
+            coeff_tensor = torch.tensor(
+                [jit_updated_coeff.real, jit_updated_coeff.imag], dtype=torch.float32
+            )
             current_phase = torch.atan2(coeff_tensor[1], coeff_tensor[0]).item()
             magnitude = abs(jit_updated_coeff)
 
@@ -2443,7 +3052,9 @@ class ConceptualChargeAgent:
             new_phase = current_phase + phase_increment
 
             # Update with evolved phase using torch - NO BASIC NUMPY
-            exp_factor = torch.exp(1j * torch.tensor(new_phase, dtype=torch.float32)).item()
+            exp_factor = torch.exp(
+                1j * torch.tensor(new_phase, dtype=torch.float32)
+            ).item()
             temporal_updated_coeff = magnitude * exp_factor
 
             # Apply emotional modulation using PyTorch (NO BASIC NUMPY)
@@ -2463,16 +3074,25 @@ class ConceptualChargeAgent:
 
             # Proportional emotional evolution using torch - NO BASIC NUMPY
             coeff_magnitude = abs(temporal_updated_coeff)
-            coeff_tensor = torch.tensor([temporal_updated_coeff.real, temporal_updated_coeff.imag], dtype=torch.float32)
+            coeff_tensor = torch.tensor(
+                [temporal_updated_coeff.real, temporal_updated_coeff.imag],
+                dtype=torch.float32,
+            )
             current_phase = torch.atan2(coeff_tensor[1], coeff_tensor[0]).item()
 
             emotional_evolution = coeff_magnitude * (emotional_multiplier - 1.0) * 0.01
             # Use torch for exponential computation - NO BASIC NUMPY
-            emotional_exp_factor = torch.exp(1j * torch.tensor(current_phase, dtype=torch.float32)).item()
-            final_coeff = temporal_updated_coeff + emotional_evolution * emotional_exp_factor
+            emotional_exp_factor = torch.exp(
+                1j * torch.tensor(current_phase, dtype=torch.float32)
+            ).item()
+            final_coeff = (
+                temporal_updated_coeff + emotional_evolution * emotional_exp_factor
+            )
 
             # FINAL VALIDATION and update
-            if not (math.isfinite(final_coeff.real) and math.isfinite(final_coeff.imag)):
+            if not (
+                math.isfinite(final_coeff.real) and math.isfinite(final_coeff.imag)
+            ):
                 raise ValueError(
                     f"Agent {self.charge_id}: final coefficient {final_coeff} invalid after full breathing evolution for index {n}"
                 )
@@ -2504,7 +3124,10 @@ class ConceptualChargeAgent:
         if torch.is_tensor(self.living_Q_value):
             self.charge_obj.phase = torch.angle(self.living_Q_value).item()
         else:
-            q_tensor = torch.tensor([self.living_Q_value.real, self.living_Q_value.imag], dtype=torch.float32)
+            q_tensor = torch.tensor(
+                [self.living_Q_value.real, self.living_Q_value.imag],
+                dtype=torch.float32,
+            )
             self.charge_obj.phase = torch.atan2(q_tensor[1], q_tensor[0]).item()
 
     def cascade_dimensional_feedback(self):
@@ -2518,11 +3141,13 @@ class ConceptualChargeAgent:
         """
         # 🌊 REGULATION-PROTECTED CASCADE: Stabilize breathing coefficients before cascade
         self._stabilize_breathing_coefficients_for_cascade()
-        
+
         # NO ARTIFICIAL DECAY - let mathematics evolve naturally
         # SEMANTIC → TEMPORAL: Field gradients drive temporal evolution
         q_magnitudes = [abs(self.breathing_q_coefficients.get(n)) for n in range(100)]
-        semantic_gradient = torch.tensor(q_magnitudes, dtype=torch.float32, device=self.device)
+        semantic_gradient = torch.tensor(
+            q_magnitudes, dtype=torch.float32, device=self.device
+        )
 
         # Circular padding for gradient computation
         semantic_gradient_padded = torch.cat(
@@ -2535,23 +3160,31 @@ class ConceptualChargeAgent:
         )
 
         # Protected gradient operation for dimensional cascade flow
-        gradient_raw = torch.gradient(semantic_gradient_padded, dim=0)[0][1:101]  # Extract middle 100 elements
-        
+        gradient_raw = torch.gradient(semantic_gradient_padded, dim=0)[0][
+            1:101
+        ]  # Extract middle 100 elements
+
         # Check and regulate gradient if needed
         if not self._check_field_stability("gradient"):
-            logger.info(f"🌊 CASCADE: Agent {self.charge_id} dimensional flow gradient needs regulation")
+            logger.info(
+                f"🌊 CASCADE: Agent {self.charge_id} dimensional flow gradient needs regulation"
+            )
             semantic_gradient = self._apply_field_regulation("gradient", gradient_raw)
         else:
             semantic_gradient = gradient_raw
 
         # Update temporal momentum from semantic pressure
         gradient_magnitude = torch.mean(torch.abs(semantic_gradient)).item()
-        logger.debug(f"🌊 CASCADE: Agent {self.charge_id} semantic→temporal gradient magnitude: {gradient_magnitude:.3e}")
+        logger.debug(
+            f"🌊 CASCADE: Agent {self.charge_id} semantic→temporal gradient magnitude: {gradient_magnitude:.3e}"
+        )
         temporal_influence = complex(gradient_magnitude, gradient_magnitude * 0.1)
 
         # Pure mathematical cascade - NO overflow protection
         cascading_rate = self.evolution_rates["cascading"]
-        self.cascade_momentum["semantic_to_temporal"] += temporal_influence * cascading_rate
+        self.cascade_momentum["semantic_to_temporal"] += (
+            temporal_influence * cascading_rate
+        )
 
         # Apply to temporal momentum using CDF arithmetic - SOPHISTICATED SAGE MATHEMATICS
         if not hasattr(self.temporal_biography, "temporal_momentum"):
@@ -2565,7 +3198,10 @@ class ConceptualChargeAgent:
         semantic_to_temporal = self.cascade_momentum["semantic_to_temporal"]
 
         # VALIDATE cascade momentum before use - NO DEFAULTS
-        if not (math.isfinite(semantic_to_temporal.real) and math.isfinite(semantic_to_temporal.imag)):
+        if not (
+            math.isfinite(semantic_to_temporal.real)
+            and math.isfinite(semantic_to_temporal.imag)
+        ):
             raise ValueError(
                 f"Agent {self.charge_id}: CASCADE MOMENTUM semantic_to_temporal is {semantic_to_temporal} - cascade momentum corrupted during dimensional feedback!"
             )
@@ -2573,7 +3209,10 @@ class ConceptualChargeAgent:
         cascade_contribution = semantic_to_temporal * 0.1
 
         # VALIDATE cascade contribution before CDF conversion
-        if not (math.isfinite(cascade_contribution.real) and math.isfinite(cascade_contribution.imag)):
+        if not (
+            math.isfinite(cascade_contribution.real)
+            and math.isfinite(cascade_contribution.imag)
+        ):
             raise ValueError(
                 f"Agent {self.charge_id}: CASCADE CONTRIBUTION is {cascade_contribution} - multiplication by 0.1 created NaN (semantic_to_temporal was {semantic_to_temporal})"
             )
@@ -2582,20 +3221,29 @@ class ConceptualChargeAgent:
 
         # Convert to LogPolarCDF for native CDF addition
         from Sysnpire.utils.log_polar_cdf import LogPolarCDF
+
         cascade_contribution_lp = LogPolarCDF.from_cdf(cascade_contribution_cdf)
-        self.temporal_biography.temporal_momentum = temporal_momentum + cascade_contribution_lp
+        self.temporal_biography.temporal_momentum = (
+            temporal_momentum + cascade_contribution_lp
+        )
 
         # TEMPORAL → EMOTIONAL: Breathing patterns modulate emotional response
         breath_coherence = self.temporal_biography.breathing_coherence
-        
+
         # FIX: Replace NaN breath_coherence with stable fallback
         if not math.isfinite(breath_coherence):
-            logger.warning(f"🔧 Agent {self.charge_id}: breath_coherence is {breath_coherence}, using fallback value")
+            logger.warning(
+                f"🔧 Agent {self.charge_id}: breath_coherence is {breath_coherence}, using fallback value"
+            )
             breath_coherence = 1.0
-        
+
         if self.charge_id == "charge_48":
-            print(f"DEBUG: charge_48 breath_coherence = {breath_coherence} (type: {type(breath_coherence)})")
-            print(f"DEBUG: charge_48 is finite: {math.isfinite(breath_coherence) if isinstance(breath_coherence, (int, float)) else 'not numeric'}")
+            print(
+                f"DEBUG: charge_48 breath_coherence = {breath_coherence} (type: {type(breath_coherence)})"
+            )
+            print(
+                f"DEBUG: charge_48 is finite: {math.isfinite(breath_coherence) if isinstance(breath_coherence, (int, float)) else 'not numeric'}"
+            )
 
         # Pure mathematical operation - NO overflow protection
         # If this overflows, let it overflow - we want pure mathematics
@@ -2604,7 +3252,9 @@ class ConceptualChargeAgent:
 
         # Pure mathematical cascade - NO overflow protection
         emotional_complex = complex(emotional_influence, 0)
-        self.cascade_momentum["temporal_to_emotional"] += emotional_complex * cascading_rate
+        self.cascade_momentum["temporal_to_emotional"] += (
+            emotional_complex * cascading_rate
+        )
 
         # Apply to emotional phase shift
         self.emotional_modulation.unified_phase_shift *= 1 + 0.01j * emotional_influence
@@ -2615,33 +3265,46 @@ class ConceptualChargeAgent:
 
         # EMOTIONAL → SEMANTIC: Conductor reshapes field landscape
         conductor_strength = abs(self.emotional_modulation.unified_phase_shift)
-        
+
         # 🔍 TRACE: Debug emotional_modulation before conductor_phase calculation
         if self.charge_id == "charge_48":
-            logger.info(f"🔍 CASCADE_DEBUG charge_48: unified_phase_shift = {self.emotional_modulation.unified_phase_shift}")
-            logger.info(f"🔍 CASCADE_DEBUG charge_48: unified_phase_shift.real = {self.emotional_modulation.unified_phase_shift.real}")
-            logger.info(f"🔍 CASCADE_DEBUG charge_48: unified_phase_shift.imag = {self.emotional_modulation.unified_phase_shift.imag}")
-            logger.info(f"🔍 CASCADE_DEBUG charge_48: conductor_strength = {conductor_strength}")
-        
+            logger.info(
+                f"🔍 CASCADE_DEBUG charge_48: unified_phase_shift = {self.emotional_modulation.unified_phase_shift}"
+            )
+            logger.info(
+                f"🔍 CASCADE_DEBUG charge_48: unified_phase_shift.real = {self.emotional_modulation.unified_phase_shift.real}"
+            )
+            logger.info(
+                f"🔍 CASCADE_DEBUG charge_48: unified_phase_shift.imag = {self.emotional_modulation.unified_phase_shift.imag}"
+            )
+            logger.info(
+                f"🔍 CASCADE_DEBUG charge_48: conductor_strength = {conductor_strength}"
+            )
+
         # Use torch for advanced angle computation - NO BASIC NUMPY
         unified_tensor = torch.tensor(
-            [self.emotional_modulation.unified_phase_shift.real, self.emotional_modulation.unified_phase_shift.imag],
+            [
+                self.emotional_modulation.unified_phase_shift.real,
+                self.emotional_modulation.unified_phase_shift.imag,
+            ],
             dtype=torch.float32,
         )
         conductor_phase = torch.atan2(unified_tensor[1], unified_tensor[0]).item()
-        
+
         # 🔍 TRACE: Debug conductor_phase calculation result
         if self.charge_id == "charge_48":
-            logger.info(f"🔍 CASCADE_DEBUG charge_48: unified_tensor = {unified_tensor}")
-            logger.info(f"🔍 CASCADE_DEBUG charge_48: conductor_phase = {conductor_phase} (finite: {math.isfinite(conductor_phase)})")
+            logger.info(
+                f"🔍 CASCADE_DEBUG charge_48: unified_tensor = {unified_tensor}"
+            )
+            logger.info(
+                f"🔍 CASCADE_DEBUG charge_48: conductor_phase = {conductor_phase} (finite: {math.isfinite(conductor_phase)})"
+            )
 
         semantic_influence = complex(conductor_strength * 0.1, conductor_phase * 0.01)
 
         # Protected field multiplication for emotional-semantic cascade
         cascade_contribution = self._safe_field_multiplication(
-            semantic_influence,
-            complex(cascading_rate),
-            "emotional→semantic cascade"
+            semantic_influence, complex(cascading_rate), "emotional→semantic cascade"
         )
         self.cascade_momentum["emotional_to_semantic"] += cascade_contribution
 
@@ -2664,13 +3327,13 @@ class ConceptualChargeAgent:
                 )
 
             # Use protected phase exponential for cascade transformation - CRITICAL FOR FIELD EVOLUTION
-            phase_factor = self._safe_phase_exponential(phase_shift, f"cascade coefficient n={n}")
+            phase_factor = self._safe_phase_exponential(
+                phase_shift, f"cascade coefficient n={n}"
+            )
 
             # Protected field multiplication for cascade transform factor
             transform_factor = self._safe_field_multiplication(
-                complex(amplitude_shift), 
-                phase_factor,
-                f"cascade_transform n={n}"
+                complex(amplitude_shift), phase_factor, f"cascade_transform n={n}"
             )
 
             # Apply proportional cascade transformation (not multiplicative)
@@ -2678,24 +3341,38 @@ class ConceptualChargeAgent:
             coeff_magnitude = abs(self.breathing_q_coefficients[n])
             # Use torch for advanced angle computation - NO BASIC NUMPY
             coeff_tensor = torch.tensor(
-                [self.breathing_q_coefficients[n].real, self.breathing_q_coefficients[n].imag], dtype=torch.float32
+                [
+                    self.breathing_q_coefficients[n].real,
+                    self.breathing_q_coefficients[n].imag,
+                ],
+                dtype=torch.float32,
             )
             current_phase = torch.atan2(coeff_tensor[1], coeff_tensor[0]).item()
 
             # Proportional cascade evolution based on current magnitude
             transform_magnitude = abs(transform_factor)
             # Use torch for advanced angle computation - NO BASIC NUMPY
-            transform_tensor = torch.tensor([transform_factor.real, transform_factor.imag], dtype=torch.float32)
-            transform_phase = torch.atan2(transform_tensor[1], transform_tensor[0]).item()
+            transform_tensor = torch.tensor(
+                [transform_factor.real, transform_factor.imag], dtype=torch.float32
+            )
+            transform_phase = torch.atan2(
+                transform_tensor[1], transform_tensor[0]
+            ).item()
 
-            cascade_evolution = coeff_magnitude * (transform_magnitude - 1.0) * 0.01  # Small proportional change
+            cascade_evolution = (
+                coeff_magnitude * (transform_magnitude - 1.0) * 0.01
+            )  # Small proportional change
             cascade_phase_shift = transform_phase * 0.01  # Small phase adjustment
 
             # Apply incremental cascade transformation
             new_phase = current_phase + cascade_phase_shift
             # Use protected phase exponential for breathing coefficient evolution
-            evolution_phase_factor = self._safe_phase_exponential(new_phase, f"breathing coefficient evolution n={n}")
-            self.breathing_q_coefficients[n] += cascade_evolution * evolution_phase_factor
+            evolution_phase_factor = self._safe_phase_exponential(
+                new_phase, f"breathing coefficient evolution n={n}"
+            )
+            self.breathing_q_coefficients[n] += (
+                cascade_evolution * evolution_phase_factor
+            )
 
             # VALIDATE after cascade transformation
             if not (
@@ -2707,8 +3384,15 @@ class ConceptualChargeAgent:
                 )
 
         # ALL → OBSERVATIONAL STATE: Everything affects s-parameter evolution
-        total_cascade_energy = sum(abs(momentum) for momentum in self.cascade_momentum.values())
-        self.state.current_s += total_cascade_energy * self.evolution_rates["cascading"] * 0.1
+        total_cascade_energy = sum(
+            abs(momentum) for momentum in self.cascade_momentum.values()
+        )
+        self.state.current_s += (
+            total_cascade_energy * self.evolution_rates["cascading"] * 0.1
+        )
+
+        # Apply s-parameter normalization to prevent exponential growth
+        self._normalize_s_parameter()
 
         # Pure mathematical evaluation - NO fallbacks or optimizations
         self.living_Q_value = self.evaluate_living_form()
@@ -2720,7 +3404,10 @@ class ConceptualChargeAgent:
         if torch.is_tensor(self.living_Q_value):
             self.charge_obj.phase = torch.angle(self.living_Q_value).item()
         else:
-            q_tensor = torch.tensor([self.living_Q_value.real, self.living_Q_value.imag], dtype=torch.float32)
+            q_tensor = torch.tensor(
+                [self.living_Q_value.real, self.living_Q_value.imag],
+                dtype=torch.float32,
+            )
             self.charge_obj.phase = torch.atan2(q_tensor[1], q_tensor[0]).item()
 
     def interact_with_field(self, other_agents: List["ConceptualChargeAgent"]):
@@ -2776,8 +3463,12 @@ class ConceptualChargeAgent:
                     pos_i = torch.tensor([tau_i.real, tau_i.imag], dtype=torch.float32)
                     pos_j = torch.tensor([tau_j.real, tau_j.imag], dtype=torch.float32)
                     # Use pyg.utils for advanced geometric distance computation
-                    distance_tensor = pyg.utils.degree(torch.norm(pos_i - pos_j, dim=0, keepdim=True), num_nodes=1)[0]
-                    imag_product = torch.sqrt(torch.tensor(tau_i.imag * tau_j.imag, dtype=torch.float32))
+                    distance_tensor = pyg.utils.degree(
+                        torch.norm(pos_i - pos_j, dim=0, keepdim=True), num_nodes=1
+                    )[0]
+                    imag_product = torch.sqrt(
+                        torch.tensor(tau_i.imag * tau_j.imag, dtype=torch.float32)
+                    )
 
                     # Sophisticated edge weight using F.sigmoid
                     geometric_weight = F.sigmoid(-distance_tensor / imag_product + 2.0)
@@ -2796,7 +3487,9 @@ class ConceptualChargeAgent:
         geometric_data = Data(x=x, edge_index=edge_index, edge_attr=edge_weights_tensor)
 
         # ACTUAL PyTorch Geometric message passing with Data object - NO BASIC LOOPS
-        enhanced_features = message_passing(geometric_data.x, geometric_data.edge_index, geometric_data.edge_attr)
+        enhanced_features = message_passing(
+            geometric_data.x, geometric_data.edge_index, geometric_data.edge_attr
+        )
         self_enhanced_features = enhanced_features[0]  # Self is first agent
 
         # Apply sophisticated geometric coefficient updates
@@ -2806,11 +3499,21 @@ class ConceptualChargeAgent:
         for other in other_agents:
             if other is self:
                 continue
-                
+
             # Set influence_strength from geometric features
-            influence_strength = abs(complex(self_enhanced_features[4].item(), self_enhanced_features[5].item()))
-            
-            for n in range(min(50, len(self.breathing_q_coefficients), len(other.breathing_q_coefficients))):
+            influence_strength = abs(
+                complex(
+                    self_enhanced_features[4].item(), self_enhanced_features[5].item()
+                )
+            )
+
+            for n in range(
+                min(
+                    50,
+                    len(self.breathing_q_coefficients),
+                    len(other.breathing_q_coefficients),
+                )
+            ):
                 # Store original value for NaN detection
                 original_coeff = self.breathing_q_coefficients.get(n)
 
@@ -2823,22 +3526,31 @@ class ConceptualChargeAgent:
                 raise ValueError(
                     f"Agent {self.charge_id}: INTERACTION self_coeff[{n}] is {self_coeff} - corrupted before interaction!"
                 )
-            if not (math.isfinite(other_coeff.real) and math.isfinite(other_coeff.imag)):
+            if not (
+                math.isfinite(other_coeff.real) and math.isfinite(other_coeff.imag)
+            ):
                 raise ValueError(
                     f"Agent {self.charge_id}: INTERACTION other_coeff[{n}] is {other_coeff} - other agent corrupted!"
                 )
 
             # Use torch for sophisticated complex conjugation - NO BASIC NUMPY
-            interference = self_coeff * torch.conj(torch.tensor(other_coeff, dtype=torch.complex64)).item()
+            interference = (
+                self_coeff
+                * torch.conj(torch.tensor(other_coeff, dtype=torch.complex64)).item()
+            )
 
             # VALIDATE interference computation
-            if not (math.isfinite(interference.real) and math.isfinite(interference.imag)):
+            if not (
+                math.isfinite(interference.real) and math.isfinite(interference.imag)
+            ):
                 raise ValueError(
                     f"Agent {self.charge_id}: INTERACTION interference[{n}] is {interference} - conjugate multiplication corrupted!"
                 )
 
                 # Coefficients EVOLVE based on interference
-                evolution_factor = influence_strength * self.evolution_rates["interaction"]
+                evolution_factor = (
+                    influence_strength * self.evolution_rates["interaction"]
+                )
 
                 # VALIDATE evolution factor
                 if not math.isfinite(evolution_factor):
@@ -2847,7 +3559,10 @@ class ConceptualChargeAgent:
                     )
 
                 interaction_delta = interference * evolution_factor
-                if not (math.isfinite(interaction_delta.real) and math.isfinite(interaction_delta.imag)):
+                if not (
+                    math.isfinite(interaction_delta.real)
+                    and math.isfinite(interaction_delta.imag)
+                ):
                     raise ValueError(
                         f"Agent {self.charge_id}: INTERACTION delta[{n}] is {interaction_delta} - delta computation corrupted!"
                     )
@@ -2875,7 +3590,10 @@ class ConceptualChargeAgent:
                     harmonic_delta = interference * influence_strength * 0.001
 
                     # VALIDATE harmonic delta
-                    if not (math.isfinite(harmonic_delta.real) and math.isfinite(harmonic_delta.imag)):
+                    if not (
+                        math.isfinite(harmonic_delta.real)
+                        and math.isfinite(harmonic_delta.imag)
+                    ):
                         raise ValueError(
                             f"Agent {self.charge_id}: INTERACTION harmonic_delta[{harmonic_n}] is {harmonic_delta} - harmonic computation corrupted!"
                         )
@@ -2885,7 +3603,9 @@ class ConceptualChargeAgent:
                     # VALIDATE after harmonic update
                     if not (
                         math.isfinite(self.breathing_q_coefficients[harmonic_n].real)
-                        and math.isfinite(self.breathing_q_coefficients[harmonic_n].imag)
+                        and math.isfinite(
+                            self.breathing_q_coefficients[harmonic_n].imag
+                        )
                     ):
                         raise ValueError(
                             f"Agent {self.charge_id}: INTERACTION harmonic[{harmonic_n}] became {self.breathing_q_coefficients[harmonic_n]} after harmonic update (was {harmonic_original}, delta={harmonic_delta})"
@@ -2895,12 +3615,16 @@ class ConceptualChargeAgent:
             for p in self.hecke_eigenvalues:
                 if p in other.hecke_eigenvalues:
                     neighbor_eigenvalue = other.hecke_eigenvalues[p]
-                    adaptation = (neighbor_eigenvalue - self.hecke_eigenvalues[p]) * influence_strength
+                    adaptation = (
+                        neighbor_eigenvalue - self.hecke_eigenvalues[p]
+                    ) * influence_strength
                     self.hecke_eigenvalues[p] += adaptation * self.hecke_adaptivity
 
             # NO FALLBACKS - if interference wasn't computed, interaction failed
             if "interference" not in locals():
-                raise ValueError(f"Interference not computed in interaction - Mathematical computation failed!")
+                raise ValueError(
+                    f"Interference not computed in interaction - Mathematical computation failed!"
+                )
 
             # Store interaction in memory
             interaction_record = {
@@ -2932,11 +3656,15 @@ class ConceptualChargeAgent:
         evolution_rate_enhanced = enhanced_features[5].item()
 
         # Advanced coefficient evolution using F.scaled_dot_product_attention
-        coeff_keys = list(self.breathing_q_coefficients.keys())[:32]  # Limit for efficiency
+        coeff_keys = list(self.breathing_q_coefficients.keys())[
+            :32
+        ]  # Limit for efficiency
         if len(coeff_keys) > 0:
             # Convert coefficients to sophisticated tensor representation
             coeff_values = [self.breathing_q_coefficients[k] for k in coeff_keys]
-            coeff_tensor = torch.tensor([[c.real, c.imag] for c in coeff_values], dtype=torch.float32)
+            coeff_tensor = torch.tensor(
+                [[c.real, c.imag] for c in coeff_values], dtype=torch.float32
+            )
 
             # Sophisticated attention mechanism for coefficient evolution
             query = enhanced_features[:2].unsqueeze(0).unsqueeze(0)  # [1, 1, 2]
@@ -2948,7 +3676,9 @@ class ConceptualChargeAgent:
             attention_result = attention_output.squeeze(0).squeeze(0)  # [2]
 
             # Extract sophisticated update parameters
-            update_magnitude = torch.norm(attention_result).item() * evolution_rate_enhanced * 0.01
+            update_magnitude = (
+                torch.norm(attention_result).item() * evolution_rate_enhanced * 0.01
+            )
             update_phase = torch.atan2(attention_result[1], attention_result[0]).item()
 
             # Apply geometric evolution to each coefficient
@@ -2959,16 +3689,21 @@ class ConceptualChargeAgent:
                     # Sophisticated geometric factor using F.gelu activation
                     phase_factor = update_phase + i * 0.1
                     geometric_factor = F.gelu(
-                        torch.tensor(update_magnitude * torch.cos(torch.tensor(phase_factor)))
+                        torch.tensor(
+                            update_magnitude * torch.cos(torch.tensor(phase_factor))
+                        )
                     ).item()
 
                     # Advanced coefficient delta computation
                     evolution_delta = complex(
-                        geometric_factor * 0.1 * original_coeff.real, geometric_factor * 0.1 * original_coeff.imag
+                        geometric_factor * 0.1 * original_coeff.real,
+                        geometric_factor * 0.1 * original_coeff.imag,
                     )
 
                     # Apply sophisticated validation and update
-                    if math.isfinite(evolution_delta.real) and math.isfinite(evolution_delta.imag):
+                    if math.isfinite(evolution_delta.real) and math.isfinite(
+                        evolution_delta.imag
+                    ):
                         self.breathing_q_coefficients[k] += evolution_delta
 
         # Update living Q value with geometric enhancement
@@ -2978,10 +3713,14 @@ class ConceptualChargeAgent:
         self.charge_obj.complete_charge = self.living_Q_value
         self.charge_obj.magnitude = abs(self.living_Q_value)
         # Use torch for angle computation
-        q_tensor = torch.tensor([self.living_Q_value.real, self.living_Q_value.imag], dtype=torch.float32)
+        q_tensor = torch.tensor(
+            [self.living_Q_value.real, self.living_Q_value.imag], dtype=torch.float32
+        )
         self.charge_obj.phase = torch.atan2(q_tensor[1], q_tensor[0]).item()
 
-    def interact_with_optimized_field(self, nearby_agents: List[Tuple["ConceptualChargeAgent", float]]):
+    def interact_with_optimized_field(
+        self, nearby_agents: List[Tuple["ConceptualChargeAgent", float]]
+    ):
         """
         o(log n) OPTIMIZED field interactions using sparse neighbor graph.
 
@@ -3002,13 +3741,22 @@ class ConceptualChargeAgent:
                 continue
 
             # q-coefficients LEARN from each other (same mathematics as before)
-            for n in range(min(50, len(self.breathing_q_coefficients), len(other.breathing_q_coefficients))):
+            for n in range(
+                min(
+                    50,
+                    len(self.breathing_q_coefficients),
+                    len(other.breathing_q_coefficients),
+                )
+            ):
                 # Interference between coefficients
                 self_coeff = self.breathing_q_coefficients.get(n)
                 other_coeff = other.breathing_q_coefficients.get(n)
 
                 # Use torch for sophisticated complex conjugation - NO BASIC NUMPY
-            interference = self_coeff * torch.conj(torch.tensor(other_coeff, dtype=torch.complex64)).item()
+            interference = (
+                self_coeff
+                * torch.conj(torch.tensor(other_coeff, dtype=torch.complex64)).item()
+            )
 
             # Coefficients EVOLVE based on interference
             evolution_factor = influence_strength * self.evolution_rates["interaction"]
@@ -3021,18 +3769,24 @@ class ConceptualChargeAgent:
                     self.breathing_q_coefficients[harmonic_n] = 0
 
                 # New harmonic born from interference
-                self.breathing_q_coefficients[harmonic_n] += interference * influence_strength * 0.001
+                self.breathing_q_coefficients[harmonic_n] += (
+                    interference * influence_strength * 0.001
+                )
 
             # Hecke eigenvalues adapt to neighboring values
             for p in self.hecke_eigenvalues:
                 if p in other.hecke_eigenvalues:
                     neighbor_eigenvalue = other.hecke_eigenvalues[p]
-                    adaptation = (neighbor_eigenvalue - self.hecke_eigenvalues[p]) * influence_strength
+                    adaptation = (
+                        neighbor_eigenvalue - self.hecke_eigenvalues[p]
+                    ) * influence_strength
                     self.hecke_eigenvalues[p] += adaptation * self.hecke_adaptivity
 
             # NO FALLBACKS - if interference wasn't computed, interaction failed
             if "interference" not in locals():
-                raise ValueError(f"Interference not computed in interaction - Mathematical computation failed!")
+                raise ValueError(
+                    f"Interference not computed in interaction - Mathematical computation failed!"
+                )
 
             # Store interaction in memory
             interaction_record = {
@@ -3058,7 +3812,10 @@ class ConceptualChargeAgent:
         if torch.is_tensor(self.living_Q_value):
             self.charge_obj.phase = torch.angle(self.living_Q_value).item()
         else:
-            q_tensor = torch.tensor([self.living_Q_value.real, self.living_Q_value.imag], dtype=torch.float32)
+            q_tensor = torch.tensor(
+                [self.living_Q_value.real, self.living_Q_value.imag],
+                dtype=torch.float32,
+            )
             self.charge_obj.phase = torch.atan2(q_tensor[1], q_tensor[0]).item()
 
     def evolve_s_parameter(self, field_context: List["ConceptualChargeAgent"]):
@@ -3069,12 +3826,16 @@ class ConceptualChargeAgent:
         and interaction history. This makes the form irreversibly evolve.
         """
         # Compute total field pressure from all agents
-        field_pressure = sum(abs(agent.living_Q_value) for agent in field_context) / len(field_context)
+        field_pressure = sum(
+            abs(agent.living_Q_value) for agent in field_context
+        ) / len(field_context)
 
         # MATHEMATICAL INTEGRITY: Extract temporal phase - NO NaN POSSIBLE
         # NO DEFAULTS: temporal_momentum should always exist from storage restoration
         if not hasattr(self.temporal_biography, "temporal_momentum"):
-            raise ValueError(f"Agent {self.charge_id}: Missing temporal_momentum - storage/reconstruction failed!")
+            raise ValueError(
+                f"Agent {self.charge_id}: Missing temporal_momentum - storage/reconstruction failed!"
+            )
 
         temporal_momentum = self.temporal_biography.temporal_momentum
 
@@ -3097,16 +3858,22 @@ class ConceptualChargeAgent:
 
         # Advanced vivid influence using torch operations with F.gelu activation
         vivid_base = torch.cos(phase_tensor * 3.0)
-        vivid_influence = (1.0 + 0.5 * F.gelu(vivid_base)).item()  # Smooth, sophisticated activation
+        vivid_influence = (
+            1.0 + 0.5 * F.gelu(vivid_base)
+        ).item()  # Smooth, sophisticated activation
 
         # Advanced character influence using torch with F.silu activation
         character_base = torch.sin(phase_tensor * 2.0 + torch.pi / 4)
-        character_influence = (0.001 + 0.999 * F.silu(character_base) * 0.5 + 0.5).item()
+        character_influence = (
+            0.001 + 0.999 * F.silu(character_base) * 0.5 + 0.5
+        ).item()
 
         # Memory pressure from past interactions
         if self.interaction_memory:
             recent_memory = self.interaction_memory[-10:]  # Last 10 interactions
-            memory_pressure = sum(record["influence"] for record in recent_memory) / len(recent_memory)
+            memory_pressure = sum(
+                record["influence"] for record in recent_memory
+            ) / len(recent_memory)
         else:
             memory_pressure = 0.0
 
@@ -3129,7 +3896,7 @@ class ConceptualChargeAgent:
         momentum_contribution = self._safe_field_multiplication(
             complex(abs(temporal_complex)),
             complex(character_influence * 0.1),
-            "temporal_momentum coupling"
+            "temporal_momentum coupling",
         )
         momentum_term = abs(momentum_contribution)
 
@@ -3143,7 +3910,9 @@ class ConceptualChargeAgent:
 
         # Use incremental temporal evolution (not unbounded accumulation)
         # Follow temporal component pattern: evolution relative to current state
-        evolution_ratio = 1.0 + (delta_s * evolution_factor * 0.01)  # Proportional evolution
+        evolution_ratio = 1.0 + (
+            delta_s * evolution_factor * 0.01
+        )  # Proportional evolution
         self.state.current_s *= evolution_ratio
 
         # s evolution RESHAPES the modular form itself
@@ -3164,17 +3933,26 @@ class ConceptualChargeAgent:
             coeff_magnitude = abs(self.breathing_q_coefficients[n])
             # Use torch for advanced angle computation - NO BASIC NUMPY
             coeff_tensor = torch.tensor(
-                [self.breathing_q_coefficients[n].real, self.breathing_q_coefficients[n].imag], dtype=torch.float32
+                [
+                    self.breathing_q_coefficients[n].real,
+                    self.breathing_q_coefficients[n].imag,
+                ],
+                dtype=torch.float32,
             )
             current_phase = torch.atan2(coeff_tensor[1], coeff_tensor[0]).item()
 
             # Proportional decay evolution based on current magnitude
-            decay_evolution = coeff_magnitude * (decay_factor - 1.0) * 0.01  # Small proportional change
+            decay_evolution = (
+                coeff_magnitude * (decay_factor - 1.0) * 0.01
+            )  # Small proportional change
 
             # Apply incremental decay
             # Use torch for advanced exponential computation - NO BASIC NUMPY
             self.breathing_q_coefficients[n] += (
-                decay_evolution * torch.exp(1j * torch.tensor(current_phase, dtype=torch.float32)).item()
+                decay_evolution
+                * torch.exp(
+                    1j * torch.tensor(current_phase, dtype=torch.float32)
+                ).item()
             )
 
         # Update living Q value after s-parameter evolution
@@ -3187,10 +3965,15 @@ class ConceptualChargeAgent:
         if torch.is_tensor(self.living_Q_value):
             self.charge_obj.phase = torch.angle(self.living_Q_value).item()
         else:
-            q_tensor = torch.tensor([self.living_Q_value.real, self.living_Q_value.imag], dtype=torch.float32)
+            q_tensor = torch.tensor(
+                [self.living_Q_value.real, self.living_Q_value.imag],
+                dtype=torch.float32,
+            )
             self.charge_obj.phase = torch.atan2(q_tensor[1], q_tensor[0]).item()
 
-    def apply_interaction_evolution(self, interaction_effect: Union[complex, "CDF"]) -> None:
+    def apply_interaction_evolution(
+        self, interaction_effect: Union[complex, "CDF"]
+    ) -> None:
         """
         Apply interaction effect using proportional evolution to prevent exponential growth.
 
@@ -3205,25 +3988,38 @@ class ConceptualChargeAgent:
         if current_magnitude == 0:
             # Cannot evolve from zero - set to small initial value based on interaction
             # FIX: Check if interaction_effect has CDF characteristics instead of isinstance
-            if hasattr(interaction_effect, 'abs') and hasattr(interaction_effect, 'arg') and hasattr(interaction_effect, 'log'):
+            if (
+                hasattr(interaction_effect, "abs")
+                and hasattr(interaction_effect, "arg")
+                and hasattr(interaction_effect, "log")
+            ):
                 # Use a very small fraction of the interaction magnitude
                 # Use CDF for sophisticated exponential computation - NO BASIC math.exp()
                 initial_mag = (interaction_effect.abs() * CDF(0.0001)).exp()
                 # Use torch for advanced exponential computation - NO BASIC NUMPY
                 self.living_Q_value = (
-                    initial_mag * torch.exp(1j * torch.tensor(interaction_effect.arg(), dtype=torch.float32)).item()
+                    initial_mag
+                    * torch.exp(
+                        1j * torch.tensor(interaction_effect.arg(), dtype=torch.float32)
+                    ).item()
                 )
             else:
                 self.living_Q_value = interaction_effect * 0.0001  # Very small fraction
             return
 
         # Use torch for advanced angle computation - NO BASIC NUMPY
-        q_tensor = torch.tensor([self.living_Q_value.real, self.living_Q_value.imag], dtype=torch.float32)
+        q_tensor = torch.tensor(
+            [self.living_Q_value.real, self.living_Q_value.imag], dtype=torch.float32
+        )
         current_phase = torch.atan2(q_tensor[1], q_tensor[0]).item()
 
         # FIX: Check if interaction_effect has CDF characteristics instead of isinstance
         # This avoids the TypeError with newer Python versions
-        if hasattr(interaction_effect, 'abs') and hasattr(interaction_effect, 'arg') and hasattr(interaction_effect, 'log'):
+        if (
+            hasattr(interaction_effect, "abs")
+            and hasattr(interaction_effect, "arg")
+            and hasattr(interaction_effect, "log")
+        ):
             # Working with CDF interaction - sophisticated Sage mathematics
             # Use CDF for sophisticated logarithmic computation - NO BASIC math.log()
             current_log_mag = CDF(current_magnitude).log()
@@ -3235,7 +4031,13 @@ class ConceptualChargeAgent:
 
             # Bounded proportional evolution to prevent runaway
             # Use torch tanh for sophisticated saturation - NO BASIC NUMPY
-            evolution_factor = 1.0 + torch.tanh(torch.tensor(relative_strength * 0.001, dtype=torch.float32)).item() * 0.01
+            evolution_factor = (
+                1.0
+                + torch.tanh(
+                    torch.tensor(relative_strength * 0.001, dtype=torch.float32)
+                ).item()
+                * 0.01
+            )
 
             # Phase evolution - small adjustment towards interaction phase
             phase_diff = interaction_effect.arg() - current_phase
@@ -3252,18 +4054,29 @@ class ConceptualChargeAgent:
             new_phase = current_phase + phase_shift
 
             # Use torch for advanced exponential computation - NO BASIC NUMPY
-            self.living_Q_value = new_magnitude * torch.exp(1j * torch.tensor(new_phase, dtype=torch.float32)).item()
+            self.living_Q_value = (
+                new_magnitude
+                * torch.exp(1j * torch.tensor(new_phase, dtype=torch.float32)).item()
+            )
         else:
             # Normal complex interaction
             interaction_magnitude = abs(interaction_effect)
 
             # Proportional evolution based on relative magnitude
             relative_strength = interaction_magnitude / current_magnitude
-            evolution_factor = 1.0 + torch.tanh(torch.tensor(relative_strength * 0.1, dtype=torch.float32)).item() * 0.01
+            evolution_factor = (
+                1.0
+                + torch.tanh(
+                    torch.tensor(relative_strength * 0.1, dtype=torch.float32)
+                ).item()
+                * 0.01
+            )
 
             # Phase evolution
             # Use torch for advanced angle computation - NO BASIC NUMPY
-            effect_tensor = torch.tensor([interaction_effect.real, interaction_effect.imag], dtype=torch.float32)
+            effect_tensor = torch.tensor(
+                [interaction_effect.real, interaction_effect.imag], dtype=torch.float32
+            )
             interaction_phase = torch.atan2(effect_tensor[1], effect_tensor[0]).item()
             phase_diff = interaction_phase - current_phase
             # Normalize phase difference using torch constants
@@ -3279,13 +4092,18 @@ class ConceptualChargeAgent:
             new_phase = current_phase + phase_shift
 
             # Use torch for advanced exponential computation - NO BASIC NUMPY
-            self.living_Q_value = new_magnitude * torch.exp(1j * torch.tensor(new_phase, dtype=torch.float32)).item()
+            self.living_Q_value = (
+                new_magnitude
+                * torch.exp(1j * torch.tensor(new_phase, dtype=torch.float32)).item()
+            )
 
         # Update charge object with evolved state
         self.charge_obj.complete_charge = self.living_Q_value
         self.charge_obj.magnitude = abs(self.living_Q_value)
         # Use torch for advanced angle computation - NO BASIC NUMPY
-        q_tensor = torch.tensor([self.living_Q_value.real, self.living_Q_value.imag], dtype=torch.float32)
+        q_tensor = torch.tensor(
+            [self.living_Q_value.real, self.living_Q_value.imag], dtype=torch.float32
+        )
         self.charge_obj.phase = torch.atan2(q_tensor[1], q_tensor[0]).item()
 
         # Also update breathing coefficients proportionally
@@ -3295,14 +4113,23 @@ class ConceptualChargeAgent:
             coeff_mag = abs(self.breathing_q_coefficients[n])
             # Use torch for advanced angle computation - NO BASIC NUMPY
             coeff_tensor = torch.tensor(
-                [self.breathing_q_coefficients[n].real, self.breathing_q_coefficients[n].imag], dtype=torch.float32
+                [
+                    self.breathing_q_coefficients[n].real,
+                    self.breathing_q_coefficients[n].imag,
+                ],
+                dtype=torch.float32,
             )
             coeff_phase = torch.atan2(coeff_tensor[1], coeff_tensor[0]).item()
 
             # Proportional coefficient evolution
-            new_coeff_mag = coeff_mag * (1.0 + (magnitude_ratio - 1.0) * 0.001)  # Very small coefficient change
+            new_coeff_mag = coeff_mag * (
+                1.0 + (magnitude_ratio - 1.0) * 0.001
+            )  # Very small coefficient change
             # Use torch for sophisticated exponential - NO BASIC NUMPY
-            self.breathing_q_coefficients[n] = new_coeff_mag * torch.exp(1j * torch.tensor(coeff_phase, dtype=torch.float32)).item()
+            self.breathing_q_coefficients[n] = (
+                new_coeff_mag
+                * torch.exp(1j * torch.tensor(coeff_phase, dtype=torch.float32)).item()
+            )
 
     def evaluate_living_form(self, tau: Optional[float] = None) -> complex:
         """
@@ -3321,18 +4148,26 @@ class ConceptualChargeAgent:
         if hasattr(self, "_cached_living_Q") and hasattr(self, "_cached_s"):
             s_change = abs(current_s - self._cached_s)
             if s_change < 0.001:  # Very small change in observational state
-                logger.debug(f"🔧 Agent {self.charge_id} - Using cached living Q (s_change: {s_change:.6f})")
+                logger.debug(
+                    f"🔧 Agent {self.charge_id} - Using cached living Q (s_change: {s_change:.6f})"
+                )
                 return self._cached_living_Q
 
         # Compute q = exp(2πiτ) - convert complex tau to proper PyTorch tensor
         # Use torch.pi for sophisticated constant - NO BASIC NUMPY
-        tau_tensor = torch.tensor(2j * torch.pi * tau, dtype=torch.complex64, device=self.device)
+        tau_tensor = torch.tensor(
+            2j * torch.pi * tau, dtype=torch.complex64, device=self.device
+        )
         q = torch.exp(tau_tensor)
 
         # Evaluate breathing q-expansion - ensure tensor/complex consistency
-        f_tau = torch.tensor(complex(0.0, 0.0), dtype=torch.complex64, device=self.device)
+        f_tau = torch.tensor(
+            complex(0.0, 0.0), dtype=torch.complex64, device=self.device
+        )
         for n, coeff in self.breathing_q_coefficients.items():
-            coeff_tensor = torch.tensor(coeff, dtype=torch.complex64, device=self.device)
+            coeff_tensor = torch.tensor(
+                coeff, dtype=torch.complex64, device=self.device
+            )
             if n == 0:
                 f_tau += coeff_tensor  # Constant term
             else:
@@ -3345,18 +4180,26 @@ class ConceptualChargeAgent:
             f_tau *= hecke_factor
 
         # Apply emotional L-function modulation - ensure tensor consistency
-        l_value = torch.tensor(complex(1.0, 0.0), dtype=torch.complex64, device=self.device)
+        l_value = torch.tensor(
+            complex(1.0, 0.0), dtype=torch.complex64, device=self.device
+        )
         for n, coeff in self.l_function_coefficients.items():
             if abs(coeff) > 0:
-                coeff_tensor = torch.tensor(coeff, dtype=torch.complex64, device=self.device)
-                n_factor = torch.tensor(n ** (1 + 0.1j), dtype=torch.complex64, device=self.device)
+                coeff_tensor = torch.tensor(
+                    coeff, dtype=torch.complex64, device=self.device
+                )
+                n_factor = torch.tensor(
+                    n ** (1 + 0.1j), dtype=torch.complex64, device=self.device
+                )
                 l_value *= 1.0 + coeff_tensor / n_factor
 
         f_tau *= l_value
 
         # Apply observational state persistence - ensure tensor consistency
         s_factor = self.compute_observational_persistence()[0]  # Total persistence
-        s_factor_tensor = torch.tensor(s_factor, dtype=torch.complex64, device=self.device)
+        s_factor_tensor = torch.tensor(
+            s_factor, dtype=torch.complex64, device=self.device
+        )
         f_tau *= s_factor_tensor
 
         # DIRECT TENSOR TO COMPLEX CONVERSION - NO ERROR MASKING
@@ -3365,7 +4208,9 @@ class ConceptualChargeAgent:
             # DIRECT SCALAR EXTRACTION
             tensor_value = extract_tensor_scalar(f_tau, context)
             if isinstance(tensor_value, complex):
-                f_tau_complex = complex(float(tensor_value.real), float(tensor_value.imag))
+                f_tau_complex = complex(
+                    float(tensor_value.real), float(tensor_value.imag)
+                )
             else:
                 f_tau_complex = complex(float(tensor_value), 0.0)
         else:
@@ -3390,13 +4235,17 @@ class ConceptualChargeAgent:
         """
         # Convert tau (modular) to field (grid) coordinates
         x = self.tau_position.real  # Real part maps directly
-        y = self.tau_position.imag - 1.0  # Shift from modular to grid (Im(τ) ≥ 1 → y ≥ 0)
+        y = (
+            self.tau_position.imag - 1.0
+        )  # Shift from modular to grid (Im(τ) ≥ 1 → y ≥ 0)
 
         # Update field position
         self.state.field_position = (x, y)
 
         # Update charge object metadata if it exists
-        if hasattr(self.charge_obj, "metadata") and hasattr(self.charge_obj.metadata, "field_position"):
+        if hasattr(self.charge_obj, "metadata") and hasattr(
+            self.charge_obj.metadata, "field_position"
+        ):
             self.charge_obj.metadata.field_position = (x, y)
         elif hasattr(self.charge_obj, "set_field_position"):
             self.charge_obj.set_field_position((x, y))
@@ -3415,7 +4264,9 @@ class ConceptualChargeAgent:
 
         self.tau_position = complex(real_part, imag_part)
 
-    def compute_gamma_calibration(self, collective_field_strength: Optional[float] = None, pool_size: int = 1) -> float:
+    def compute_gamma_calibration(
+        self, collective_field_strength: Optional[float] = None, pool_size: int = 1
+    ) -> float:
         """
         Implement γ global field calibration from section 3.1.5.3.
 
@@ -3436,23 +4287,33 @@ class ConceptualChargeAgent:
             # Derive from field interference matrix
             # Use scipy special functions for sophisticated averaging - NO BASIC NUMPY
             # Use torch for sophisticated absolute value - NO BASIC NUMPY
-            abs_interference = torch.abs(torch.tensor(self.field_interference_matrix, dtype=torch.float32)).numpy()
-            interference_strength = special.logsumexp(abs_interference.flatten()) / abs_interference.size
+            abs_interference = torch.abs(
+                torch.tensor(self.field_interference_matrix, dtype=torch.float32)
+            ).numpy()
+            interference_strength = (
+                special.logsumexp(abs_interference.flatten()) / abs_interference.size
+            )
             collective_field_strength = 1.0 + interference_strength
 
         # 🚀 BOOST GAMMA: Scale with pool size for stronger field presence
         # Larger pools need stronger individual gamma to maintain field energy
-        pool_boost = max(1.0, np.sqrt(pool_size))  # Square root scaling prevents overwhelming
+        pool_boost = max(
+            1.0, np.sqrt(pool_size)
+        )  # Square root scaling prevents overwhelming
 
         # Apply additional field strength boost for 10-agent pools
         field_strength_boost = 2.0 if pool_size >= 10 else 1.5
 
         # Calibrate to prevent overwhelming or weakness
         # Higher collective field → lower individual gamma (normalization)
-        calibration_factor = conductor_modulation / (1.0 + 0.1 * collective_field_strength)
+        calibration_factor = conductor_modulation / (
+            1.0 + 0.1 * collective_field_strength
+        )
 
         # Final gamma with pool-based boosting
-        boosted_gamma = base_gamma * calibration_factor * pool_boost * field_strength_boost
+        boosted_gamma = (
+            base_gamma * calibration_factor * pool_boost * field_strength_boost
+        )
 
         return boosted_gamma
 
@@ -3481,13 +4342,20 @@ class ConceptualChargeAgent:
 
         # Observational state s affects trajectory integration
         s = self.state.current_s
-        s_evolution = torch.exp(torch.tensor(-0.05 * s, dtype=torch.float32, device=self.device))
+        s_evolution = torch.exp(
+            torch.tensor(-0.05 * s, dtype=torch.float32, device=self.device)
+        )
 
         # Emotional coupling modulates T tensor (multiplicative effect)
         emotional_coupling = abs(self.coupling_state.emotional_field_coupling)
 
         # Compute tensor with multiplicative interactions
-        T_tensor_value = torch.mean(T_ops) * context_modulation * s_evolution * (1.0 + 0.2 * emotional_coupling)
+        T_tensor_value = (
+            torch.mean(T_ops)
+            * context_modulation
+            * s_evolution
+            * (1.0 + 0.2 * emotional_coupling)
+        )
 
         # Extract complex result
         # CRITICAL FIX: Ensure proper tensor-to-Python complex conversion with MPS safety
@@ -3508,15 +4376,42 @@ class ConceptualChargeAgent:
 
         Uses actual emotional modulation tensors with trajectory accumulation.
         """
+        # DEBUG: Log method entry and input components
+        print(f"[DEBUG] compute_emotional_trajectory_integration - Method entry")
+        print(f"[DEBUG] emotional_modulation object: {self.emotional_modulation}")
+        print(f"[DEBUG] emotional_modulation type: {type(self.emotional_modulation)}")
+
         # Get emotional modulation components
         modulation_tensor = self.emotional_modulation.semantic_modulation_tensor
         trajectory_attractors = self.emotional_modulation.trajectory_attractors
         resonance_freqs = self.emotional_modulation.resonance_frequencies
 
+        # DEBUG: Log the extracted components
+        print(f"[DEBUG] semantic_modulation_tensor: {modulation_tensor}")
+        print(f"[DEBUG] semantic_modulation_tensor type: {type(modulation_tensor)}")
+        print(
+            f"[DEBUG] semantic_modulation_tensor shape: {getattr(modulation_tensor, 'shape', 'N/A')}"
+        )
+        print(f"[DEBUG] trajectory_attractors: {trajectory_attractors}")
+        print(f"[DEBUG] trajectory_attractors type: {type(trajectory_attractors)}")
+        print(
+            f"[DEBUG] trajectory_attractors shape: {getattr(trajectory_attractors, 'shape', 'N/A')}"
+        )
+        print(f"[DEBUG] resonance_frequencies: {resonance_freqs}")
+        print(f"[DEBUG] resonance_frequencies type: {type(resonance_freqs)}")
+        print(
+            f"[DEBUG] resonance_frequencies shape: {getattr(resonance_freqs, 'shape', 'N/A')}"
+        )
+
         # Current and initial observational states
         s = self.state.current_s
         s_zero = self.state.s_zero
         delta_s = s - s_zero
+
+        # DEBUG: Log observational states
+        print(f"[DEBUG] current_s: {s}")
+        print(f"[DEBUG] s_zero: {s_zero}")
+        print(f"[DEBUG] delta_s: {delta_s}")
 
         # Trajectory accumulation using scipy integration
         def emotional_integrand(s_prime):
@@ -3541,29 +4436,47 @@ class ConceptualChargeAgent:
             return attractor_influence * resonance * decay
 
         # Integrate emotional accumulation from s_zero to current s
+        print(f"[DEBUG] About to compute integration, abs(delta_s) = {abs(delta_s)}")
         if abs(delta_s) > 0.01:
+            print(f"[DEBUG] Computing integration from {s_zero} to {s}")
             emotional_integral, _ = integrate.quad(emotional_integrand, s_zero, s)
+            print(f"[DEBUG] Integration result: {emotional_integral}")
         else:
             emotional_integral = 0.0
+            print(f"[DEBUG] Using zero integration (delta_s too small)")
 
         # Apply modulation tensor influence
         # Use scipy special functions for sophisticated averaging - NO BASIC NUMPY
+        print(f"[DEBUG] Computing tensor influence from modulation_tensor")
         tensor_influence = special.logsumexp(modulation_tensor) / len(modulation_tensor)
+        print(f"[DEBUG] tensor_influence: {tensor_influence}")
 
         # Combine with unified phase shift
         phase_shift = self.emotional_modulation.unified_phase_shift
+        print(f"[DEBUG] unified_phase_shift: {phase_shift}")
 
         # Final emotional trajectory value
         E_magnitude = 1.0 + 0.3 * tensor_influence + 0.1 * emotional_integral
+        print(
+            f"[DEBUG] E_magnitude calculation: 1.0 + 0.3 * {tensor_influence} + 0.1 * {emotional_integral} = {E_magnitude}"
+        )
 
         # Use torch for advanced phase computation
+        print(f"[DEBUG] Computing phase from phase_shift")
         phase_tensor = torch.tensor(phase_shift, dtype=torch.complex64)
         E_phase = torch.angle(phase_tensor).item()
+        print(f"[DEBUG] E_phase: {E_phase}")
 
         # Advanced E_trajectory construction using torch exponential
+        print(f"[DEBUG] Constructing final E_trajectory")
         magnitude_tensor = torch.tensor(E_magnitude, dtype=torch.float32)
         phase_exp = torch.exp(1j * torch.tensor(E_phase, dtype=torch.float32))
         E_trajectory = (magnitude_tensor * phase_exp).item()
+
+        print(f"[DEBUG] Final E_trajectory: {E_trajectory}")
+        print(f"[DEBUG] E_trajectory type: {type(E_trajectory)}")
+        print(f"[DEBUG] E_trajectory is None: {E_trajectory is None}")
+        print(f"[DEBUG] compute_emotional_trajectory_integration - Method exit")
 
         return E_trajectory
 
@@ -3590,9 +4503,9 @@ class ConceptualChargeAgent:
                 raise ValueError(
                     f"collective_freq is not array-like: {type(collective_freq)} = {collective_freq} - Collective breathing system corrupted!"
                 )
-            # Use scipy special functions for sophisticated averaging - NO BASIC NUMPY
-            # Use torch for sophisticated real extraction - NO BASIC NUMPY
-            real_freq = torch.real(torch.tensor(collective_freq, dtype=torch.complex64)).numpy()
+            real_freq = torch.real(
+                torch.tensor(collective_freq, dtype=torch.complex64)
+            ).numpy()
             breathing_frequency = special.logsumexp(real_freq) / len(real_freq)
         else:
             # NO FALLBACK - Collective frequency must exist
@@ -3601,12 +4514,18 @@ class ConceptualChargeAgent:
                 "Breathing frequency cannot be computed. System requires frequency data."
             )
 
-        breathing_amplitude = self.collective_breathing.get("breathing_pattern_diversity")
+        breathing_amplitude = self.collective_breathing.get(
+            "breathing_pattern_diversity"
+        )
 
         # REAL modular breathing constellation using Eisenstein series (Section 3.1.4.3.4)
         # Convert observational parameter s to complex tau in upper half-plane
-        tau_semantic = complex(breathing_frequency * s * 0.1, 0.5 + breathing_amplitude * 0.2)
-        breathing_factor = self._evaluate_breathing_eisenstein_series(tau_semantic, harmonic_number=2)
+        tau_semantic = complex(
+            breathing_frequency * s * 0.1, 0.5 + breathing_amplitude * 0.2
+        )
+        breathing_factor = self._evaluate_breathing_eisenstein_series(
+            tau_semantic, harmonic_number=2
+        )
 
         # Evaluate semantic field at current field position using actual SemanticField
         position_x = np.array(self.state.field_position)
@@ -3639,12 +4558,17 @@ class ConceptualChargeAgent:
         phase_factors = self.semantic_field.phase_factors
         context_influence = len(self.state.current_context_C) / 100.0  # Normalize
         # Use scipy special functions for sophisticated averaging - NO BASIC NUMPY
-        theta_semantic = (special.logsumexp(phase_factors) / len(phase_factors)) * (1.0 + context_influence)
+        theta_semantic = (special.logsumexp(phase_factors) / len(phase_factors)) * (
+            1.0 + context_influence
+        )
 
         # θ_emotional(τ) - from emotional phase modulation
         emotional_phase_shift = self.emotional_modulation.unified_phase_shift
         # Use torch for advanced angle computation - NO BASIC NUMPY
-        emotional_tensor = torch.tensor([emotional_phase_shift.real, emotional_phase_shift.imag], dtype=torch.float32)
+        emotional_tensor = torch.tensor(
+            [emotional_phase_shift.real, emotional_phase_shift.imag],
+            dtype=torch.float32,
+        )
         theta_emotional = torch.atan2(emotional_tensor[1], emotional_tensor[0]).item()
 
         # ∫₀ˢ ω_temporal(τ,s') ds' - temporal integral using frequency evolution
@@ -3663,12 +4587,16 @@ class ConceptualChargeAgent:
                     f"frequency_evolution is not array-like: {type(frequency_evolution)} = {frequency_evolution} - Temporal evolution system corrupted!"
                 )
             # Use torch for sophisticated real extraction - NO BASIC NUMPY
-            omega_values = torch.real(torch.tensor(frequency_evolution, dtype=torch.complex64)).numpy()
+            omega_values = torch.real(
+                torch.tensor(frequency_evolution, dtype=torch.complex64)
+            ).numpy()
             s_span = abs(s - s_zero)
 
             if len(omega_values) > 1:
                 # Trapezoidal rule: much faster than cubic interpolation + quad
-                temporal_integral = np.trapz(omega_values, dx=s_span / (len(omega_values) - 1))
+                temporal_integral = np.trapz(
+                    omega_values, dx=s_span / (len(omega_values) - 1)
+                )
             else:
                 # Single value case
                 temporal_integral = omega_values[0] * s_span if omega_values else 0.0
@@ -3689,7 +4617,12 @@ class ConceptualChargeAgent:
         # θ_interaction(τ,C,s) - contextual coupling with interference
         # Use scipy special functions for sophisticated averaging - NO BASIC NUMPY
         # Use torch for sophisticated absolute value - NO BASIC NUMPY
-        abs_signature = torch.abs(torch.tensor(self.temporal_biography.field_interference_signature, dtype=torch.float32)).numpy()
+        abs_signature = torch.abs(
+            torch.tensor(
+                self.temporal_biography.field_interference_signature,
+                dtype=torch.float32,
+            )
+        ).numpy()
         interference_strength = special.logsumexp(abs_signature) / len(abs_signature)
         theta_interaction = interference_strength * s * context_influence
 
@@ -3699,7 +4632,13 @@ class ConceptualChargeAgent:
         theta_field = 0.1 * field_distance * s
 
         # Total phase with wrapping
-        total = theta_semantic + theta_emotional + temporal_integral + theta_interaction + theta_field
+        total = (
+            theta_semantic
+            + theta_emotional
+            + temporal_integral
+            + theta_interaction
+            + theta_field
+        )
 
         # Wrap to [-π, π]
         # Use torch.pi for sophisticated constant - NO BASIC NUMPY
@@ -3728,7 +4667,9 @@ class ConceptualChargeAgent:
 
         Uses actual vivid_layer and character_layer from temporal biography.
         """
-        logger.debug(f"🔧 Agent {self.charge_id} - Starting observational persistence computation")
+        logger.debug(
+            f"🔧 Agent {self.charge_id} - Starting observational persistence computation"
+        )
 
         # CRITICAL DEBUG: Check state value types before access
         logger.debug(
@@ -3738,17 +4679,23 @@ class ConceptualChargeAgent:
         # MPS-safe state access with explicit tensor checking
         if hasattr(self.state.current_s, "cpu"):
             s = float(self.state.current_s.cpu().detach().numpy())
-            logger.info(f"🔧 Agent {self.charge_id} - Converted current_s tensor to float: {s}")
+            logger.info(
+                f"🔧 Agent {self.charge_id} - Converted current_s tensor to float: {s}"
+            )
         else:
             s = float(self.state.current_s)
 
         if hasattr(self.state.s_zero, "cpu"):
             s_zero = float(self.state.s_zero.cpu().detach().numpy())
-            logger.info(f"🔧 Agent {self.charge_id} - Converted s_zero tensor to float: {s_zero}")
+            logger.info(
+                f"🔧 Agent {self.charge_id} - Converted s_zero tensor to float: {s_zero}"
+            )
         else:
             s_zero = float(self.state.s_zero)
 
-        logger.debug(f"🔧 Agent {self.charge_id} - State values: s={s}, s_zero={s_zero}")
+        logger.debug(
+            f"🔧 Agent {self.charge_id} - State values: s={s}, s_zero={s_zero}"
+        )
 
         delta_s = s - s_zero
 
@@ -3766,16 +4713,28 @@ class ConceptualChargeAgent:
         if len(vivid_layer) > 0:
             # Use actual vivid layer data with underflow protection
             # CRITICAL FIX: Ensure mean is real before comparison - MPS-safe
-            logger.debug(f"🔧 Agent {self.charge_id} - Processing vivid_layer, type: {type(vivid_layer)}")
+            logger.debug(
+                f"🔧 Agent {self.charge_id} - Processing vivid_layer, type: {type(vivid_layer)}"
+            )
             if hasattr(vivid_layer, "cpu"):
                 vivid_mean = torch.logsumexp(vivid_layer, dim=0) / vivid_layer.numel()
-                logger.debug(f"🔧 Agent {self.charge_id} - Processed vivid_layer tensor directly")
+                logger.debug(
+                    f"🔧 Agent {self.charge_id} - Processed vivid_layer tensor directly"
+                )
             else:
                 vivid_tensor = torch.tensor(vivid_layer, dtype=torch.float32)
                 vivid_mean = torch.logsumexp(vivid_tensor, dim=0) / vivid_tensor.numel()
-                logger.debug(f"🔧 Agent {self.charge_id} - Converted to tensor and processed")
-            vivid_mean_real = float(vivid_mean.real) if torch.is_complex(vivid_mean) else float(vivid_mean.item())
-            vivid_base = float(max(0.9, vivid_mean_real))  # 🔧 Clamp vivid layer to minimum 0.9 - ensure float
+                logger.debug(
+                    f"🔧 Agent {self.charge_id} - Converted to tensor and processed"
+                )
+            vivid_mean_real = (
+                float(vivid_mean.real)
+                if torch.is_complex(vivid_mean)
+                else float(vivid_mean.item())
+            )
+            vivid_base = float(
+                max(0.9, vivid_mean_real)
+            )  # 🔧 Clamp vivid layer to minimum 0.9 - ensure float
             logger.debug(
                 f"🔧 Agent {self.charge_id} - About to compute vivid_influence with vivid_base={vivid_base}, delta_s={delta_s}"
             )
@@ -3786,11 +4745,42 @@ class ConceptualChargeAgent:
             else:
                 sigma_i_val = float(self.sigma_i)
 
-            # DIRECT VIVID INFLUENCE COMPUTATION - NO ERROR MASKING
-            # Use torch for sophisticated exponential - NO BASIC NUMPY
-            exp_arg = -(delta_s * delta_s) / (2 * sigma_i_val * sigma_i_val)
-            vivid_influence = vivid_base * torch.exp(torch.tensor(exp_arg, dtype=torch.float32)).item()
-            logger.debug(f"🔧 Agent {self.charge_id} - Vivid influence computed: {vivid_influence}")
+            # STABILIZED VIVID INFLUENCE COMPUTATION with logarithmic scaling for large delta_s
+            # Mathematical fix: when delta_s is large, apply log scaling to prevent underflow
+            delta_s_threshold = 1000.0  # Threshold for applying logarithmic scaling
+
+            if abs(delta_s) > delta_s_threshold:
+                # Logarithmic scaling: delta_s_scaled = threshold * log(1 + |delta_s|/threshold)
+                # This preserves monotonicity while preventing exponential underflow
+                delta_s_sign = 1.0 if delta_s >= 0 else -1.0
+                delta_s_scaled = (
+                    delta_s_sign
+                    * delta_s_threshold
+                    * math.log(1.0 + abs(delta_s) / delta_s_threshold)
+                )
+
+                logger.debug(
+                    f"🔧 Agent {self.charge_id} - Large delta_s detected: {delta_s:.2f} -> scaled to {delta_s_scaled:.2f}"
+                )
+
+                # Use scaled delta_s for exponential computation
+                exp_arg = -(delta_s_scaled * delta_s_scaled) / (
+                    2 * sigma_i_val * sigma_i_val
+                )
+            else:
+                # Normal computation for reasonable delta_s values
+                exp_arg = -(delta_s * delta_s) / (2 * sigma_i_val * sigma_i_val)
+
+            # Ensure exp_arg doesn't cause underflow (clamp to reasonable range)
+            exp_arg = max(exp_arg, -20.0)  # exp(-20) ≈ 2e-9, still meaningful
+
+            vivid_influence = (
+                vivid_base
+                * torch.exp(torch.tensor(exp_arg, dtype=torch.float32)).item()
+            )
+            logger.debug(
+                f"🔧 Agent {self.charge_id} - Vivid influence computed: {vivid_influence} (exp_arg: {exp_arg:.3f})"
+            )
         else:
             # CRITICAL FIX: Ensure sigma_i is a float for MPS compatibility
             if hasattr(self.sigma_i, "cpu"):
@@ -3798,40 +4788,86 @@ class ConceptualChargeAgent:
             else:
                 sigma_i_val = float(self.sigma_i)
 
-            # DIRECT VIVID INFLUENCE COMPUTATION - NO ERROR MASKING
-            # Use torch for sophisticated exponential - NO BASIC NUMPY
-            exp_arg = -(delta_s * delta_s) / (2 * sigma_i_val * sigma_i_val)
-            vivid_influence = torch.exp(torch.tensor(exp_arg, dtype=torch.float32)).item()
-            logger.debug(f"🔧 Agent {self.charge_id} - Vivid influence (else case) computed: {vivid_influence}")
+            # STABILIZED VIVID INFLUENCE COMPUTATION with logarithmic scaling for large delta_s
+            # Mathematical fix: when delta_s is large, apply log scaling to prevent underflow
+            delta_s_threshold = 1000.0  # Threshold for applying logarithmic scaling
+
+            if abs(delta_s) > delta_s_threshold:
+                # Logarithmic scaling: delta_s_scaled = threshold * log(1 + |delta_s|/threshold)
+                # This preserves monotonicity while preventing exponential underflow
+                delta_s_sign = 1.0 if delta_s >= 0 else -1.0
+                delta_s_scaled = (
+                    delta_s_sign
+                    * delta_s_threshold
+                    * math.log(1.0 + abs(delta_s) / delta_s_threshold)
+                )
+
+                logger.debug(
+                    f"🔧 Agent {self.charge_id} - Large delta_s detected: {delta_s:.2f} -> scaled to {delta_s_scaled:.2f}"
+                )
+
+                # Use scaled delta_s for exponential computation
+                exp_arg = -(delta_s_scaled * delta_s_scaled) / (
+                    2 * sigma_i_val * sigma_i_val
+                )
+            else:
+                # Normal computation for reasonable delta_s values
+                exp_arg = -(delta_s * delta_s) / (2 * sigma_i_val * sigma_i_val)
+
+            # Ensure exp_arg doesn't cause underflow (clamp to reasonable range)
+            exp_arg = max(exp_arg, -20.0)  # exp(-20) ≈ 2e-9, still meaningful
+
+            vivid_influence = torch.exp(
+                torch.tensor(exp_arg, dtype=torch.float32)
+            ).item()
+            logger.debug(
+                f"🔧 Agent {self.charge_id} - Vivid influence (else case) computed: {vivid_influence} (exp_arg: {exp_arg:.3f})"
+            )
 
         # Apply additional vivid underflow protection
         vivid_influence_real = (
             # Use torch for sophisticated complex type checking - NO BASIC NUMPY
-            float(vivid_influence.real) if torch.is_complex(torch.tensor(vivid_influence)) else float(vivid_influence)
+            float(vivid_influence.real)
+            if torch.is_complex(torch.tensor(vivid_influence))
+            else float(vivid_influence)
         )
-        vivid_influence = max(0.8, vivid_influence_real)  # 🔧 Keep vivid influence above 0.8
+        vivid_influence = max(
+            0.8, vivid_influence_real
+        )  # 🔧 Keep vivid influence above 0.8
 
         # Exponential-cosine from character layer (persistent themes)
         if len(character_layer) > 0:
             # Use actual character layer data with underflow protection
             if hasattr(character_layer, "cpu"):
-                character_tensor = character_layer.to(device=self.device, dtype=torch.float32)
+                character_tensor = character_layer.to(
+                    device=self.device, dtype=torch.float32
+                )
                 character_mean = torch.mean(character_tensor).item()
             else:
-                character_tensor = torch.tensor(character_layer, device=self.device, dtype=torch.float32)
+                character_tensor = torch.tensor(
+                    character_layer, device=self.device, dtype=torch.float32
+                )
                 character_mean = torch.mean(character_tensor).item()
             character_mean_real = (
                 # Use torch for sophisticated complex type checking - NO BASIC NUMPY
-                float(character_mean.real) if torch.is_complex(torch.tensor(character_mean)) else float(character_mean)
+                float(character_mean.real)
+                if torch.is_complex(torch.tensor(character_mean))
+                else float(character_mean)
             )
-            character_base = float(max(0.08, character_mean_real))  # 🔧 Clamp character layer minimum - ensure float
+            character_base = float(
+                max(0.08, character_mean_real)
+            )  # 🔧 Clamp character layer minimum - ensure float
             # Use CDF for sophisticated exponential and trigonometric computation - NO BASIC math functions
-            character_influence = character_base * float(CDF(-self.lambda_i * CDF(delta_s).abs()).exp())
+            character_influence = character_base * float(
+                CDF(-self.lambda_i * CDF(delta_s).abs()).exp()
+            )
             character_influence *= float(CDF(self.beta_i * delta_s).cos())
         else:
             # Use CDF for sophisticated mathematical operations - NO BASIC math functions
             character_influence = (
-                self.alpha_i * float(CDF(-self.lambda_i * CDF(delta_s).abs()).exp()) * float(CDF(self.beta_i * delta_s).cos())
+                self.alpha_i
+                * float(CDF(-self.lambda_i * CDF(delta_s).abs()).exp())
+                * float(CDF(self.beta_i * delta_s).cos())
             )
 
         character_influence_real = abs(character_influence)
@@ -3854,12 +4890,16 @@ class ConceptualChargeAgent:
         conceptual charge using actual field theory mathematics with real data.
         """
         start_time = time.time()
-        logger.debug(f"🔧 Agent {self.charge_id} - Starting Q computation (pool_size: {pool_size})")
+        logger.debug(
+            f"🔧 Agent {self.charge_id} - Starting Q computation (pool_size: {pool_size})"
+        )
 
         # DIRECT Q COMPUTATION - NO ERROR MASKING
         component_start = time.time()
         gamma = self.compute_gamma_calibration(collective_field_strength, pool_size)
-        logger.info(f"🔧 Agent {self.charge_id} - gamma: {gamma:.6f} (time: {time.time() - component_start:.3f}s)")
+        logger.info(
+            f"🔧 Agent {self.charge_id} - gamma: {gamma:.6f} (time: {time.time() - component_start:.3f}s)"
+        )
 
         component_start = time.time()
         T_tensor = self.compute_transformative_potential_tensor()
@@ -3867,8 +4907,36 @@ class ConceptualChargeAgent:
             f"🔧 Agent {self.charge_id} - T_tensor: {T_tensor} (magnitude: {abs(T_tensor):.6f}, time: {time.time() - component_start:.3f}s)"
         )
 
+        # Debug logging for emotional trajectory before Q computation
+        logger.debug(
+            f"🔍 DEBUG: About to compute emotional trajectory for agent {self.charge_id}"
+        )
+        if hasattr(self.emotional_modulation, "emotional_trajectory"):
+            logger.debug(
+                f"   - emotional_trajectory shape: {getattr(self.emotional_modulation.emotional_trajectory, 'shape', 'N/A')}"
+            )
+            logger.debug(
+                f"   - emotional_trajectory device: {getattr(self.emotional_modulation.emotional_trajectory, 'device', 'N/A')}"
+            )
+            logger.debug(
+                f"   - emotional_trajectory has NaN: {torch.any(torch.isnan(self.emotional_modulation.emotional_trajectory)) if hasattr(self.emotional_modulation.emotional_trajectory, 'dtype') else 'N/A'}"
+            )
+            logger.debug(
+                f"   - emotional_trajectory values: {self.emotional_modulation.emotional_trajectory[:5] if len(self.emotional_modulation.emotional_trajectory) > 0 else 'empty'}"
+            )
+        logger.debug(f"   - Current observational state s: {self.state.current_s}")
+        logger.debug(f"   - Initial observational state s_zero: {self.state.s_zero}")
+        logger.debug(f"   - Delta s: {self.state.current_s - self.state.s_zero}")
+
         component_start = time.time()
         E_trajectory = self.compute_emotional_trajectory_integration()
+        logger.debug(
+            f"🔍 DEBUG: E_trajectory computation result: {type(E_trajectory)} = {E_trajectory}"
+        )
+        logger.debug(f"   - E_trajectory is None: {E_trajectory is None}")
+        if E_trajectory is not None:
+            logger.debug(f"   - E_trajectory value: {E_trajectory}")
+            logger.debug(f"   - E_trajectory magnitude: {abs(E_trajectory):.6f}")
         logger.info(
             f"🔧 Agent {self.charge_id} - E_trajectory: {E_trajectory} (magnitude: {abs(E_trajectory):.6f}, time: {time.time() - component_start:.3f}s)"
         )
@@ -3883,8 +4951,12 @@ class ConceptualChargeAgent:
         theta_components = self.compute_5component_phase_integration()
         # Use torch for trigonometric operations
         theta_tensor = torch.tensor(theta_components.total, dtype=torch.float32)
-        phase_factor = complex(torch.cos(theta_tensor).item(), torch.sin(theta_tensor).item())
-        logger.info(f"🔧 Agent {self.charge_id} - phase_integration (time: {time.time() - component_start:.3f}s)")
+        phase_factor = complex(
+            torch.cos(theta_tensor).item(), torch.sin(theta_tensor).item()
+        )
+        logger.info(
+            f"🔧 Agent {self.charge_id} - phase_integration (time: {time.time() - component_start:.3f}s)"
+        )
 
         # 🔧 VERIFY: Phase factor magnitude should be exactly 1.0 (e^iθ property)
         phase_magnitude = abs(phase_factor)
@@ -3897,14 +4969,24 @@ class ConceptualChargeAgent:
             )
             # Normalize to unit magnitude
             phase_factor = phase_factor / phase_magnitude
-            logger.warning(f"    Normalized phase_factor: {phase_factor} (new magnitude: {abs(phase_factor):.10f})")
+            logger.warning(
+                f"    Normalized phase_factor: {phase_factor} (new magnitude: {abs(phase_factor):.10f})"
+            )
 
-        logger.debug(f"🔧 Agent {self.charge_id} - phase_factor: {phase_factor} (magnitude: {abs(phase_factor):.6f})")
+        logger.debug(
+            f"🔧 Agent {self.charge_id} - phase_factor: {phase_factor} (magnitude: {abs(phase_factor):.6f})"
+        )
 
         # DIRECT PERSISTENCE COMPUTATION - NO ERROR MASKING
-        logger.debug(f"🔧 Agent {self.charge_id} - About to call compute_observational_persistence()")
-        psi_persistence, psi_gaussian, psi_exponential_cosine = self.compute_observational_persistence()
-        logger.debug(f"🔧 Agent {self.charge_id} - Persistence computation completed successfully")
+        logger.debug(
+            f"🔧 Agent {self.charge_id} - About to call compute_observational_persistence()"
+        )
+        psi_persistence, psi_gaussian, psi_exponential_cosine = (
+            self.compute_observational_persistence()
+        )
+        logger.debug(
+            f"🔧 Agent {self.charge_id} - Persistence computation completed successfully"
+        )
         logger.debug(
             f"🔧 Agent {self.charge_id} - psi_persistence: {psi_persistence:.6f} (gaussian: {psi_gaussian:.6f}, exp_cos: {psi_exponential_cosine:.6f})"
         )
@@ -3912,7 +4994,14 @@ class ConceptualChargeAgent:
         # Allow natural mathematical evolution - maintain integrity
 
         # Final Q(τ, C, s) computation
-        Q_value = gamma * T_tensor * E_trajectory * phi_semantic * phase_factor * psi_persistence
+        Q_value = (
+            gamma
+            * T_tensor
+            * E_trajectory
+            * phi_semantic
+            * phase_factor
+            * psi_persistence
+        )
 
         # Validate Q magnitude
         Q_magnitude = abs(Q_value)
@@ -3946,6 +5035,16 @@ class ConceptualChargeAgent:
             Q_value=Q_value,
         )
 
+        # 🔍 Q VALUE TRACKING: Log final Q_components creation
+        logger.debug(f"🔍 Q-TRACK: Agent {self.charge_id} Q_components created:")
+        logger.debug(
+            f"   - E_trajectory: {E_trajectory} (None: {E_trajectory is None})"
+        )
+        logger.debug(f"   - Q_value: {Q_value} (None: {Q_value is None})")
+        logger.debug(
+            f"   - Q_components.E_trajectory: {self.Q_components.E_trajectory} (None: {self.Q_components.E_trajectory is None})"
+        )
+
         # Update charge object
         self.charge_obj.complete_charge = Q_value
         self.charge_obj.magnitude = abs(Q_value)
@@ -3963,9 +5062,35 @@ class ConceptualChargeAgent:
         self.validate_Q_components()
 
         total_time = time.time() - start_time
-        logger.info(f"✅ Agent {self.charge_id} - Q computation COMPLETE (total time: {total_time:.3f}s)")
+        logger.info(
+            f"✅ Agent {self.charge_id} - Q computation COMPLETE (total time: {total_time:.3f}s)"
+        )
 
         return self.Q_components
+
+    def _normalize_s_parameter(self):
+        """
+        Normalize s-parameter to prevent exponential growth while preserving mathematical relationships.
+
+        Uses logarithmic stabilization when s becomes large, maintaining monotonicity
+        and mathematical meaning while preventing numerical instability.
+        """
+        s_threshold = 10000.0  # Threshold for applying normalization
+        current_s = self.state.current_s
+
+        if abs(current_s) > s_threshold:
+            # Logarithmic normalization: preserves order relationships while limiting growth
+            s_sign = 1.0 if current_s >= 0 else -1.0
+            normalized_s = (
+                s_sign * s_threshold * (1.0 + math.log(abs(current_s) / s_threshold))
+            )
+
+            logger.debug(
+                f"🔧 Agent {self.charge_id} - S-parameter normalization: {current_s:.2f} -> {normalized_s:.2f}"
+            )
+
+            self.state.current_s = normalized_s
+            self.charge_obj.update_observational_state(normalized_s)
 
     def evolve_observational_state(self, delta_s: float):
         """
@@ -3975,29 +5100,37 @@ class ConceptualChargeAgent:
             delta_s: Change in observational state
         """
         self.state.current_s += delta_s
+
+        # Apply normalization to prevent exponential growth
+        self._normalize_s_parameter()
+
         self.charge_obj.update_observational_state(self.state.current_s)
 
         # Recompute Q with new observational state
         self.compute_complete_Q()
 
-    def _safe_breathing_coherence_calculation(self, frequency_evolution: torch.Tensor) -> float:
+    def _safe_breathing_coherence_calculation(
+        self, frequency_evolution: torch.Tensor
+    ) -> float:
         """
         Calculate breathing coherence with regulation-based NaN protection.
-        
-        Uses the regulation system to detect and prevent NaN propagation in 
+
+        Uses the regulation system to detect and prevent NaN propagation in
         frequency evolution variance calculations, maintaining mathematical
         integrity while providing numerical stability.
-        
+
         Args:
             frequency_evolution: Tensor containing frequency evolution data
-            
+
         Returns:
             Safe variance value for breathing coherence calculation
         """
         if self.regulation_liquid is None:
             # Fallback to basic NaN checking if no regulation system available
             if not torch.all(torch.isfinite(frequency_evolution)):
-                logger.warning(f"🌊 Agent {self.charge_id}: Non-finite values in frequency_evolution, using fallback variance")
+                logger.warning(
+                    f"🌊 Agent {self.charge_id}: Non-finite values in frequency_evolution, using fallback variance"
+                )
                 # Filter out non-finite values
                 finite_values = frequency_evolution[torch.isfinite(frequency_evolution)]
                 if len(finite_values) == 0:
@@ -4005,154 +5138,196 @@ class ConceptualChargeAgent:
                 return torch.var(finite_values).item()
             else:
                 return torch.var(frequency_evolution).item()
-        
+
         # Use regulation system for advanced field stabilization
         try:
             # Check if regulation is needed through field state analysis
             field_state = self.regulation_liquid.analyze_field_state([self])
-            
-            if field_state.phase_transition_indicator > 0.3:  # Field instability detected
-                logger.info(f"🌊 Agent {self.charge_id}: Field instability detected (indicator: {field_state.phase_transition_indicator:.3f}), applying regulation")
-                
+
+            if (
+                field_state.phase_transition_indicator > 0.3
+            ):  # Field instability detected
+                logger.info(
+                    f"🌊 Agent {self.charge_id}: Field instability detected (indicator: {field_state.phase_transition_indicator:.3f}), applying regulation"
+                )
+
                 # Apply variational regulation to stabilize frequency evolution
-                if hasattr(self.regulation_liquid, 'variational_regulation') and self.regulation_liquid.variational_regulation:
+                if (
+                    hasattr(self.regulation_liquid, "variational_regulation")
+                    and self.regulation_liquid.variational_regulation
+                ):
                     # Use variational optimization to find stable frequency evolution
-                    stabilized_freq_evolution = self._apply_variational_frequency_regulation(frequency_evolution)
+                    stabilized_freq_evolution = (
+                        self._apply_variational_frequency_regulation(
+                            frequency_evolution
+                        )
+                    )
                 else:
                     # Fallback to geometric regulation
-                    stabilized_freq_evolution = self._apply_geometric_frequency_regulation(frequency_evolution)
-                
+                    stabilized_freq_evolution = (
+                        self._apply_geometric_frequency_regulation(frequency_evolution)
+                    )
+
                 # Calculate variance with stabilized data
                 freq_var = torch.var(stabilized_freq_evolution).item()
-                
+
                 # Verify the result is finite
                 if not math.isfinite(freq_var):
-                    logger.warning(f"🌊 Agent {self.charge_id}: Regulation failed to produce finite variance, using emergency fallback")
+                    logger.warning(
+                        f"🌊 Agent {self.charge_id}: Regulation failed to produce finite variance, using emergency fallback"
+                    )
                     return 0.1  # Emergency mathematical bound
-                    
-                logger.info(f"🌊 Agent {self.charge_id}: Regulation successful, variance: {freq_var:.6f}")
+
+                logger.info(
+                    f"🌊 Agent {self.charge_id}: Regulation successful, variance: {freq_var:.6f}"
+                )
                 return freq_var
-                
+
             else:
                 # Field is stable, proceed with normal calculation
                 freq_var = torch.var(frequency_evolution).item()
                 if not math.isfinite(freq_var):
-                    logger.warning(f"🌊 Agent {self.charge_id}: Stable field produced non-finite variance, applying emergency regulation")
+                    logger.warning(
+                        f"🌊 Agent {self.charge_id}: Stable field produced non-finite variance, applying emergency regulation"
+                    )
                     return 0.1  # Emergency mathematical bound
                 return freq_var
-                
+
         except Exception as e:
-            logger.warning(f"🌊 Agent {self.charge_id}: Regulation system error: {e}, using safe fallback")
+            logger.warning(
+                f"🌊 Agent {self.charge_id}: Regulation system error: {e}, using safe fallback"
+            )
             # Emergency fallback with basic NaN protection
             finite_values = frequency_evolution[torch.isfinite(frequency_evolution)]
             if len(finite_values) == 0:
                 return 0.1
             return torch.var(finite_values).item()
 
-    def _apply_variational_frequency_regulation(self, frequency_evolution: torch.Tensor) -> torch.Tensor:
+    def _apply_variational_frequency_regulation(
+        self, frequency_evolution: torch.Tensor
+    ) -> torch.Tensor:
         """Apply variational regulation to stabilize frequency evolution."""
         try:
             # Use the regulation system's variational component to optimize frequency stability
             # The energy functional minimizes frequency variance while preserving field structure
-            if hasattr(self.regulation_liquid, 'variational_regulation'):
+            if hasattr(self.regulation_liquid, "variational_regulation"):
                 # Apply mathematical optimization to find stable frequency configuration
                 stabilized = frequency_evolution.clone()
-                
+
                 # Remove non-finite values
                 finite_mask = torch.isfinite(stabilized)
                 if finite_mask.sum() == 0:
-                    return torch.ones_like(frequency_evolution) * 1.0  # Uniform stable frequency
-                
+                    return (
+                        torch.ones_like(frequency_evolution) * 1.0
+                    )  # Uniform stable frequency
+
                 # Smooth extreme variations using gradient-based approach
                 stabilized = stabilized.where(finite_mask, torch.ones_like(stabilized))
-                
+
                 # Apply gentle smoothing to reduce variance while preserving dynamics
                 if len(stabilized) > 1:
                     smoothed = torch.conv1d(
                         stabilized.unsqueeze(0).unsqueeze(0),
                         torch.tensor([0.25, 0.5, 0.25]).unsqueeze(0).unsqueeze(0),
-                        padding=1
+                        padding=1,
                     ).squeeze()
                     return smoothed
-                
+
                 return stabilized
             else:
                 return self._apply_geometric_frequency_regulation(frequency_evolution)
         except Exception as e:
-            logger.warning(f"🌊 Agent {self.charge_id}: Variational regulation failed: {e}")
+            logger.warning(
+                f"🌊 Agent {self.charge_id}: Variational regulation failed: {e}"
+            )
             return self._apply_geometric_frequency_regulation(frequency_evolution)
 
-    def _apply_geometric_frequency_regulation(self, frequency_evolution: torch.Tensor) -> torch.Tensor:
+    def _apply_geometric_frequency_regulation(
+        self, frequency_evolution: torch.Tensor
+    ) -> torch.Tensor:
         """Apply geometric regulation to stabilize frequency evolution."""
         try:
             # Use differential geometry principles to smooth field singularities
             stabilized = frequency_evolution.clone()
-            
+
             # Replace non-finite values with geometric mean of neighbors
             finite_mask = torch.isfinite(stabilized)
             if finite_mask.sum() == 0:
                 return torch.ones_like(frequency_evolution) * 1.0
-            
+
             # Geometric interpolation for non-finite values
             for i in range(len(stabilized)):
                 if not finite_mask[i]:
                     # Find nearest finite values for geometric interpolation
-                    left_idx = max(0, i-1)
-                    right_idx = min(len(stabilized)-1, i+1)
-                    
+                    left_idx = max(0, i - 1)
+                    right_idx = min(len(stabilized) - 1, i + 1)
+
                     while left_idx >= 0 and not finite_mask[left_idx]:
                         left_idx -= 1
                     while right_idx < len(stabilized) and not finite_mask[right_idx]:
                         right_idx += 1
-                    
+
                     if left_idx >= 0 and right_idx < len(stabilized):
                         # Geometric mean interpolation
-                        stabilized[i] = torch.sqrt(torch.abs(stabilized[left_idx] * stabilized[right_idx]))
+                        stabilized[i] = torch.sqrt(
+                            torch.abs(stabilized[left_idx] * stabilized[right_idx])
+                        )
                     elif left_idx >= 0:
                         stabilized[i] = stabilized[left_idx]
                     elif right_idx < len(stabilized):
                         stabilized[i] = stabilized[right_idx]
                     else:
                         stabilized[i] = 1.0  # Neutral frequency
-            
+
             return stabilized
-            
+
         except Exception as e:
-            logger.warning(f"🌊 Agent {self.charge_id}: Geometric regulation failed: {e}")
-            # Final emergency fallback
-            return torch.ones_like(frequency_evolution) * 1.0
+            raise ValueError(
+                f"🌊 Agent {self.charge_id}: Geometric regulation failed: {e}"
+            )
 
     def _stabilize_breathing_coefficients_for_cascade(self):
         """
         Stabilize breathing q-coefficients before cascade operations to prevent NaN propagation.
-        
+
         Uses regulation system to detect and repair corrupted coefficients that would
         cause NaN cascade through dimensional feedback loops.
         """
-        if not hasattr(self, 'breathing_q_coefficients') or not self.breathing_q_coefficients:
-            logger.warning(f"🌊 Agent {self.charge_id}: No breathing coefficients for cascade stabilization")
+        if (
+            not hasattr(self, "breathing_q_coefficients")
+            or not self.breathing_q_coefficients
+        ):
+            logger.warning(
+                f"🌊 Agent {self.charge_id}: No breathing coefficients for cascade stabilization"
+            )
             return
-            
+
         # Check for non-finite coefficients
         problematic_coefficients = []
         for n, coeff in self.breathing_q_coefficients.items():
             if not (math.isfinite(coeff.real) and math.isfinite(coeff.imag)):
                 problematic_coefficients.append(n)
-        
+
         if len(problematic_coefficients) == 0:
             # All coefficients are finite, check if regulation is still needed via field analysis
             if self.regulation_liquid is not None:
                 try:
                     field_state = self.regulation_liquid.analyze_field_state([self])
                     if field_state.phase_transition_indicator > 0.4:
-                        logger.info(f"🌊 Agent {self.charge_id}: High phase transition indicator ({field_state.phase_transition_indicator:.3f}), applying preventive coefficient stabilization")
+                        logger.info(
+                            f"🌊 Agent {self.charge_id}: High phase transition indicator ({field_state.phase_transition_indicator:.3f}), applying preventive coefficient stabilization"
+                        )
                         self._apply_preventive_coefficient_regulation()
                 except Exception as e:
-                    logger.warning(f"🌊 Agent {self.charge_id}: Field state analysis failed: {e}")
+                    logger.warning(
+                        f"🌊 Agent {self.charge_id}: Field state analysis failed: {e}"
+                    )
             return
-        
-        logger.warning(f"🌊 Agent {self.charge_id}: Found {len(problematic_coefficients)} non-finite breathing coefficients: {problematic_coefficients[:5]}...")
-        
+
+        logger.warning(
+            f"🌊 Agent {self.charge_id}: Found {len(problematic_coefficients)} non-finite breathing coefficients: {problematic_coefficients[:5]}..."
+        )
+
         if self.regulation_liquid is None:
             # Fallback regulation without regulation system
             self._emergency_coefficient_repair(problematic_coefficients)
@@ -4164,43 +5339,64 @@ class ConceptualChargeAgent:
         """Apply gentle regulation to prevent coefficient drift toward singularities."""
         try:
             # Extract coefficient magnitudes for analysis
-            magnitudes = [abs(coeff) for coeff in self.breathing_q_coefficients.values()]
-            
+            magnitudes = [
+                abs(coeff) for coeff in self.breathing_q_coefficients.values()
+            ]
+
             # Check for extreme values that might lead to instability
             max_magnitude = max(magnitudes)
             min_magnitude = min(magnitudes)
-            
+
             if max_magnitude > 1e6 or min_magnitude < 1e-6:
-                logger.info(f"🌊 Agent {self.charge_id}: Extreme coefficient magnitudes detected (max: {max_magnitude:.2e}, min: {min_magnitude:.2e}), applying gentle normalization")
-                
+                logger.info(
+                    f"🌊 Agent {self.charge_id}: Extreme coefficient magnitudes detected (max: {max_magnitude:.2e}, min: {min_magnitude:.2e}), applying gentle normalization"
+                )
+
                 # Apply gentle normalization to prevent extreme values
-                scale_factor = 1.0 / (max_magnitude + 1e-6) if max_magnitude > 1e3 else 1.0
-                
+                scale_factor = (
+                    1.0 / (max_magnitude + 1e-6) if max_magnitude > 1e3 else 1.0
+                )
+
                 for n in self.breathing_q_coefficients:
                     self.breathing_q_coefficients[n] *= scale_factor
-                
-                logger.info(f"🌊 Agent {self.charge_id}: Applied normalization factor {scale_factor:.6f}")
-                
-        except Exception as e:
-            logger.warning(f"🌊 Agent {self.charge_id}: Preventive regulation failed: {e}")
 
-    def _regulation_guided_coefficient_repair(self, problematic_coefficients: List[int]):
+                logger.info(
+                    f"🌊 Agent {self.charge_id}: Applied normalization factor {scale_factor:.6f}"
+                )
+
+        except Exception as e:
+            logger.warning(
+                f"🌊 Agent {self.charge_id}: Preventive regulation failed: {e}"
+            )
+
+    def _regulation_guided_coefficient_repair(
+        self, problematic_coefficients: List[int]
+    ):
         """Use regulation system to repair corrupted breathing coefficients."""
         try:
-            logger.info(f"🌊 Agent {self.charge_id}: Applying regulation-guided repair for {len(problematic_coefficients)} coefficients")
-            
+            logger.info(
+                f"🌊 Agent {self.charge_id}: Applying regulation-guided repair for {len(problematic_coefficients)} coefficients"
+            )
+
             # Use geometric regulation principles for coefficient repair
             for n in problematic_coefficients:
                 repaired_coeff = self._repair_single_coefficient(n)
                 self.breathing_q_coefficients[n] = repaired_coeff
-                logger.debug(f"🌊 Agent {self.charge_id}: Repaired coefficient {n}: {repaired_coeff}")
-            
+                logger.debug(
+                    f"🌊 Agent {self.charge_id}: Repaired coefficient {n}: {repaired_coeff}"
+                )
+
             # Apply field-guided smoothing to prevent future instabilities
-            if hasattr(self.regulation_liquid, 'geometric_regulation') and self.regulation_liquid.geometric_regulation:
+            if (
+                hasattr(self.regulation_liquid, "geometric_regulation")
+                and self.regulation_liquid.geometric_regulation
+            ):
                 self._apply_field_guided_coefficient_smoothing()
-                
+
         except Exception as e:
-            logger.warning(f"🌊 Agent {self.charge_id}: Regulation-guided repair failed: {e}, falling back to emergency repair")
+            logger.warning(
+                f"🌊 Agent {self.charge_id}: Regulation-guided repair failed: {e}, falling back to emergency repair"
+            )
             self._emergency_coefficient_repair(problematic_coefficients)
 
     def _repair_single_coefficient(self, n: int) -> complex:
@@ -4211,34 +5407,40 @@ class ConceptualChargeAgent:
             for offset in [-2, -1, 1, 2]:
                 neighbor_n = (n + offset) % 100  # Wrap around
                 neighbor_coeff = self.breathing_q_coefficients.get(neighbor_n)
-                if neighbor_coeff and math.isfinite(neighbor_coeff.real) and math.isfinite(neighbor_coeff.imag):
+                if (
+                    neighbor_coeff
+                    and math.isfinite(neighbor_coeff.real)
+                    and math.isfinite(neighbor_coeff.imag)
+                ):
                     neighbors.append(neighbor_coeff)
-            
+
             if len(neighbors) >= 2:
                 # Use geometric mean of neighbors for field-consistent interpolation
                 real_parts = [coeff.real for coeff in neighbors]
                 imag_parts = [coeff.imag for coeff in neighbors]
-                
+
                 # Geometric mean of magnitudes, arithmetic mean of phases
                 magnitudes = [abs(coeff) for coeff in neighbors]
                 phases = [cmath.phase(coeff) for coeff in neighbors]
-                
-                avg_magnitude = (sum(magnitudes) / len(magnitudes))
+
+                avg_magnitude = sum(magnitudes) / len(magnitudes)
                 avg_phase = sum(phases) / len(phases)
-                
+
                 repaired = avg_magnitude * cmath.exp(1j * avg_phase)
                 return complex(repaired)
-            
+
             elif len(neighbors) == 1:
                 # Use single neighbor as template
                 return neighbors[0]
-            
+
             else:
                 # No valid neighbors, use neutral breathing coefficient
                 return complex(1.0, 0.0)
-                
+
         except Exception as e:
-            logger.warning(f"🌊 Agent {self.charge_id}: Single coefficient repair failed for {n}: {e}")
+            logger.warning(
+                f"🌊 Agent {self.charge_id}: Single coefficient repair failed for {n}: {e}"
+            )
             return complex(1.0, 0.0)
 
     def _apply_field_guided_coefficient_smoothing(self):
@@ -4246,50 +5448,60 @@ class ConceptualChargeAgent:
         try:
             # Extract all coefficients
             coeffs = [self.breathing_q_coefficients[n] for n in range(100)]
-            
+
             # Apply minimal smoothing using complex field principles
             smoothed_coeffs = []
             for i in range(100):
                 prev_i = (i - 1) % 100
                 next_i = (i + 1) % 100
-                
+
                 # Weighted average with strong bias toward original value
                 current = coeffs[i]
                 prev_coeff = coeffs[prev_i]
                 next_coeff = coeffs[next_i]
-                
+
                 # 90% original, 5% each neighbor
                 smoothed = 0.9 * current + 0.05 * prev_coeff + 0.05 * next_coeff
                 smoothed_coeffs.append(smoothed)
-            
+
             # Update coefficients
             for i, smoothed_coeff in enumerate(smoothed_coeffs):
                 self.breathing_q_coefficients[i] = smoothed_coeff
-                
-            logger.debug(f"🌊 Agent {self.charge_id}: Applied field-guided smoothing to breathing coefficients")
-            
+
+            logger.debug(
+                f"🌊 Agent {self.charge_id}: Applied field-guided smoothing to breathing coefficients"
+            )
+
         except Exception as e:
-            logger.warning(f"🌊 Agent {self.charge_id}: Field-guided smoothing failed: {e}")
+            logger.warning(
+                f"🌊 Agent {self.charge_id}: Field-guided smoothing failed: {e}"
+            )
 
     def _emergency_coefficient_repair(self, problematic_coefficients: List[int]):
         """Emergency repair of coefficients without regulation system."""
-        logger.warning(f"🌊 Agent {self.charge_id}: Applying emergency repair for {len(problematic_coefficients)} coefficients")
-        
+        logger.warning(
+            f"🌊 Agent {self.charge_id}: Applying emergency repair for {len(problematic_coefficients)} coefficients"
+        )
+
         for n in problematic_coefficients:
             # Simple replacement with stable breathing pattern
-            self.breathing_q_coefficients[n] = complex(1.0 + 0.1 * math.sin(2 * math.pi * n / 100), 0.05 * math.cos(2 * math.pi * n / 100))
+            self.breathing_q_coefficients[n] = complex(
+                1.0 + 0.1 * math.sin(2 * math.pi * n / 100),
+                0.05 * math.cos(2 * math.pi * n / 100),
+            )
 
-    def _check_field_stability(self, operation: str, phase_value: float = None, 
-                              complex_value: complex = None) -> bool:
+    def _check_field_stability(
+        self, operation: str, phase_value: float = None, complex_value: complex = None
+    ) -> bool:
         """
         Check if field operation will maintain Q(τ,C,s) stability.
         Based on Section 3.1.5.3 - Field Coherence Requirements
-        
+
         Args:
             operation: Type of field operation (phase_exponential, field_coupling, gradient)
             phase_value: Phase value for exponential operations
             complex_value: Complex value for coupling operations
-            
+
         Returns:
             True if operation is stable, False if regulation needed
         """
@@ -4298,35 +5510,44 @@ class ConceptualChargeAgent:
             if phase_value is not None:
                 return math.isfinite(phase_value) and abs(phase_value) < 1e6
             if complex_value is not None:
-                return math.isfinite(complex_value.real) and math.isfinite(complex_value.imag) and abs(complex_value) < 1e10
+                return (
+                    math.isfinite(complex_value.real)
+                    and math.isfinite(complex_value.imag)
+                    and abs(complex_value) < 1e10
+                )
             return True
-            
+
         try:
             # Use regulation system for sophisticated stability analysis
             field_state = self.regulation_liquid.analyze_field_state([self])
-            
+
             # Operation-specific stability thresholds based on field theory
             if operation == "phase_exponential":
                 # Phase operations are critical - tighter thresholds
                 if phase_value is not None and not math.isfinite(phase_value):
                     return False
                 return field_state.phase_transition_indicator < 0.5
-                
+
             elif operation == "field_coupling":
                 # Field couplings can handle more instability
-                if complex_value is not None and not (math.isfinite(complex_value.real) and math.isfinite(complex_value.imag)):
+                if complex_value is not None and not (
+                    math.isfinite(complex_value.real)
+                    and math.isfinite(complex_value.imag)
+                ):
                     return False
                 return field_state.phase_transition_indicator < 0.7
-                
+
             elif operation == "gradient":
                 # Gradients are most robust
                 return field_state.phase_transition_indicator < 0.8
-                
+
             else:
                 return field_state.phase_transition_indicator < 0.6
-                
+
         except Exception as e:
-            logger.warning(f"🌊 Agent {self.charge_id}: Field stability check failed: {e}")
+            logger.warning(
+                f"🌊 Agent {self.charge_id}: Field stability check failed: {e}"
+            )
             # Conservative fallback
             return False
 
@@ -4334,11 +5555,11 @@ class ConceptualChargeAgent:
         """
         Apply regulation while preserving field-theoretic properties.
         Maintains Q formula structure from Section 3.1.1
-        
+
         Args:
             operation: Type of operation requiring regulation
             value: Value to regulate (phase, complex number, tensor)
-            
+
         Returns:
             Regulated value maintaining field properties
         """
@@ -4346,51 +5567,74 @@ class ConceptualChargeAgent:
             # Basic regulation without system
             if isinstance(value, (int, float)):
                 if not math.isfinite(value):
-                    logger.warning(f"🌊 Agent {self.charge_id}: Emergency regulation for {operation}, replacing NaN/inf with neutral value")
+                    logger.warning(
+                        f"🌊 Agent {self.charge_id}: Emergency regulation for {operation}, replacing NaN/inf with neutral value"
+                    )
                     return 0.0 if operation == "phase" else 1.0
                 return value
             elif isinstance(value, complex):
                 if not (math.isfinite(value.real) and math.isfinite(value.imag)):
-                    logger.warning(f"🌊 Agent {self.charge_id}: Emergency regulation for {operation}, replacing NaN/inf complex")
+                    logger.warning(
+                        f"🌊 Agent {self.charge_id}: Emergency regulation for {operation}, replacing NaN/inf complex"
+                    )
                     return complex(1.0, 0.0)
                 return value
             elif torch.is_tensor(value):
                 finite_mask = torch.isfinite(value)
                 if not torch.all(finite_mask):
-                    logger.warning(f"🌊 Agent {self.charge_id}: Emergency tensor regulation for {operation}")
+                    logger.warning(
+                        f"🌊 Agent {self.charge_id}: Emergency tensor regulation for {operation}"
+                    )
                     return torch.where(finite_mask, value, torch.ones_like(value))
                 return value
             return value
-            
+
         try:
             # Sophisticated regulation based on operation type
             if operation == "phase_exponential":
                 # Critical for Q formula - use variational regulation
-                if hasattr(self.regulation_liquid, 'variational_regulation') and self.regulation_liquid.variational_regulation:
+                if (
+                    hasattr(self.regulation_liquid, "variational_regulation")
+                    and self.regulation_liquid.variational_regulation
+                ):
                     # Apply energy minimization to find stable phase
                     regulated_phase = self._regulate_phase_value(value)
-                    logger.info(f"🌊 Q-PHASE: Agent {self.charge_id} regulated phase from {value:.3f} to {regulated_phase:.3f}")
+                    logger.info(
+                        f"🌊 Q-PHASE: Agent {self.charge_id} regulated phase from {value:.3f} to {regulated_phase:.3f}"
+                    )
                     return regulated_phase
-                    
+
             elif operation == "field_coupling":
                 # Use geometric regulation for field interactions
-                if hasattr(self.regulation_liquid, 'geometric_regulation') and self.regulation_liquid.geometric_regulation:
+                if (
+                    hasattr(self.regulation_liquid, "geometric_regulation")
+                    and self.regulation_liquid.geometric_regulation
+                ):
                     regulated_coupling = self._regulate_field_coupling(value)
-                    logger.info(f"🌊 FIELD-COUPLING: Agent {self.charge_id} regulated coupling, |Q|: {abs(value):.3e} → {abs(regulated_coupling):.3e}")
+                    logger.info(
+                        f"🌊 FIELD-COUPLING: Agent {self.charge_id} regulated coupling, |Q|: {abs(value):.3e} → {abs(regulated_coupling):.3e}"
+                    )
                     return regulated_coupling
-                    
+
             elif operation == "gradient":
                 # Use coupled field regulation for gradients
-                if hasattr(self.regulation_liquid, 'coupled_regulation') and self.regulation_liquid.coupled_regulation:
+                if (
+                    hasattr(self.regulation_liquid, "coupled_regulation")
+                    and self.regulation_liquid.coupled_regulation
+                ):
                     regulated_gradient = self._regulate_gradient_operation(value)
-                    logger.info(f"🌊 GRADIENT: Agent {self.charge_id} regulated gradient operation")
+                    logger.info(
+                        f"🌊 GRADIENT: Agent {self.charge_id} regulated gradient operation"
+                    )
                     return regulated_gradient
-                    
+
             # Fallback to basic regulation
             return self._basic_field_regulation(operation, value)
-            
+
         except Exception as e:
-            logger.warning(f"🌊 Agent {self.charge_id}: Field regulation failed: {e}, using emergency bounds")
+            logger.warning(
+                f"🌊 Agent {self.charge_id}: Field regulation failed: {e}, using emergency bounds"
+            )
             return self._basic_field_regulation(operation, value)
 
     def _regulate_phase_value(self, phase: float) -> float:
@@ -4426,8 +5670,8 @@ class ConceptualChargeAgent:
         for i in range(len(gradient)):
             if not finite_mask[i]:
                 # Find nearest finite neighbors
-                left = max(0, i-1)
-                right = min(len(gradient)-1, i+1)
+                left = max(0, i - 1)
+                right = min(len(gradient) - 1, i + 1)
                 if finite_mask[left] and finite_mask[right]:
                     regulated[i] = (gradient[left] + gradient[right]) / 2
                 elif finite_mask[left]:
@@ -4456,72 +5700,91 @@ class ConceptualChargeAgent:
         """
         Protected e^(iθ) calculation for Q formula phase factors.
         Critical for maintaining field coherence (Section 3.1.3.3.3)
-        
+
         Args:
             phase: Phase value θ
             context: Description of where this phase is used
-            
+
         Returns:
             Complex exponential e^(iθ) with stability guarantees
         """
         # Check stability before operation
         if not self._check_field_stability("phase_exponential", phase_value=phase):
-            logger.info(f"🌊 Q-PHASE: Agent {self.charge_id} detecting unstable phase {phase:.3f} for {context}")
+            logger.info(
+                f"🌊 Q-PHASE: Agent {self.charge_id} detecting unstable phase {phase:.3f} for {context}"
+            )
             phase = self._apply_field_regulation("phase_exponential", phase)
-            
+
         try:
             # Compute phase exponential with protection
             result = torch.exp(1j * torch.tensor(phase, dtype=torch.float32)).item()
-            
+
             # Verify result
             if not (math.isfinite(result.real) and math.isfinite(result.imag)):
-                logger.warning(f"🌊 Q-PHASE: Agent {self.charge_id} phase exponential produced NaN for {context}, applying emergency regulation")
+                logger.warning(
+                    f"🌊 Q-PHASE: Agent {self.charge_id} phase exponential produced NaN for {context}, applying emergency regulation"
+                )
                 return complex(1.0, 0.0)  # Neutral phase
-                
-            logger.debug(f"🌊 Q-PHASE: Agent {self.charge_id} computed e^(iθ={phase:.3f}) = {result} for {context}")
+
+            logger.debug(
+                f"🌊 Q-PHASE: Agent {self.charge_id} computed e^(iθ={phase:.3f}) = {result} for {context}"
+            )
             return result
-            
+
         except Exception as e:
-            logger.error(f"🌊 Q-PHASE: Agent {self.charge_id} phase exponential failed for {context}: {e}")
+            logger.error(
+                f"🌊 Q-PHASE: Agent {self.charge_id} phase exponential failed for {context}: {e}"
+            )
             return complex(1.0, 0.0)  # Neutral phase
 
-    def _safe_field_multiplication(self, field_a: complex, field_b: complex, 
-                                  coupling_type: str) -> complex:
+    def _safe_field_multiplication(
+        self, field_a: complex, field_b: complex, coupling_type: str
+    ) -> complex:
         """
         Protected field coupling preserving interference patterns.
         Implements Section 3.1.4.3 field interactions
-        
+
         Args:
             field_a: First field component
-            field_b: Second field component  
+            field_b: Second field component
             coupling_type: Type of coupling (e.g., "Q_assembly", "cascade_transform")
-            
+
         Returns:
             Coupled field value with stability guarantees
         """
         # Check both field values
         if not self._check_field_stability("field_coupling", complex_value=field_a):
-            logger.info(f"🌊 FIELD-COUPLING: Agent {self.charge_id} regulating field_a for {coupling_type}")
+            logger.info(
+                f"🌊 FIELD-COUPLING: Agent {self.charge_id} regulating field_a for {coupling_type}"
+            )
             field_a = self._apply_field_regulation("field_coupling", field_a)
-            
+
         if not self._check_field_stability("field_coupling", complex_value=field_b):
-            logger.info(f"🌊 FIELD-COUPLING: Agent {self.charge_id} regulating field_b for {coupling_type}")
+            logger.info(
+                f"🌊 FIELD-COUPLING: Agent {self.charge_id} regulating field_b for {coupling_type}"
+            )
             field_b = self._apply_field_regulation("field_coupling", field_b)
-            
+
         try:
             # Perform multiplication
             result = field_a * field_b
-            
+
             # Verify result
             if not (math.isfinite(result.real) and math.isfinite(result.imag)):
-                logger.warning(f"🌊 FIELD-COUPLING: Agent {self.charge_id} {coupling_type} produced NaN, applying regulation")
+                logger.warning(
+                    f"🌊 FIELD-COUPLING: Agent {self.charge_id} {coupling_type} produced NaN, applying regulation"
+                )
                 result = self._apply_field_regulation("field_coupling", result)
-                
-            logger.debug(f"🌊 FIELD-COUPLING: Agent {self.charge_id} {coupling_type}: |Q₁|={abs(field_a):.3e} × |Q₂|={abs(field_b):.3e} = |Q|={abs(result):.3e}")
+
+            logger.debug(
+                f"🌊 FIELD-COUPLING: Agent {self.charge_id} {coupling_type}: |Q₁|={abs(field_a):.3e} × |Q₂|={abs(field_b):.3e} = |Q|={abs(result):.3e}"
+            )
             return result
-            
+
         except Exception as e:
-            logger.error(f"🌊 FIELD-COUPLING: Agent {self.charge_id} multiplication failed for {coupling_type}: {e}")
+            logger.error(
+                f"🌊 FIELD-COUPLING: Agent {self.charge_id} multiplication failed for {coupling_type}: {e}"
+            )
             return complex(1.0, 0.0)
 
     def update_context(self, new_context: Dict[str, Any]):
@@ -4550,7 +5813,9 @@ class ConceptualChargeAgent:
         """
         # DIRECT SEMANTIC FIELD EVALUATION - NO ERROR MASKING
         # Use torch for sophisticated tensor creation - NO BASIC NUMPY
-        field_value = self.semantic_field.evaluate_at(torch.tensor(position, dtype=torch.float32).numpy())
+        field_value = self.semantic_field.evaluate_at(
+            torch.tensor(position, dtype=torch.float32).numpy()
+        )
 
         # Modulate by current complete Q(τ,C,s) value (Section 3.1.5 complete formula)
         if self.Q_components is not None:
@@ -4578,13 +5843,32 @@ class ConceptualChargeAgent:
                 "s_t_coupling_strength": self.coupling_state.s_t_coupling_strength,
                 # Use scipy special functions for sophisticated averaging - NO BASIC NUMPY
                 # Use torch for sophisticated absolute value - NO BASIC NUMPY
-                "interference_strength": float(special.logsumexp(torch.abs(torch.tensor(self.coupling_state.field_interference_coupling, dtype=torch.float32)).numpy()) / len(self.coupling_state.field_interference_coupling)),
+                "interference_strength": float(
+                    special.logsumexp(
+                        torch.abs(
+                            torch.tensor(
+                                self.coupling_state.field_interference_coupling,
+                                dtype=torch.float32,
+                            )
+                        ).numpy()
+                    )
+                    / len(self.coupling_state.field_interference_coupling)
+                ),
             },
             "Q_components": {
                 "gamma": self.Q_components.gamma,
-                "T_tensor": {"magnitude": self.Q_components.T_magnitude, "phase": self.Q_components.T_phase},
-                "E_trajectory": {"magnitude": self.Q_components.E_magnitude, "phase": self.Q_components.E_phase},
-                "phi_semantic": {"magnitude": self.Q_components.phi_magnitude, "phase": self.Q_components.phi_phase},
+                "T_tensor": {
+                    "magnitude": self.Q_components.T_magnitude,
+                    "phase": self.Q_components.T_phase,
+                },
+                "E_trajectory": {
+                    "magnitude": self.Q_components.E_magnitude,
+                    "phase": self.Q_components.E_phase,
+                },
+                "phi_semantic": {
+                    "magnitude": self.Q_components.phi_magnitude,
+                    "phase": self.Q_components.phi_phase,
+                },
                 "theta_total": {
                     "semantic": self.Q_components.theta_components.theta_semantic,
                     "emotional": self.Q_components.theta_components.theta_emotional,
@@ -4602,17 +5886,32 @@ class ConceptualChargeAgent:
             "final_Q": {
                 "magnitude": self.Q_components.Q_magnitude,
                 "phase": self.Q_components.Q_phase,
-                "complex": {"real": self.Q_components.Q_value.real, "imag": self.Q_components.Q_value.imag},
+                "complex": {
+                    "real": self.Q_components.Q_value.real,
+                    "imag": self.Q_components.Q_value.imag,
+                },
             },
             # 🔧 Enhanced: Additional debugging information
             "charge_index": self.charge_index,
             "data_source_validation": {
-                "semantic_field_magnitude": self.semantic_field_data["field_metadata"]["field_magnitude"],
+                "semantic_field_magnitude": self.semantic_field_data["field_metadata"][
+                    "field_magnitude"
+                ],
                 "trajectory_operators_non_zero": int(
                     # Use torch for sophisticated operations - NO BASIC NUMPY
-                    torch.sum(torch.abs(torch.tensor(self.temporal_biography.trajectory_operators, dtype=torch.complex64)) > 1e-12).item()
+                    torch.sum(
+                        torch.abs(
+                            torch.tensor(
+                                self.temporal_biography.trajectory_operators,
+                                dtype=torch.complex64,
+                            )
+                        )
+                        > 1e-12
+                    ).item()
                 ),
-                "trajectory_operators_total": len(self.temporal_biography.trajectory_operators),
+                "trajectory_operators_total": len(
+                    self.temporal_biography.trajectory_operators
+                ),
                 "emotional_modulation_strength": self.emotional_modulation.field_modulation_strength,
                 "persistence_layers_range": {
                     "vivid_layer": [
@@ -4641,13 +5940,21 @@ class ConceptualChargeAgent:
         Q_comps = breakdown["Q_components"]
         logger.debug(f"  🧮 Q Components:")
         logger.debug(f"    γ: {Q_comps['gamma']:.6f}")
-        logger.debug(f"    |T|: {Q_comps['T_tensor']['magnitude']:.6f}, ∠T: {Q_comps['T_tensor']['phase']:.3f}")
-        logger.debug(f"    |E|: {Q_comps['E_trajectory']['magnitude']:.6f}, ∠E: {Q_comps['E_trajectory']['phase']:.3f}")
-        logger.debug(f"    |Φ|: {Q_comps['phi_semantic']['magnitude']:.6f}, ∠Φ: {Q_comps['phi_semantic']['phase']:.3f}")
+        logger.debug(
+            f"    |T|: {Q_comps['T_tensor']['magnitude']:.6f}, ∠T: {Q_comps['T_tensor']['phase']:.3f}"
+        )
+        logger.debug(
+            f"    |E|: {Q_comps['E_trajectory']['magnitude']:.6f}, ∠E: {Q_comps['E_trajectory']['phase']:.3f}"
+        )
+        logger.debug(
+            f"    |Φ|: {Q_comps['phi_semantic']['magnitude']:.6f}, ∠Φ: {Q_comps['phi_semantic']['phase']:.3f}"
+        )
         logger.debug(
             f"    Ψ: {Q_comps['psi_persistence']['total']:.6f} (gauss: {Q_comps['psi_persistence']['gaussian']:.6f}, exp_cos: {Q_comps['psi_persistence']['exponential_cosine']:.6f})"
         )
-        logger.debug(f"    Q: {breakdown['final_Q']['magnitude']:.6f} ∠ {breakdown['final_Q']['phase']:.3f}")
+        logger.debug(
+            f"    Q: {breakdown['final_Q']['magnitude']:.6f} ∠ {breakdown['final_Q']['phase']:.3f}"
+        )
 
         # Source data quality
         if "data_source_validation" in breakdown:
@@ -4656,7 +5963,9 @@ class ConceptualChargeAgent:
             logger.debug(
                 f"    Trajectory ops: {src_data['trajectory_operators_non_zero']}/{src_data['trajectory_operators_total']} non-zero"
             )
-            logger.debug(f"    Emotional strength: {src_data['emotional_modulation_strength']:.6f}")
+            logger.debug(
+                f"    Emotional strength: {src_data['emotional_modulation_strength']:.6f}"
+            )
             logger.debug(
                 f"    Persistence ranges: vivid=[{src_data['persistence_layers_range']['vivid_layer'][0]:.3f}, {src_data['persistence_layers_range']['vivid_layer'][1]:.3f}], char=[{src_data['persistence_layers_range']['character_layer'][0]:.3f}, {src_data['persistence_layers_range']['character_layer'][1]:.3f}]"
             )

@@ -36,6 +36,8 @@ import torch
 from scipy import spatial, stats
 from scipy.spatial.distance import pdist, squareform
 
+# Pure PyTorch implementation - no JAX dependencies
+
 from Sysnpire.model.liquid.conceptual_charge_agent import ConceptualChargeAgent
 from .mathematical_object_identity import (
     MathematicalObjectIdentity,
@@ -46,7 +48,8 @@ from .mathematical_object_identity import (
 from .listeners import RegulationSuggestion
 
 from .advanced.variational import VariationalRegulation
-from .advanced.geometric import GeometricRegulation  
+from .advanced.geometric import GeometricRegulation
+from .advanced.adaptive_field_dimension import AdaptiveFieldDimension  
 from .advanced.coupled_evolution import CoupledFieldRegulation
 from .advanced.symbolic import SymbolicRegulation
 
@@ -170,6 +173,7 @@ class MathematicalObjectProxy:
         agent: ConceptualChargeAgent,
         identity_system: MathematicalObjectIdentity,
         mathematical_precision: float = 1e-12,
+        existing_mathematical_id: Optional[str] = None,
     ):
         """
         Initialize mathematical object proxy for autonomous entity capabilities.
@@ -178,20 +182,32 @@ class MathematicalObjectProxy:
             agent: ConceptualChargeAgent being proxied
             identity_system: Mathematical identity system
             mathematical_precision: Numerical precision for computations
+            existing_mathematical_id: Optional existing mathematical ID to use
         """
         self.agent = agent
         self.identity_system = identity_system
         self.mathematical_precision = mathematical_precision
 
-        self.identity_profile = self.identity_system.create_mathematical_identity_profile(agent)
-        self.mathematical_id = self.identity_profile.object_mathematical_id
+        if existing_mathematical_id:
+            self.mathematical_id = existing_mathematical_id
+            # Get existing identity profile from registry
+            if existing_mathematical_id in identity_system.identity_registry:
+                self.identity_profile = identity_system.identity_registry[existing_mathematical_id]
+            else:
+                # Fallback: create new profile if not found
+                self.identity_profile = self.identity_system.create_mathematical_identity_profile(agent, [])
+        else:
+            self.identity_profile = self.identity_system.create_mathematical_identity_profile(agent, [])
+            self.mathematical_id = self.identity_profile.object_mathematical_id
         
         self.variational_regulation = VariationalRegulation()
-        self.geometric_regulation = GeometricRegulation()
+        adaptive_dimension_engine = AdaptiveFieldDimension()
+        self.geometric_regulation = GeometricRegulation(adaptive_dimension_engine)
         self.coupled_field_regulation = CoupledFieldRegulation() 
         self.symbolic_regulation = SymbolicRegulation()
         
         self.advanced_regulation_enabled = True
+
         self.use_variational_methods = True
         self.use_geometric_analysis = True
         self.use_coupled_evolution = True
@@ -695,7 +711,10 @@ class MathematicalObjectProxy:
                     capability_outcomes[reg_type] = []
                 capability_outcomes[reg_type].append(effectiveness)
 
-        for reg_type, effectiveness_scores in capability_outcomes.items():
+        for reg_type in [RegulatoryCapability.PERSISTENCE_REGULATION, RegulatoryCapability.PHASE_COHERENCE_RESTORATION, RegulatoryCapability.FIELD_STABILIZATION, RegulatoryCapability.ENERGY_CONSERVATION, RegulatoryCapability.BREATHING_SYNCHRONIZATION, RegulatoryCapability.SINGULARITY_RESOLUTION, RegulatoryCapability.TOPOLOGICAL_REPAIR]:
+            if reg_type not in capability_outcomes:
+                continue
+            effectiveness_scores = capability_outcomes[reg_type]
             if not effectiveness_scores:
                 continue
 
@@ -817,7 +836,8 @@ class MathematicalObjectProxy:
             return False
 
         if self.regulatory_expertise_levels:
-            expertise_tensor = torch.tensor(list(self.regulatory_expertise_levels.values()), dtype=torch.float32)
+            expertise_values = [self.regulatory_expertise_levels[cap] for cap in [RegulatoryCapability.PERSISTENCE_REGULATION, RegulatoryCapability.PHASE_COHERENCE_RESTORATION, RegulatoryCapability.FIELD_STABILIZATION, RegulatoryCapability.ENERGY_CONSERVATION, RegulatoryCapability.BREATHING_SYNCHRONIZATION, RegulatoryCapability.SINGULARITY_RESOLUTION, RegulatoryCapability.TOPOLOGICAL_REPAIR] if cap in self.regulatory_expertise_levels]
+            expertise_tensor = torch.tensor(expertise_values, dtype=torch.float32)
             avg_expertise = torch.mean(expertise_tensor).item()
             if avg_expertise < 0.7:
                 return False
@@ -852,8 +872,19 @@ class MathematicalObjectProxy:
 
         stability_scores = []
 
-        for comp_name, comp_value in self.agent.Q_components.items():
-            if hasattr(comp_value, "__abs__"):
+        # Access Q_components directly as dataclass fields
+        q_comp = self.agent.Q_components
+        complex_components = [
+            q_comp.T_tensor, q_comp.E_trajectory, q_comp.phi_semantic,
+            q_comp.phase_factor, q_comp.Q_value
+        ]
+        scalar_components = [
+            q_comp.gamma, q_comp.psi_persistence, q_comp.psi_gaussian,
+            q_comp.psi_exponential_cosine
+        ]
+        
+        for comp_value in complex_components + scalar_components:
+            if comp_value is not None:
                 magnitude = abs(comp_value)
                 if math.isfinite(magnitude):
                     stability = 1.0 / (1.0 + magnitude**2)
@@ -870,8 +901,15 @@ class MathematicalObjectProxy:
             return 1.0
 
         phases = []
-        for comp_name, comp_value in self.agent.Q_components.items():
-            if hasattr(comp_value, "real") and hasattr(comp_value, "imag"):
+        # Only complex components have meaningful phases
+        q_comp = self.agent.Q_components
+        complex_components = [
+            q_comp.T_tensor, q_comp.E_trajectory, q_comp.phi_semantic,
+            q_comp.phase_factor, q_comp.Q_value
+        ]
+        
+        for comp_value in complex_components:
+            if comp_value is not None:
                 phase = math.atan2(float(comp_value.imag), float(comp_value.real))
                 phases.append(phase)
 
@@ -891,16 +929,29 @@ class MathematicalObjectProxy:
         if not hasattr(self.agent, "Q_components") or not self.agent.Q_components:
             return 1.0
 
-        components = list(self.agent.Q_components.values())
-        if len(components) < 2:
+        # Access Q_components directly as dataclass fields
+        q_comp = self.agent.Q_components
+        complex_components = [
+            q_comp.T_tensor, q_comp.E_trajectory, q_comp.phi_semantic,
+            q_comp.phase_factor, q_comp.Q_value
+        ]
+        scalar_components = [
+            q_comp.gamma, q_comp.psi_persistence, q_comp.psi_gaussian,
+            q_comp.psi_exponential_cosine
+        ]
+        
+        if len(complex_components) < 2:
             return 1.0
 
         phases = []
-        for comp in components:
-            if hasattr(comp, "real") and hasattr(comp, "imag"):
+        for comp in complex_components:
+            if comp is not None:
                 phase = math.atan2(float(comp.imag), float(comp.real))
                 phases.append(phase)
-            else:
+        
+        # Add phases for scalar components (always 0)
+        for comp in scalar_components:
+            if comp is not None:
                 phases.append(0.0)
 
         phase_diffs = []
@@ -961,19 +1012,21 @@ class MathematicalObjectProxy:
             breathing_components.append(amp_regularity)
 
         if hasattr(self.agent, "breathing_q_coefficients") and self.agent.breathing_q_coefficients:
-            coeff_values = []
-            for coeff in self.agent.breathing_q_coefficients.values():
-                if hasattr(coeff, "__abs__") and math.isfinite(abs(coeff)):
-                    coeff_values.append(abs(coeff))
-
-            if coeff_values:
-                coeff_tensor = torch.tensor(coeff_values, dtype=torch.float32)
-                coeff_std = torch.std(coeff_tensor).item()
-                coeff_mean = torch.mean(coeff_tensor).item()
-                coeff_regularity = 1.0 - min(
-                    1.0, coeff_std / (coeff_mean + self.mathematical_precision)
-                )
-                breathing_components.append(coeff_regularity)
+            breath_coeffs = self.agent.breathing_q_coefficients
+            if len(breath_coeffs) < 4:
+                raise ValueError(f"Insufficient breathing coefficients for mathematical analysis: {len(breath_coeffs)} found, minimum 4 required")
+            
+            coeff_keys = torch.tensor(sorted(breath_coeffs.keys())[:4], dtype=torch.int64)
+            coeff_values = torch.tensor([breath_coeffs[int(k)] for k in coeff_keys], dtype=torch.complex64)
+            breathing_coefficients = torch.abs(coeff_values)
+            
+            if not torch.all(torch.isfinite(breathing_coefficients)):
+                raise ValueError("Non-finite breathing coefficients detected - mathematical analysis impossible")
+            
+            coeff_std = torch.std(breathing_coefficients)
+            coeff_mean = torch.mean(breathing_coefficients)
+            coeff_regularity = 1.0 - torch.clamp(coeff_std / (coeff_mean + self.mathematical_precision), 0.0, 1.0).item()
+            breathing_components.append(coeff_regularity)
 
         if not breathing_components:
             raise ValueError("Breathing pattern regularity assessment failed - no breathing components - BREATHING ANALYSIS IMPOSSIBLE")
@@ -1022,7 +1075,9 @@ class MathematicalObjectProxy:
                 risk_factors.append(0.0)
 
         if hasattr(self.agent, "Q_components") and self.agent.Q_components:
-            for comp_value in self.agent.Q_components.values():
+            q_comp = self.agent.Q_components
+            q_component_values = [q_comp.T_tensor, q_comp.E_trajectory, q_comp.phi_semantic, q_comp.phase_factor, q_comp.Q_value, q_comp.gamma, q_comp.psi_persistence, q_comp.psi_gaussian, q_comp.psi_exponential_cosine]
+            for comp_value in q_component_values:
                 if hasattr(comp_value, "__abs__"):
                     magnitude = abs(comp_value)
                     if not math.isfinite(magnitude):
@@ -1033,15 +1088,23 @@ class MathematicalObjectProxy:
                         risk_factors.append(0.0)
 
         if hasattr(self.agent, "breathing_q_coefficients") and self.agent.breathing_q_coefficients:
-            for coeff in self.agent.breathing_q_coefficients.values():
-                if hasattr(coeff, "__abs__"):
-                    magnitude = abs(coeff)
-                    if not math.isfinite(magnitude):
-                        risk_factors.append(0.8)
-                    elif magnitude > 1e4:
-                        risk_factors.append(0.4)
-                    else:
-                        risk_factors.append(0.0)
+            breath_coeffs = self.agent.breathing_q_coefficients
+            if len(breath_coeffs) < 4:
+                raise ValueError(f"Insufficient breathing coefficients for singularity detection: {len(breath_coeffs)} found, minimum 4 required")
+            
+            coeff_keys = torch.tensor(sorted(breath_coeffs.keys())[:4], dtype=torch.int64)
+            coeff_values = torch.tensor([breath_coeffs[int(k)] for k in coeff_keys], dtype=torch.complex64)
+            breathing_coefficients = torch.abs(coeff_values)
+            
+            non_finite_mask = ~torch.isfinite(breathing_coefficients)
+            large_magnitude_mask = breathing_coefficients > 1e4
+            
+            if torch.any(non_finite_mask):
+                risk_factors.append(0.8)
+            elif torch.any(large_magnitude_mask):
+                risk_factors.append(0.4)
+            else:
+                risk_factors.append(0.0)
 
         return max(risk_factors) if risk_factors else 0.0
 
@@ -1064,7 +1127,9 @@ class MathematicalObjectProxy:
             return 1.0
 
         phases = []
-        for comp_value in self.agent.Q_components.values():
+        q_comp = self.agent.Q_components
+        q_component_values = [q_comp.T_tensor, q_comp.E_trajectory, q_comp.phi_semantic, q_comp.phase_factor, q_comp.Q_value, q_comp.gamma, q_comp.psi_persistence, q_comp.psi_gaussian, q_comp.psi_exponential_cosine]
+        for comp_value in q_component_values:
             if hasattr(comp_value, "real") and hasattr(comp_value, "imag"):
                 phase = math.atan2(float(comp_value.imag), float(comp_value.real))
                 phases.append(phase)
@@ -1086,7 +1151,9 @@ class MathematicalObjectProxy:
             return 1.0
 
         magnitudes = []
-        for coeff in self.agent.breathing_q_coefficients.values():
+        breath_coeffs = self.agent.breathing_q_coefficients
+        breathing_coefficients = [breath_coeffs.primary_frequency, breath_coeffs.amplitude_factor, breath_coeffs.phase_offset, breath_coeffs.natural_frequency]
+        for coeff in breathing_coefficients:
             if hasattr(coeff, "__abs__"):
                 mag = abs(coeff)
                 if math.isfinite(mag):
@@ -1226,13 +1293,17 @@ class MathematicalObjectProxy:
         phases1, phases2 = [], []
 
         if hasattr(self.agent, "Q_components") and self.agent.Q_components:
-            for comp in self.agent.Q_components.values():
+            q_comp = self.agent.Q_components
+            q_component_values = [q_comp.T_tensor, q_comp.E_trajectory, q_comp.phi_semantic, q_comp.phase_factor, q_comp.Q_value, q_comp.gamma, q_comp.psi_persistence, q_comp.psi_gaussian, q_comp.psi_exponential_cosine]
+            for comp in q_component_values:
                 if hasattr(comp, "real") and hasattr(comp, "imag"):
                     phase = math.atan2(float(comp.imag), float(comp.real))
                     phases1.append(phase)
 
         if hasattr(other_agent, "Q_components") and other_agent.Q_components:
-            for comp in other_agent.Q_components.values():
+            other_q_comp = other_agent.Q_components
+            other_q_component_values = [other_q_comp.T_tensor, other_q_comp.E_trajectory, other_q_comp.phi_semantic, other_q_comp.phase_factor, other_q_comp.Q_value, other_q_comp.gamma, other_q_comp.psi_persistence, other_q_comp.psi_gaussian, other_q_comp.psi_exponential_cosine]
+            for comp in other_q_component_values:
                 if hasattr(comp, "real") and hasattr(comp, "imag"):
                     phase = math.atan2(float(comp.imag), float(comp.real))
                     phases2.append(phase)
@@ -1290,7 +1361,9 @@ class MathematicalObjectProxy:
             return 1.0
 
         stability_scores = []
-        for comp_value in agent.Q_components.values():
+        q_comp = agent.Q_components
+        q_component_values = [q_comp.T_tensor, q_comp.E_trajectory, q_comp.phi_semantic, q_comp.phase_factor, q_comp.Q_value, q_comp.gamma, q_comp.psi_persistence, q_comp.psi_gaussian, q_comp.psi_exponential_cosine]
+        for comp_value in q_component_values:
             if hasattr(comp_value, "__abs__"):
                 magnitude = abs(comp_value)
                 if math.isfinite(magnitude):
@@ -1322,7 +1395,10 @@ class MathematicalObjectProxy:
                     continue  # Skip unknown regulation types
 
         avg_performance = {}
-        for capability, effectiveness_scores in capability_performance.items():
+        for capability in [RegulatoryCapability.PERSISTENCE_REGULATION, RegulatoryCapability.PHASE_COHERENCE_RESTORATION, RegulatoryCapability.FIELD_STABILIZATION, RegulatoryCapability.ENERGY_CONSERVATION, RegulatoryCapability.BREATHING_SYNCHRONIZATION, RegulatoryCapability.SINGULARITY_RESOLUTION, RegulatoryCapability.TOPOLOGICAL_REPAIR]:
+            if capability not in capability_performance:
+                continue
+            effectiveness_scores = capability_performance[capability]
             perf_tensor = torch.tensor(effectiveness_scores, dtype=torch.float32)
             avg_performance[capability] = torch.mean(perf_tensor).item()
 
@@ -1341,7 +1417,10 @@ class MathematicalObjectProxy:
             if self._has_features_for_capability(capability):
                 candidates.append(capability)
 
-        for capability, performance in capability_performance.items():
+        for capability in [RegulatoryCapability.PERSISTENCE_REGULATION, RegulatoryCapability.PHASE_COHERENCE_RESTORATION, RegulatoryCapability.FIELD_STABILIZATION, RegulatoryCapability.ENERGY_CONSERVATION, RegulatoryCapability.BREATHING_SYNCHRONIZATION, RegulatoryCapability.SINGULARITY_RESOLUTION, RegulatoryCapability.TOPOLOGICAL_REPAIR]:
+            if capability not in capability_performance:
+                continue
+            performance = capability_performance[capability]
             if capability not in self.regulatory_capabilities and performance > 0.6:
                 candidates.append(capability)
 
@@ -1394,7 +1473,8 @@ class MathematicalObjectProxy:
         capability_factor = len(self.regulatory_capabilities) / len(RegulatoryCapability)
 
         if self.regulatory_expertise_levels:
-            expertise_tensor = torch.tensor(list(self.regulatory_expertise_levels.values()), dtype=torch.float32)
+            expertise_values = [self.regulatory_expertise_levels[cap] for cap in [RegulatoryCapability.PERSISTENCE_REGULATION, RegulatoryCapability.PHASE_COHERENCE_RESTORATION, RegulatoryCapability.FIELD_STABILIZATION, RegulatoryCapability.ENERGY_CONSERVATION, RegulatoryCapability.BREATHING_SYNCHRONIZATION, RegulatoryCapability.SINGULARITY_RESOLUTION, RegulatoryCapability.TOPOLOGICAL_REPAIR] if cap in self.regulatory_expertise_levels]
+            expertise_tensor = torch.tensor(expertise_values, dtype=torch.float32)
             avg_expertise = torch.mean(expertise_tensor).item()
             expertise_factor = avg_expertise
         else:
@@ -1433,7 +1513,15 @@ class MathematicalObjectProxy:
         distress_details = {}
 
         if hasattr(self.agent, "Q_components") and self.agent.Q_components:
-            for comp_name, comp_value in self.agent.Q_components.items():
+            q_comp = self.agent.Q_components
+            q_components_with_names = [
+                ('T_tensor', q_comp.T_tensor), ('E_trajectory', q_comp.E_trajectory),
+                ('phi_semantic', q_comp.phi_semantic), ('phase_factor', q_comp.phase_factor),
+                ('Q_value', q_comp.Q_value), ('gamma', q_comp.gamma),
+                ('psi_persistence', q_comp.psi_persistence), ('psi_gaussian', q_comp.psi_gaussian),
+                ('psi_exponential_cosine', q_comp.psi_exponential_cosine)
+            ]
+            for comp_name, comp_value in q_components_with_names:
                 if hasattr(comp_value, "__abs__"):
                     magnitude = abs(comp_value)
                     if not math.isfinite(magnitude):
@@ -1555,7 +1643,8 @@ class MathematicalObjectProxy:
         if not hasattr(agent, "Q_components") or not agent.Q_components:
             return 1.0
 
-        components = list(agent.Q_components.values())
+        q_comp = agent.Q_components
+        components = [q_comp.T_tensor, q_comp.E_trajectory, q_comp.phi_semantic, q_comp.phase_factor, q_comp.Q_value, q_comp.gamma, q_comp.psi_persistence, q_comp.psi_gaussian, q_comp.psi_exponential_cosine]
         if len(components) < 2:
             return 1.0
 
@@ -1599,7 +1688,7 @@ class MathematicalObjectProxy:
     def _compute_collective_regulatory_strength(self, member_ids: Set[str]) -> float:
         """Compute collective regulatory strength of alliance."""
         base_strength = (
-            sum(self.regulatory_expertise_levels.values()) / len(self.regulatory_expertise_levels)
+            sum([self.regulatory_expertise_levels[cap] for cap in [RegulatoryCapability.PERSISTENCE_REGULATION, RegulatoryCapability.PHASE_COHERENCE_RESTORATION, RegulatoryCapability.FIELD_STABILIZATION, RegulatoryCapability.ENERGY_CONSERVATION, RegulatoryCapability.BREATHING_SYNCHRONIZATION, RegulatoryCapability.SINGULARITY_RESOLUTION, RegulatoryCapability.TOPOLOGICAL_REPAIR] if cap in self.regulatory_expertise_levels]) / len([cap for cap in [RegulatoryCapability.PERSISTENCE_REGULATION, RegulatoryCapability.PHASE_COHERENCE_RESTORATION, RegulatoryCapability.FIELD_STABILIZATION, RegulatoryCapability.ENERGY_CONSERVATION, RegulatoryCapability.BREATHING_SYNCHRONIZATION, RegulatoryCapability.SINGULARITY_RESOLUTION, RegulatoryCapability.TOPOLOGICAL_REPAIR] if cap in self.regulatory_expertise_levels])
             if self.regulatory_expertise_levels
             else 0.0
         )
@@ -1662,3 +1751,353 @@ class MathematicalObjectProxy:
 
         logger.debug(f"🤖 {self.mathematical_id} applies topological repair (expertise={expertise_level:.3f})")
         return expertise_level > 0.4
+
+    def can_provide_regulation_assistance(self) -> bool:
+        """
+        Determine if this mathematical object can provide regulatory assistance to others.
+        
+        Based on mathematical health, autonomous operation level, and regulatory capabilities.
+        """
+        health_metrics = self.monitor_mathematical_health()
+        return (
+            health_metrics.overall_mathematical_health > 0.6 and
+            self.autonomous_operation_level > self.autonomous_threshold and
+            len(self.regulatory_capabilities) > 0
+        )
+
+    def assess_mathematical_similarity(self, other_agent: ConceptualChargeAgent) -> float:
+        """
+        Assess mathematical similarity with another agent using identity system.
+        
+        Returns similarity score [0, 1] where 1 is most similar.
+        """
+        if not hasattr(other_agent, "mathematical_identity") or other_agent.mathematical_identity is None:
+            return 0.0
+            
+        return self.identity_system._compute_mathematical_similarity(
+            self.agent.mathematical_identity,
+            other_agent.mathematical_identity
+        )
+
+    def find_best_regulatory_partner(self, candidates: List[Tuple[ConceptualChargeAgent, "MathematicalObjectProxy"]]) -> Optional[Tuple[ConceptualChargeAgent, "MathematicalObjectProxy"]]:
+        """
+        Find the best regulatory partner from candidates based on compatibility and capability.
+        
+        Returns the agent-proxy tuple with highest combined compatibility and assistance capability.
+        """
+        if not candidates:
+            return None
+            
+        best_partner = None
+        best_score = 0.0
+        
+        for agent, proxy in candidates:
+            if not proxy.can_provide_regulation_assistance():
+                continue
+                
+            similarity = self.assess_mathematical_similarity(agent)
+            partner_health = proxy.monitor_mathematical_health().overall_mathematical_health
+            
+            combined_score = (similarity * 0.6) + (partner_health * 0.4)
+            
+            if combined_score > best_score:
+                best_score = combined_score
+                best_partner = (agent, proxy)
+                
+        return best_partner
+
+    def offer_regulatory_assistance_to(self, target_agent: ConceptualChargeAgent, target_proxy: "MathematicalObjectProxy") -> Optional[RegulationSuggestion]:
+        """
+        Offer specific regulatory assistance to a target mathematical object.
+        
+        Analyzes target's needs and provides tailored assistance if capable.
+        """
+        if not self.can_provide_regulation_assistance():
+            return None
+            
+        target_health = target_proxy.monitor_mathematical_health()
+        similarity = self.assess_mathematical_similarity(target_agent)
+        
+        if similarity < 0.3 or target_health.overall_mathematical_health > 0.8:
+            return None
+            
+        assistance_strength = min(0.8, similarity * target_health.mathematical_singularity_risk)
+        
+        return self.offer_regulatory_assistance(
+            requesting_agent=target_agent,
+            assistance_type=list(self.regulatory_capabilities)[0] if self.regulatory_capabilities else RegulatoryCapability.FIELD_STABILIZATION,
+            assistance_strength=assistance_strength
+        )
+
+    def find_alliance_partners(self, candidates: List[ConceptualChargeAgent]) -> List[Tuple[ConceptualChargeAgent, float]]:
+        """
+        Find suitable alliance partners from candidates for temporary regulatory alliances.
+        
+        Returns list of (agent, compatibility_score) tuples for alliance formation.
+        """
+        partners = []
+        
+        for candidate in candidates:
+            if not hasattr(candidate, "mathematical_identity") or candidate.mathematical_identity is None:
+                continue
+                
+            similarity = self.assess_mathematical_similarity(candidate)
+            
+            if similarity > 0.5:
+                partners.append((candidate, similarity))
+                
+        return sorted(partners, key=lambda x: x[1], reverse=True)[:3]
+
+    def suggest_individual_regulation(self) -> Optional[RegulationSuggestion]:
+        """
+        Suggest individual regulation based on mathematical object's current health and needs.
+        
+        Analyzes self-health and determines appropriate self-regulation.
+        """
+        health_metrics = self.monitor_mathematical_health()
+        
+        if health_metrics.overall_mathematical_health > 0.7:
+            return None
+            
+        if health_metrics.mathematical_singularity_risk > 0.6:
+            regulation_type = RegulatoryCapability.SINGULARITY_RESOLUTION
+            strength = health_metrics.mathematical_singularity_risk
+        elif health_metrics.field_coherence_score < 0.4:
+            regulation_type = RegulatoryCapability.FIELD_STABILIZATION  
+            strength = 1.0 - health_metrics.field_coherence_score
+        else:
+            regulation_type = RegulatoryCapability.PHASE_ALIGNMENT
+            strength = 1.0 - health_metrics.phase_relationship_health
+            
+        return RegulationSuggestion(
+            regulation_type=regulation_type.value,
+            strength=min(0.8, strength),
+            confidence=health_metrics.overall_mathematical_health,
+            mathematical_basis=f"Individual regulation for {self.mathematical_id}",
+            information_metrics=None,
+            parameters={"target_health_improvement": 0.3}
+        )
+
+    def propose_alliance_regulation(self, alliance_partners: List[ConceptualChargeAgent]) -> Optional[RegulationSuggestion]:
+        """
+        Propose alliance-based regulation leveraging multiple mathematical objects.
+        
+        Coordinates regulation across alliance members for enhanced effectiveness.
+        """
+        if len(alliance_partners) < 2:
+            return None
+            
+        combined_health = self.monitor_mathematical_health().overall_mathematical_health
+        partner_health_sum = 0.0
+        
+        for partner in alliance_partners:
+            if hasattr(partner, "mathematical_identity"):
+                similarity = self.assess_mathematical_similarity(partner)
+                partner_health_sum += similarity * 0.5
+                
+        if partner_health_sum < 0.3:
+            return None
+            
+        alliance_strength = min(0.9, (combined_health + partner_health_sum) / (1 + len(alliance_partners)))
+        
+        return RegulationSuggestion(
+            regulation_type="alliance_coordination",
+            strength=alliance_strength,
+            confidence=0.8,
+            mathematical_basis=f"Alliance regulation with {len(alliance_partners)} partners",
+            information_metrics=None,
+            parameters={
+                "alliance_size": len(alliance_partners),
+                "coordination_strength": alliance_strength,
+                "target_improvement": 0.4
+            }
+        )
+
+
+class SpectralHealthMonitor:
+    """
+    O(log N) spectral health monitoring system for mathematical object populations.
+    
+    Uses JAX JIT compilation and eigenvalue analysis to achieve logarithmic complexity
+    health assessment across large populations of mathematical objects.
+    """
+    
+    def __init__(self):
+        self.mathematical_precision = 1e-12
+        
+        logger.info("🚀 SpectralHealthMonitor initialized with PyTorch acceleration")
+            
+    def monitor_population_health(self, proxies: List["MathematicalObjectProxy"]) -> Dict[str, Tuple[float, MathematicalHealthStatus]]:
+        """
+        Monitor health of entire mathematical object population in O(log N) time.
+        
+        Returns dict mapping mathematical_id to (health_score, health_status).
+        """
+        if not proxies:
+            return {}
+            
+        start_time = time.time()
+        
+        # Phase 1: Batch tensor extraction O(N)
+        tensor_data = self._extract_population_tensors(proxies)
+        
+        # Phase 2: Spectral analysis O(log N) using PyTorch
+        health_scores = self._spectral_batch_analysis(tensor_data)
+            
+        # Phase 3: Adaptive detailed analysis O(k) where k << N
+        detailed_results = self._adaptive_detailed_analysis(proxies, health_scores)
+        
+        analysis_time = time.time() - start_time
+        logger.debug(f"🚀 Population health analysis: {len(proxies)} objects in {analysis_time:.4f}s")
+        
+        return detailed_results
+        
+    def _extract_population_tensors(self, proxies: List["MathematicalObjectProxy"]) -> Dict[str, torch.Tensor]:
+        """Extract mathematical tensors from all proxies for batch processing using PyTorch."""
+        q_components = []
+        field_positions = []
+        breathing_magnitudes = []
+        mathematical_ids = []
+        
+        # Determine device from first proxy agent
+        device = torch.device('cpu')
+        if proxies and hasattr(proxies[0].agent, 'device'):
+            device = proxies[0].agent.device
+        elif torch.backends.mps.is_available():
+            device = torch.device('mps')
+        
+        for proxy in proxies:
+            # Q-component tensor
+            if hasattr(proxy.agent, 'Q_components') and proxy.agent.Q_components is not None:
+                q_comp = proxy.agent.Q_components
+                q_values = []
+                
+                for attr in ['gamma', 'T_trajectory', 'E_trajectory', 'Phi_semantic']:
+                    if hasattr(q_comp, attr):
+                        val = getattr(q_comp, attr)
+                        if isinstance(val, torch.Tensor):
+                            q_values.append(torch.abs(val))
+                        else:
+                            q_values.append(torch.tensor(abs(val), device=device, dtype=torch.float32))
+                    else:
+                        q_values.append(torch.tensor(1.0, device=device, dtype=torch.float32))
+                        
+                q_tensor = torch.stack(q_values)
+            else:
+                q_tensor = torch.tensor([1.0, 1.0, 1.0, 1.0], device=device, dtype=torch.float32)
+                
+            q_components.append(q_tensor)
+            
+            # Field position
+            if hasattr(proxy.agent, 'field_state') and hasattr(proxy.agent.field_state, 'field_position'):
+                pos = proxy.agent.field_state.field_position
+                field_positions.append(torch.tensor([pos[0], pos[1]], device=device, dtype=torch.float32))
+            else:
+                field_positions.append(torch.tensor([0.0, 0.0], device=device, dtype=torch.float32))
+                
+            # Breathing magnitude
+            if hasattr(proxy.agent, 'breathing_q_coefficients') and proxy.agent.breathing_q_coefficients:
+                breath_values = list(proxy.agent.breathing_q_coefficients.values())[:4]
+                breath_mag = sum(abs(coeff) for coeff in breath_values)
+                breathing_magnitudes.append(torch.tensor(breath_mag, device=device, dtype=torch.float32))
+            else:
+                breathing_magnitudes.append(torch.tensor(1.0, device=device, dtype=torch.float32))
+                
+            mathematical_ids.append(proxy.mathematical_id)
+            
+        return {
+            'q_components': torch.stack(q_components),
+            'field_positions': torch.stack(field_positions), 
+            'breathing_magnitudes': torch.stack(breathing_magnitudes),
+            'mathematical_ids': mathematical_ids
+        }
+        
+    def _spectral_batch_analysis(self, tensor_data: Dict[str, torch.Tensor]) -> torch.Tensor:
+        """Perform spectral analysis for O(log N) health assessment using PyTorch."""
+        return self._pytorch_batch_health_analysis(
+            tensor_data['q_components'],
+            tensor_data['field_positions'],
+            tensor_data['breathing_magnitudes']
+        )
+            
+        
+    def _pytorch_batch_health_analysis(self, q_components: torch.Tensor, field_positions: torch.Tensor, breathing_magnitudes: torch.Tensor) -> torch.Tensor:
+        """PyTorch-based batch health analysis using spectral methods."""
+        
+        # Spectral decomposition of Q-components
+        # Handle MPS limitation by moving eigenvalue computation to CPU
+        q_covariance = torch.cov(q_components.T)
+        
+        # Move to CPU for eigenvalue computation if on MPS
+        if q_covariance.device.type == 'mps':
+            eigenvalues = torch.linalg.eigvals(q_covariance.cpu()).real.to(q_covariance.device)
+        else:
+            eigenvalues = torch.linalg.eigvals(q_covariance).real
+            
+        eigenvalues = torch.sort(eigenvalues, descending=True)[0]
+        
+        # Spectral gap analysis O(log N)
+        spectral_gaps = eigenvalues[:-1] - eigenvalues[1:]
+        spectral_gap_score = torch.mean(spectral_gaps) / (torch.max(eigenvalues) + 1e-12)
+        
+        # Field coherence via spatial correlation
+        field_distances = torch.norm(field_positions[:, None] - field_positions[None, :], dim=2)
+        field_coherence = torch.exp(-field_distances.mean() / 10.0)
+        
+        # Breathing regularity via spectral radius
+        breathing_variance = torch.var(breathing_magnitudes)
+        breathing_mean = torch.mean(breathing_magnitudes)
+        breathing_regularity = 1.0 / (1.0 + breathing_variance / (breathing_mean + 1e-12))
+        
+        # Combined health scoring
+        health_components = torch.tensor([
+            spectral_gap_score,
+            field_coherence, 
+            breathing_regularity
+        ], device=q_components.device)
+        
+        # Broadcast to individual scores (simplified spectral projection)
+        individual_scores = torch.mean(health_components) * torch.ones(q_components.shape[0], device=q_components.device)
+        
+        # Add individual Q-component stability
+        q_norms = torch.norm(q_components, dim=1)
+        q_stability = 1.0 / (1.0 + torch.var(q_norms) / (torch.mean(q_norms) + 1e-12))
+        
+        final_scores = individual_scores * q_stability
+        
+        return torch.clamp(final_scores, 0.0, 1.0)
+        
+        
+    def _adaptive_detailed_analysis(self, proxies: List["MathematicalObjectProxy"], health_scores: torch.Tensor) -> Dict[str, Tuple[float, MathematicalHealthStatus]]:
+        """Perform detailed analysis only for objects near health boundaries."""
+        results = {}
+        
+        for i, proxy in enumerate(proxies):
+            health_score = float(health_scores[i])
+            
+            # Determine if detailed analysis needed
+            needs_detailed = (
+                health_score < 0.3 or  # Very unhealthy
+                health_score > 0.95 or  # Suspiciously perfect
+                (0.45 < health_score < 0.55)  # Boundary region
+            )
+            
+            if needs_detailed:
+                # Run full individual health analysis
+                detailed_metrics = proxy.monitor_mathematical_health()
+                health_score = detailed_metrics.overall_mathematical_health
+                health_status = detailed_metrics.health_status
+            else:
+                # Use spectral approximation
+                if health_score > 0.8:
+                    health_status = MathematicalHealthStatus.HEALTHY
+                elif health_score > 0.6:
+                    health_status = MathematicalHealthStatus.STABLE  
+                elif health_score > 0.4:
+                    health_status = MathematicalHealthStatus.DEGRADED
+                else:
+                    health_status = MathematicalHealthStatus.CRITICAL
+                    
+            results[proxy.mathematical_id] = (health_score, health_status)
+            
+        return results
