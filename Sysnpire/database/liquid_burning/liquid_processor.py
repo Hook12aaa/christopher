@@ -369,9 +369,22 @@ class LiquidProcessor:
             for attr in component_attrs:
                 if hasattr(q_math, attr):
                     value = getattr(q_math, attr)
+                    
+                    # 🔍 Q VALUE TRACKING: Log E_trajectory extraction
+                    if attr == "E_trajectory":
+                        logger.debug(f"🔍 Q-TRACK SAVE: Extracting E_trajectory for agent - value: {value}, type: {type(value)}")
+                        if isinstance(value, complex):
+                            logger.debug(f"   - E_trajectory complex - real: {value.real}, imag: {value.imag}, magnitude: {abs(value)}")
+                        elif value is None:
+                            logger.warning(f"   - WARNING: E_trajectory is None during extraction!")
+                    
                     if isinstance(value, complex):
                         q_components[f"{attr}_real"] = float(value.real)
                         q_components[f"{attr}_imag"] = float(value.imag)
+                        
+                        # Additional debug for E_trajectory
+                        if attr == "E_trajectory":
+                            logger.debug(f"   - Stored E_trajectory_real: {float(value.real)}, E_trajectory_imag: {float(value.imag)}")
                     elif isinstance(value, np.ndarray):
                         q_components[attr] = value.tolist() if value.size < 1000 else value
                     else:
@@ -587,7 +600,7 @@ class LiquidProcessor:
                     logger.warning(f"Agent {agent_id} missing field_components")
                     return False
 
-            logger.info("✅ Mathematical validation passed")
+            logger.debug("Mathematical validation passed")
             return True
 
         except Exception as e:

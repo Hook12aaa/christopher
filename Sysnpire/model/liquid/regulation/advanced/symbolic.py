@@ -263,7 +263,6 @@ class SymbolicRegulation:
         compiled_func = self._compile_spectral_approximation_vivid(base_regulation)
         simplified_expr = regulation_expression  # Keep symbolic for metadata
 
-        logger.debug("🔣 Vivid decay law derived successfully")
         return compiled_func, simplified_expr
 
     def _derive_character_persistence_law(self) -> Tuple[Optional[Callable], Any]:
@@ -296,7 +295,6 @@ class SymbolicRegulation:
         compiled_func = self._compile_spectral_approximation_character(base_beta)
         simplified_expr = regulation_expression  # Keep symbolic for metadata
 
-        logger.debug("🔣 Character persistence law derived successfully")
         return compiled_func, simplified_expr
 
     def _spectral_optimize_alpha(self, info_loss_rate) -> float:
@@ -444,7 +442,6 @@ class SymbolicRegulation:
 
         compiled_func = self._compile_jax_function(simplified_expr, [self.T, self.s])
 
-        logger.debug("🔣 Temporal momentum regulation derived successfully")
         return compiled_func, simplified_expr
 
     def _derive_energy_conservation_law(self) -> Tuple[Optional[Callable], Any]:
@@ -471,7 +468,6 @@ class SymbolicRegulation:
             simplified_expr, [self.Q_formula, self.R, self.s]
         )
 
-        logger.debug("🔣 Energy conservation law derived successfully")
         return compiled_func, simplified_expr
 
     def _derive_phase_coherence_law(self) -> Tuple[Optional[Callable], Any]:
@@ -494,7 +490,6 @@ class SymbolicRegulation:
             simplified_expr, [self.theta, self.s]
         )
 
-        logger.debug("🔣 Phase coherence law derived successfully")
         return compiled_func, simplified_expr
 
     def _derive_field_boundary_law(self) -> Tuple[Optional[Callable], Any]:
@@ -513,7 +508,6 @@ class SymbolicRegulation:
 
         compiled_func = self._compile_jax_function(simplified_expr, [x, y])
 
-        logger.debug("🔣 Field boundary law derived successfully")
         return compiled_func, simplified_expr
 
     def _derive_optimal_regulation_strength(self) -> Tuple[Optional[Callable], Any]:
@@ -537,7 +531,6 @@ class SymbolicRegulation:
             [self.gamma, self.T, self.E_traj, self.Phi, self.theta, self.Psi],
         )
 
-        logger.debug("🔣 Optimal regulation strength derived successfully")
         return compiled_func, simplified_expr
 
     def _derive_stability_condition(self) -> Tuple[Optional[Callable], Any]:
@@ -558,7 +551,6 @@ class SymbolicRegulation:
             simplified_expr, [self.omega, self.lambda_reg]
         )
 
-        logger.debug("🔣 Stability condition derived successfully")
         return compiled_func, simplified_expr
 
     def _derive_lyapunov_functional(self) -> Tuple[Optional[Callable], Any]:
@@ -577,7 +569,6 @@ class SymbolicRegulation:
             simplified_expr, [self.Q_formula, self.R, self.lambda_reg, self.s]
         )
 
-        logger.debug("🔣 Lyapunov functional derived successfully")
         return compiled_func, simplified_expr
 
     def _compile_jax_function(

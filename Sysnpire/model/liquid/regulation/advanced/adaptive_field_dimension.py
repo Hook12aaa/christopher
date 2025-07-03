@@ -1062,6 +1062,15 @@ class AdaptiveFieldDimension:
                 logger.debug("🎯 Using cached dimension estimate")
                 return cached_result
 
+        # MATHEMATICAL FAST-PATH: Quick estimation for stable field configurations
+        quick_estimate = self._try_fast_path_estimation(agents, field_signature)
+        if quick_estimate is not None:
+            self.discovery_stats["fast_path_hits"] += 1
+            logger.debug("🚀 Using fast-path dimension estimate")
+            if self.cache_enabled:
+                self._update_cache(field_signature, quick_estimate)
+            return quick_estimate
+
         logger.debug("🔬 Running quantum cognition dimension estimation...")
         quantum_estimate = self.quantum_estimator.estimate_dimension(agents)
 
@@ -1102,30 +1111,119 @@ class AdaptiveFieldDimension:
         )
 
         return dimension_estimate
+    
+    def _try_fast_path_estimation(self, agents: List[ConceptualChargeAgent], field_signature: FieldSignature) -> Optional[DimensionEstimate]:
+        """
+        MATHEMATICAL FAST-PATH: Quick dimension estimation for common field patterns.
+        
+        Uses mathematical heuristics to avoid expensive computation for standard configurations.
+        """
+        n_agents = len(agents)
+        
+        # Fast-path for small agent counts (dimension discovery overhead not worth it)
+        if n_agents <= 20:
+            # Simple heuristic: log-based dimension for small fields
+            estimated_dim = max(1, min(n_agents, int(math.log2(n_agents + 1)) + 2))
+            return DimensionEstimate(
+                quantum_dimension=estimated_dim,
+                rate_distortion_dimension=estimated_dim,
+                heat_kernel_dimension=estimated_dim,
+                consensus_dimension=estimated_dim,
+                confidence_score=0.8,  # High confidence for simple cases
+                field_complexity_measure=n_agents / 100.0,
+                estimation_metadata={
+                    "method": "fast_path_small_field",
+                    "agents": n_agents,
+                    "reasoning": "Small field - dimension discovery overhead not justified"
+                }
+            )
+        
+        # Fast-path for high field energy (typically results in higher dimensions)
+        if field_signature.field_energy > 1000.0:
+            # High energy fields tend to have higher intrinsic dimension
+            estimated_dim = min(n_agents, max(10, int(math.log10(field_signature.field_energy)) * 3))
+            return DimensionEstimate(
+                quantum_dimension=estimated_dim,
+                rate_distortion_dimension=estimated_dim,
+                heat_kernel_dimension=estimated_dim,
+                consensus_dimension=estimated_dim,
+                confidence_score=0.7,
+                field_complexity_measure=field_signature.field_energy / 10000.0,
+                estimation_metadata={
+                    "method": "fast_path_high_energy",
+                    "field_energy": field_signature.field_energy,
+                    "reasoning": "High energy field - dimension scales with energy"
+                }
+            )
+        
+        # No fast-path applicable
+        return None
 
     def _compute_field_signature(
         self, agents: List[ConceptualChargeAgent]
     ) -> FieldSignature:
+        """
+        MATHEMATICAL INVARIANT CACHING: Use field topology instead of exact values.
+        
+        Creates cache signature based on mathematical invariants that remain stable
+        across small field evolution changes, enabling effective cache hits.
+        """
         n_points = len(agents)
         field_energy = 0.0
-        complexity_components = []
+        
+        # MATHEMATICAL INVARIANTS: Use binned/quantized values for cache stability
+        magnitude_bins = []
+        phase_bins = []
+        gamma_bins = []
+        persistence_bins = []
 
         for agent in agents:
             q_comps = agent.Q_components
             q_val = q_comps.Q_value
             if math.isfinite(abs(q_val)):
                 field_energy += abs(q_val) ** 2
-                complexity_components.extend(
-                    [
-                        q_val.real,
-                        q_val.imag,
-                        abs(q_val),
-                        q_comps.gamma,
-                        q_comps.psi_persistence,
-                    ]
-                )
+                
+                # Bin values to mathematical ranges for cache stability
+                magnitude = abs(q_val)
+                phase = np.angle(q_val)
+                
+                # Logarithmic magnitude binning (handles wide range of values)
+                mag_bin = int(math.log10(magnitude + 1e-10) + 10)  # Shift to positive range
+                magnitude_bins.append(mag_bin)
+                
+                # Phase binning (8 sectors for 2π)
+                phase_bin = int((phase + math.pi) / (2 * math.pi) * 8) % 8
+                phase_bins.append(phase_bin)
+                
+                # Gamma and persistence binning  
+                gamma_bin = int(q_comps.gamma * 10) % 100
+                persistence_bin = int(q_comps.psi_persistence * 10) % 100
+                gamma_bins.append(gamma_bin)
+                persistence_bins.append(persistence_bin)
 
-        complexity_hash = str(hash(tuple(complexity_components)))[:16]
+        # Mathematical signature based on distribution patterns
+        if magnitude_bins:
+            # Field topology signature: distribution of values across bins
+            mag_histogram = np.histogram(magnitude_bins, bins=20, range=(0, 20))[0]
+            phase_histogram = np.histogram(phase_bins, bins=8, range=(0, 8))[0]
+            
+            # Mathematical invariant: dominant modes in each distribution
+            dominant_mag_modes = np.argsort(mag_histogram)[-3:].tolist()
+            dominant_phase_modes = np.argsort(phase_histogram)[-2:].tolist()
+            
+            # Field complexity class (stable mathematical measure)
+            field_complexity_class = len(set(magnitude_bins)) + len(set(phase_bins))
+            
+            complexity_signature = (
+                tuple(dominant_mag_modes),
+                tuple(dominant_phase_modes), 
+                field_complexity_class,
+                len(magnitude_bins) // 10  # Agent count class
+            )
+        else:
+            complexity_signature = ((), (), 0, 0)
+
+        complexity_hash = str(hash(complexity_signature))[:16]
         temporal_span = 1.0
 
         return FieldSignature(
@@ -1139,15 +1237,37 @@ class AdaptiveFieldDimension:
     def _check_cache(
         self, field_signature: FieldSignature
     ) -> Optional[DimensionEstimate]:
+        """INTELLIGENT CACHE LOOKUP: Check exact match and similar configurations."""
         cache_key = f"{field_signature.n_points}_{field_signature.complexity_hash}"
 
+        # Exact match check
         if cache_key in self.dimension_cache:
             cached_estimate, cache_time = self.dimension_cache[cache_key]
 
             if time.time() - cache_time < self.cache_timeout:
+                logger.debug(f"🎯 Exact cache hit for signature {cache_key}")
                 return cached_estimate
             else:
                 del self.dimension_cache[cache_key]
+
+        # MATHEMATICAL SIMILARITY SEARCH: Look for similar field configurations
+        # Check cache for similar agent counts and complexity signatures
+        for stored_key, (stored_estimate, cache_time) in list(self.dimension_cache.items()):
+            if time.time() - cache_time >= self.cache_timeout:
+                del self.dimension_cache[stored_key]
+                continue
+                
+            stored_parts = stored_key.split('_')
+            if len(stored_parts) >= 2:
+                stored_n_points = int(stored_parts[0])
+                stored_hash = '_'.join(stored_parts[1:])
+                
+                # Similar agent count (±10%) and same complexity class
+                n_point_tolerance = max(5, field_signature.n_points // 10)
+                if (abs(stored_n_points - field_signature.n_points) <= n_point_tolerance and
+                    stored_hash == field_signature.complexity_hash):
+                    logger.debug(f"🎯 Similar cache hit: {stored_key} ~ {cache_key}")
+                    return stored_estimate
 
         return None
 

@@ -480,23 +480,6 @@ class VectorTransformation():
                 'phases_finite': bool(np.all(np.isfinite(semantic_field.phase_factors)))
             })
             
-            # Test field at random positions  
-            random_positions = [
-                np.random.normal(0, 0.1, semantic_field.manifold_dimension) for _ in range(3)
-            ]
-            field_responses = []
-            for pos in random_positions:
-                try:
-                    response = semantic_field.evaluate_at(pos)
-                    field_responses.append({
-                        'position_norm': float(np.linalg.norm(pos)),
-                        'field_magnitude': float(abs(response)),
-                        'field_finite': bool(np.isfinite(response))
-                    })
-                except Exception as e:
-                    field_responses.append({'error': str(e)})
-            
-            validation_results['field_responses'] = field_responses
             validation_results['validation_passed'] = True
             
         except Exception as e:

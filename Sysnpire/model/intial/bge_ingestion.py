@@ -48,6 +48,11 @@ sys.path.insert(0, str(project_root))
 
 # Import necessary modules from the project
 import numpy as np
+import os
+
+# MEMORY SAFETY: Control OpenBLAS threading to prevent memory corruption
+if 'OPENBLAS_NUM_THREADS' not in os.environ:
+    os.environ['OPENBLAS_NUM_THREADS'] = '4'  # Conservative threading for memory safety
 import numba as nb
 import hashlib
 from typing import List, Optional, Dict, Any, Union
@@ -139,6 +144,30 @@ class BGEIngestion():
         self._spatial_analysis_cache = {}
         self._laplacian_cache = {}
         self._embedding_data_cache = None
+    
+    def _create_stable_cache_key(self, embeddings: np.ndarray, k: int = 20) -> tuple:
+        """
+        Create stable cache key without id() or .tobytes() to prevent memory corruption.
+        
+        Uses array shape, dtype, and content signature for stable caching across
+        function calls while avoiding massive memory allocations.
+        
+        Args:
+            embeddings: Input embedding array
+            k: Neighbor parameter
+            
+        Returns:
+            Stable cache key tuple
+        """
+        return (
+            embeddings.shape, 
+            embeddings.dtype.name,
+            k,
+            float(embeddings[0, 0]),   # First element signature
+            float(embeddings[-1, -1]), # Last element signature
+            float(np.mean(embeddings)), # Mean signature
+            float(np.std(embeddings))   # Std signature
+        )
 
     def info(self) -> Dict[str, Any]:
         """
@@ -634,8 +663,8 @@ class BGEIngestion():
         Returns:
             Normalized discrete Laplacian matrix
         """
-        # PERFORMANCE: Check cache first
-        cache_key = (embeddings.shape, k, hash(embeddings.tobytes()))
+        # PERFORMANCE: Check cache first - SAFE METADATA HASHING (no massive .tobytes() allocation)
+        cache_key = self._create_stable_cache_key(embeddings, k)
         if cache_key in self._laplacian_cache:
             logger.info(f"🚀 CACHE HIT: Using cached Laplacian for {len(embeddings)} embeddings (avoiding 3-4s computation)")
             return self._laplacian_cache[cache_key]
@@ -655,14 +684,34 @@ class BGEIngestion():
             sigma = np.median(nonzero_distances)
             W.data = np.exp(-W.data**2 / (2 * sigma**2))
         
-        # Degree matrix and Laplacian
-        W_dense = W.toarray()
-        D = np.diag(np.sum(W_dense, axis=1))
-        L = D - W_dense
-        
-        # Normalized Laplacian for stability
-        D_inv_sqrt = np.diag(1.0 / np.sqrt(np.diag(D) + 1e-10))
-        L_norm = D_inv_sqrt @ L @ D_inv_sqrt
+        # MEMORY OPTIMIZATION: Chunked processing for large matrices to prevent corruption
+        if len(embeddings) > 200:
+            # For large matrices, use memory-efficient sparse operations
+            W_dense = W.toarray()
+            degree_vals = np.array(W_dense.sum(axis=1)).flatten()
+            
+            # Memory-efficient diagonal operations
+            D_inv_sqrt_vals = 1.0 / np.sqrt(degree_vals + 1e-10)
+            
+            # In-place operations to minimize memory allocation
+            L_norm = W_dense.copy()
+            L_norm *= -1  # Convert W to -W
+            np.fill_diagonal(L_norm, degree_vals)  # Add degree matrix to diagonal
+            
+            # Apply normalization in-place
+            L_norm = (L_norm.T * D_inv_sqrt_vals).T * D_inv_sqrt_vals
+            
+            # Clean up intermediate arrays
+            del degree_vals, D_inv_sqrt_vals
+        else:
+            # Standard processing for smaller matrices
+            W_dense = W.toarray()
+            D = np.diag(np.sum(W_dense, axis=1))
+            L = D - W_dense
+            
+            # Normalized Laplacian for stability
+            D_inv_sqrt = np.diag(1.0 / np.sqrt(np.diag(D) + 1e-10))
+            L_norm = D_inv_sqrt @ L @ D_inv_sqrt
         
         # PERFORMANCE OPTIMIZATION: For matrices >10, pre-compute eigendecomposition on GPU if available
         if self.similarity_calculator.use_gpu and len(embeddings) > 10:
@@ -678,6 +727,14 @@ class BGEIngestion():
                     'eigenvals': eigenvals.cpu().numpy(),
                     'eigenvecs': eigenvecs.cpu().numpy()
                 }
+                
+                # MEMORY CLEANUP: Explicit tensor cleanup to prevent GPU memory leaks
+                del eigenvals, eigenvecs, L_tensor
+                if torch.cuda.is_available():
+                    torch.cuda.empty_cache()
+                elif hasattr(torch.backends, 'mps') and torch.backends.mps.is_available():
+                    torch.mps.empty_cache()
+                    
                 logger.info(f"🚀 GPU-accelerated eigendecomposition cached for {len(embeddings)} embeddings")
             except Exception as e:
                 logger.debug(f"GPU eigendecomposition failed, will compute on demand: {e}")
@@ -713,8 +770,8 @@ class BGEIngestion():
         # Compute spectral decomposition for field evolution (with caching optimization)
         laplacian = self.compute_discrete_laplacian(normalized)
         
-        # PERFORMANCE: Check if eigendecomposition is cached from GPU computation
-        cache_key = (normalized.shape, 20, hash(normalized.tobytes()))  # k=20 default for discrete_laplacian
+        # PERFORMANCE: Check if eigendecomposition is cached from GPU computation - SAFE METADATA HASHING
+        cache_key = self._create_stable_cache_key(normalized, 20)  # k=20 default for discrete_laplacian
         eigendecomp_cache_key = (cache_key[0], cache_key[1], 'eigendecomp')
         
         if eigendecomp_cache_key in self._laplacian_cache:
@@ -894,8 +951,8 @@ class BGEIngestion():
         # Compute discrete Laplacian for spatial field evolution (with caching optimization)
         laplacian = self.compute_discrete_laplacian(sample_embeddings, k=20)
         
-        # PERFORMANCE: Check if eigendecomposition is cached from GPU computation
-        cache_key = (sample_embeddings.shape, 20, hash(sample_embeddings.tobytes()))
+        # PERFORMANCE: Check if eigendecomposition is cached from GPU computation - SAFE METADATA HASHING
+        cache_key = self._create_stable_cache_key(sample_embeddings, 20)
         eigendecomp_cache_key = (cache_key[0], cache_key[1], 'eigendecomp')
         
         if eigendecomp_cache_key in self._laplacian_cache:

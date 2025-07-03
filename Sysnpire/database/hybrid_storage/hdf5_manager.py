@@ -1262,31 +1262,23 @@ class HDF5Manager:
                             temporal_components = agent_data["temporal_components"]
                             agent_state = agent_data["agent_state"]
                             
-                            # DEBUG: Log all temporal_components keys
-                            logger.info(f"🔍 DEBUG: Agent {agent_id} temporal_components keys: {list(temporal_components.keys())}")
                             
                             # Map breathing_coherence -> observational_state (the 's' parameter in Q(τ,C,s))
                             if "breathing_coherence" in temporal_components:
                                 breathing_coherence_value = temporal_components["breathing_coherence"]
-                                logger.info(f"🔍 DEBUG: Raw breathing_coherence loaded from HDF5 for {agent_id}: {breathing_coherence_value} (type: {type(breathing_coherence_value)})")
                                 
                                 # Check if it's a complex number or array and handle appropriately
                                 if isinstance(breathing_coherence_value, complex):
-                                    logger.info(f"🔍 DEBUG: Complex breathing_coherence - real: {breathing_coherence_value.real}, imag: {breathing_coherence_value.imag}, magnitude: {abs(breathing_coherence_value)}")
                                     observational_state = abs(breathing_coherence_value)  # Use magnitude for observational state
                                 elif hasattr(breathing_coherence_value, 'shape') and breathing_coherence_value.shape:
-                                    logger.info(f"🔍 DEBUG: Array breathing_coherence - shape: {breathing_coherence_value.shape}, first element: {breathing_coherence_value.flat[0] if breathing_coherence_value.size > 0 else 'empty'}")
                                     observational_state = float(breathing_coherence_value.flat[0]) if breathing_coherence_value.size > 0 else 1.0
                                 else:
-                                    logger.info(f"🔍 DEBUG: Scalar breathing_coherence: {breathing_coherence_value}")
                                     observational_state = float(breathing_coherence_value)
                                 
                                 agent_state["observational_state"] = observational_state
-                                logger.info(f"✅ DEBUG: Final mapped observational_state for {agent_id}: {observational_state}")
                             else:
                                 # Fallback to default observational state
                                 agent_state["observational_state"] = 1.0
-                                logger.info(f"⚠️ DEBUG: No breathing_coherence found for {agent_id}, using default observational_state=1.0")
                         
                         agent_data["agent_metadata"] = agent_metadata
                         agents_data[agent_id] = agent_data

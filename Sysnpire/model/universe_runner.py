@@ -230,9 +230,9 @@ class UniverseRunner:
             logger.info(f"   Time: {evolution_time:.2f}s")
             
             # Extract from nested structure
-            final_analysis = evolution_results.get('final_analysis', {})
-            logger.info(f"   Final complexity: {final_analysis.get('final_complexity', 'unknown')}")
-            logger.info(f"   Total Q energy: {final_analysis.get('total_Q_energy', 'unknown')}")
+            final_analysis = evolution_results.get('final_analysis')
+            logger.info(f"   Final complexity: {final_analysis.get('final_complexity')}")
+            logger.info(f"   Total Q energy: {final_analysis.get('total_Q_energy')}")
             
             # Display key metrics
             if 'evolution_summary' in evolution_results:

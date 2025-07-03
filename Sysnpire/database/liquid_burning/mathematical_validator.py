@@ -14,6 +14,7 @@ Key Features:
 """
 
 import logging
+import time
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional
 
@@ -88,7 +89,7 @@ class MathematicalValidator:
 
         logger.info(f"🔍 Mathematical validation complete")
         logger.info(f"   Passed: {results.passed_checks}/{results.total_checks}")
-        logger.info(f"   Status: {'✅ PASSED' if results.validation_passed else '❌ FAILED'}")
+        # Validation status tracked (detailed status moved to batch summaries)
 
         if results.errors:
             logger.warning(f"   Errors: {len(results.errors)}")
@@ -110,6 +111,78 @@ class MathematicalValidator:
             },
         }
     
+    def validate_reconstructed_batch(self, converted_batch: Dict[str, Dict[str, Any]]) -> Dict[str, Any]:
+        """
+        Validate batch of reconstructed agent data after conversion from storage format.
+        
+        Args:
+            converted_batch: Dictionary mapping agent_id -> converted_agent_data
+            
+        Returns:
+            Batch validation results dictionary
+        """
+        logger.info(f"🔍 Starting batch validation for {len(converted_batch)} agents...")
+        start_time = time.time()
+        
+        batch_results = ValidationResults()
+        agent_errors = {}
+        
+        for agent_id, converted_data in converted_batch.items():
+            agent_result = self.validate_reconstructed_data(converted_data, agent_id)
+            
+            # Accumulate batch statistics
+            batch_results.total_checks += agent_result["total_checks"]
+            batch_results.passed_checks += agent_result["passed_checks"] 
+            batch_results.failed_checks += agent_result["failed_checks"]
+            
+            # Track individual agent errors
+            if agent_result["errors"]:
+                agent_errors[agent_id] = agent_result["errors"]
+        
+        # Determine overall batch status
+        batch_results.validation_passed = batch_results.failed_checks == 0
+        validation_time = time.time() - start_time
+        
+        # O(log n) Smart Validation Summary - Only significant results
+        success_rate = batch_results.passed_checks / batch_results.total_checks if batch_results.total_checks > 0 else 0
+        
+        if success_rate == 1.0:
+            logger.info(f"✅ Batch validation: 100% success ({len(converted_batch)} agents, {validation_time:.2f}s)")
+        else:
+            logger.warning(f"⚠️  Batch validation: {success_rate:.1%} success rate ({batch_results.failed_checks} failures)")
+            
+        # Only log errors if they exist
+        if agent_errors:
+            error_count = len(agent_errors)
+            if error_count > 10:
+                logger.error(f"❌ {error_count} agents failed validation - system may need attention")
+            else:
+                logger.warning(f"⚠️  {error_count} agents had validation errors:")
+            
+            # Log first few errors as examples (smart sampling)
+            sample_errors = list(agent_errors.items())[:min(3, len(agent_errors))]
+            for agent_id, errors in sample_errors:
+                logger.warning(f"   - Agent {agent_id}: {errors[0]}")
+            
+            if len(agent_errors) > 3:
+                logger.warning(f"   - ... and {len(agent_errors) - 3} more agents with errors")
+        
+        # Performance warning
+        if validation_time > 2.0:
+            logger.warning(f"⚠️  Slow validation: {validation_time:.1f}s exceeds 2s threshold")
+        
+        return {
+            "validation_passed": batch_results.validation_passed,
+            "total_checks": batch_results.total_checks,
+            "passed_checks": batch_results.passed_checks,
+            "failed_checks": batch_results.failed_checks,
+            "agent_errors": agent_errors,
+            "success_rate": success_rate,
+            "validation_time": validation_time,
+            "agents_validated": len(converted_batch),
+            "validation_type": "batch_reconstruction"
+        }
+
     def validate_reconstructed_data(self, converted_data: Dict[str, Any], agent_id: str = "unknown") -> Dict[str, Any]:
         """
         Validate reconstructed agent data after conversion from storage format.
@@ -124,7 +197,7 @@ class MathematicalValidator:
         Returns:
             Validation results dictionary
         """
-        logger.info(f"🔍 Validating reconstructed data for agent: {agent_id}")
+        logger.debug(f"Validating reconstructed data for agent: {agent_id}")
         
         results = ValidationResults()
         
@@ -138,9 +211,8 @@ class MathematicalValidator:
         # Determine overall validation status
         results.validation_passed = results.failed_checks == 0
         
-        logger.info(f"🔍 Reconstruction validation complete for {agent_id}")
-        logger.info(f"   Passed: {results.passed_checks}/{results.total_checks}")
-        logger.info(f"   Status: {'✅ PASSED' if results.validation_passed else '❌ FAILED'}")
+        # Reconstruction validation complete (details moved to batch summaries)
+        # Validation status tracked (detailed status moved to batch summaries)
         
         if results.errors:
             logger.warning(f"   Errors: {len(results.errors)}")

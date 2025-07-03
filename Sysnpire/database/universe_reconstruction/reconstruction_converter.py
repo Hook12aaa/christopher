@@ -69,6 +69,46 @@ class ReconstructionConverter:
         logger.info(f"  Target device: {self.device}")
         logger.info("  Pure conversion mode - no validation performed")
     
+    def convert_agent_batch(self, stored_agents: Dict[str, Dict[str, Any]]) -> Dict[str, Dict[str, Any]]:
+        """
+        Convert batch of agents from storage format to runtime format.
+        
+        Args:
+            stored_agents: Dictionary mapping agent_id -> stored_agent_data
+            
+        Returns:
+            Dictionary mapping agent_id -> converted_agent_data
+        """
+        logger.info(f"🔄 Converting batch of {len(stored_agents)} agents to tensors")
+        start_time = time.time()
+        
+        converted_batch = {}
+        conversion_errors = []
+        
+        try:
+            for agent_id, stored_agent_data in stored_agents.items():
+                try:
+                    converted_batch[agent_id] = self.convert_agent_data(stored_agent_data)
+                except Exception as e:
+                    conversion_errors.append(f"Agent {agent_id}: {e}")
+                    continue
+            
+            conversion_time = time.time() - start_time
+            success_count = len(converted_batch)
+            logger.info(f"✅ Batch conversion complete: {success_count}/{len(stored_agents)} agents in {conversion_time:.3f}s")
+            
+            if conversion_errors:
+                logger.warning(f"⚠️  {len(conversion_errors)} conversion errors occurred")
+                for error in conversion_errors[:3]:  # Log first 3 errors
+                    logger.warning(f"   - {error}")
+            
+            return converted_batch
+            
+        except Exception as e:
+            error_msg = f"Batch agent conversion failed: {e}"
+            logger.error(f"❌ {error_msg}")
+            raise ReconstructionConversionError(error_msg) from e
+
     def convert_agent_data(self, stored_agent_data: Dict[str, Any]) -> Dict[str, Any]:
         """
         Convert complete agent data from storage format to runtime format.
@@ -120,7 +160,7 @@ class ReconstructionConverter:
                 )
             
             conversion_time = time.time() - start_time
-            logger.debug(f"✅ Agent data conversion complete in {conversion_time:.4f}s")
+            # Agent data conversion complete (timing moved to batch summaries)
             
             return converted_data
             
@@ -152,7 +192,7 @@ class ReconstructionConverter:
                 # Data is pre-validated, no need to check finite values
                 
                 converted["Q_value"] = complex(real_part, imag_part)
-                logger.debug(f"✅ Q_value reconstructed: {converted['Q_value']}")
+                # Q_value reconstructed successfully
                 
             except (ValueError, TypeError) as e:
                 # Data should be pre-validated, so this indicates a real error
@@ -170,12 +210,36 @@ class ReconstructionConverter:
             else:
                 converted["Q_value"] = q_val
         
+        # CRITICAL FIX: Reconstruct complex fields from real/imag pairs first
+        # Apply same pattern as temporal_momentum reconstruction above
+        complex_mathematical_components = ["T_tensor", "E_trajectory", "phi_semantic", "phase_factor"]
+        
+        for component in complex_mathematical_components:
+            real_key = f"{component}_real"
+            imag_key = f"{component}_imag"
+            
+            # Check if we have both real and imag components (same pattern as temporal_momentum)
+            if real_key in q_components and imag_key in q_components:
+                real_part = float(q_components[real_key])
+                imag_part = float(q_components[imag_key])
+                
+                # NO DEFAULTS - Either the values exist or it fails (same as temporal_momentum)
+                converted[component] = complex(real_part, imag_part)
+                # Complex component converted from real/imag pairs
+        
         # Convert mathematical component arrays to tensors (handle scalars vs arrays)
-        mathematical_components = ["gamma", "T_tensor", "E_trajectory", "phi_semantic", "theta_components", "phase_factor", "psi_persistence"]
+        mathematical_components = ["gamma", "T_tensor", "E_trajectory", "phi_semantic", "theta_components", "phase_factor", "psi_persistence", "psi_gaussian", "psi_exponential_cosine"]
         
         for component in mathematical_components:
             for key in q_components:
                 if key.startswith(component):
+                    # Skip if we already processed this as a complex reconstruction
+                    if key.endswith("_real") or key.endswith("_imag"):
+                        # Check if the base component was already reconstructed
+                        base_component = key.replace("_real", "").replace("_imag", "")
+                        if base_component in converted:
+                            continue  # Skip individual real/imag components
+                    
                     value = q_components[key]
                     if isinstance(value, (int, float)):
                         # Keep scalars as scalars, don't convert to tensors
@@ -226,8 +290,6 @@ class ReconstructionConverter:
     
     def _convert_temporal_components(self, temporal_components: Dict[str, Any]) -> Dict[str, Any]:
         """Convert temporal biography components to tensors."""
-        logger.info("🔍 DEBUG: _convert_temporal_components called")
-        logger.info(f"🔍 DEBUG: temporal_components keys: {list(temporal_components.keys())}")
         converted = {}
         
         # MATHEMATICAL INTEGRITY: Convert temporal_momentum to LogPolarCDF representation
@@ -249,14 +311,12 @@ class ReconstructionConverter:
         
         # Legacy format: convert (real, imag) to log-polar
         elif "temporal_momentum_real" in temporal_components and "temporal_momentum_imag" in temporal_components:
-            logger.info("🔍 DEBUG: Converting legacy (real, imag) to log-polar format")
             real_part = float(temporal_components["temporal_momentum_real"])
             imag_part = float(temporal_components["temporal_momentum_imag"])
             
             # NO GRACEFUL HANDLING - let LogPolarComplex.from_real_imag validate and fail if needed
             try:
                 converted["temporal_momentum"] = LogPolarCDF.from_real_imag(real_part, imag_part)
-                logger.info(f"✅ temporal_momentum converted from legacy format: {real_part}+{imag_part}j → {converted['temporal_momentum']}")
             except ValueError as e:
                 # NO DEFAULTS - if conversion fails, storage is corrupted
                 raise ReconstructionConversionError(f"Legacy temporal_momentum conversion failed: {e}. Real={real_part}, Imag={imag_part}")
@@ -392,7 +452,7 @@ class ReconstructionConverter:
             # STEP 4: Move to target device
             tensor = tensor.to(self.device)
             
-            logger.debug(f"✅ Tensor conversion completed for {operation_name}: shape={tensor.shape}, device={tensor.device}")
+            # Tensor conversion completed (shape/device info moved to batch summaries)
             return tensor
             
         except Exception as e:
@@ -435,7 +495,7 @@ class ReconstructionConverter:
                 logger.error(f"💥 Agent {agent_id} - Q_magnitude TOO SMALL: {q_magnitude:.2e}")
                 return False
             else:
-                logger.debug(f"✅ Agent {agent_id} - Q_magnitude valid: {q_magnitude:.2e}")
+                # Q_magnitude validation passed
                 return True
                 
         except Exception as e:

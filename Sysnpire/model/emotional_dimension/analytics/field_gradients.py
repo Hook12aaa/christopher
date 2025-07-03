@@ -102,6 +102,8 @@ class FieldGradientAnalyzer:
         revealing how embeddings "flow" through the space.
         """
         n_samples = len(embeddings)
+        
+        # MEMORY OPTIMIZATION: Pre-allocate gradient field efficiently
         gradient_field = np.zeros_like(embeddings)
         
         # Build nearest neighbor structure
@@ -110,21 +112,39 @@ class FieldGradientAnalyzer:
         nbrs = NearestNeighbors(n_neighbors=n_neighbors_adjusted)
         nbrs.fit(embeddings)
         
-        for i in range(n_samples):
-            # Find nearest neighbors
-            distances, indices = nbrs.kneighbors([embeddings[i]])
-            neighbor_indices = indices[0][1:]  # Exclude self
-            
-            # Estimate gradient as weighted average of directions to neighbors
-            gradient = np.zeros(self.embedding_dim)
-            weights = 1.0 / (distances[0][1:] + 1e-8)
-            
-            for j, neighbor_idx in enumerate(neighbor_indices):
-                direction = embeddings[neighbor_idx] - embeddings[i]
-                gradient += weights[j] * direction
-            
-            # Normalize by total weight
-            gradient_field[i] = gradient / np.sum(weights)
+        # MEMORY OPTIMIZATION: Batch process to reduce repeated allocations
+        if n_samples > 100:
+            # For large datasets, process in chunks to reduce memory pressure
+            chunk_size = min(50, n_samples // 4)
+            for chunk_start in range(0, n_samples, chunk_size):
+                chunk_end = min(chunk_start + chunk_size, n_samples)
+                chunk_embeddings = embeddings[chunk_start:chunk_end]
+                
+                # Batch neighbor computation
+                distances, indices = nbrs.kneighbors(chunk_embeddings)
+                
+                for local_i, global_i in enumerate(range(chunk_start, chunk_end)):
+                    neighbor_indices = indices[local_i][1:]  # Exclude self
+                    weights = 1.0 / (distances[local_i][1:] + 1e-8)
+                    
+                    # Vectorized gradient computation
+                    directions = embeddings[neighbor_indices] - embeddings[global_i]
+                    gradient = np.sum(directions * weights[:, np.newaxis], axis=0)
+                    gradient_field[global_i] = gradient / np.sum(weights)
+        else:
+            # Standard processing for smaller datasets
+            for i in range(n_samples):
+                # Find nearest neighbors
+                distances, indices = nbrs.kneighbors([embeddings[i]])
+                neighbor_indices = indices[0][1:]  # Exclude self
+                
+                # Estimate gradient as weighted average of directions to neighbors
+                weights = 1.0 / (distances[0][1:] + 1e-8)
+                
+                # Vectorized computation to reduce allocations
+                directions = embeddings[neighbor_indices] - embeddings[i]
+                gradient = np.sum(directions * weights[:, np.newaxis], axis=0)
+                gradient_field[i] = gradient / np.sum(weights)
         
         return gradient_field
     

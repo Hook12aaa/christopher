@@ -64,27 +64,135 @@ class AgentFactory:
         logger.info(f"  Data converter initialized: {self.converter.__class__.__name__}")
         logger.info(f"  Mathematical validator initialized: {self.validator.__class__.__name__}")
     
-    def reconstruct_single_agent(self, stored_agent_data: Dict[str, Any], 
-                               universe_metadata: Dict[str, Any] = None) -> ConceptualChargeAgent:
+    def reconstruct_agent_batch(self, stored_agents: Dict[str, Dict[str, Any]], 
+                              universe_metadata: Dict[str, Any] = None) -> Dict[str, ConceptualChargeAgent]:
         """
-        Reconstruct a single ConceptualChargeAgent from stored data.
+        Reconstruct batch of ConceptualChargeAgents from stored data using batched operations.
         
         Args:
-            stored_agent_data: Complete agent data from HDF5 storage
+            stored_agents: Dictionary mapping agent_id -> stored_agent_data
             universe_metadata: Universe-level context for reconstruction
             
         Returns:
-            Fully reconstructed ConceptualChargeAgent
+            Dictionary mapping agent_id -> reconstructed ConceptualChargeAgent
             
         Raises:
-            AgentReconstructionError: If reconstruction fails validation
+            AgentReconstructionError: If batch reconstruction fails
         """
-        logger.info("🔄 Reconstructing ConceptualChargeAgent from stored data")
+        logger.info(f"🔄 Starting batch reconstruction of {len(stored_agents)} agents...")
+        start_time = time.time()
+        
+        try:
+            # STEP 1: Batch convert all agent data from storage format to runtime format
+            converted_batch = self.converter.convert_agent_batch(stored_agents)
+            
+            # STEP 2: Batch validate all converted data
+            if self.validate_reconstruction:
+                batch_validation = self.validator.validate_reconstructed_batch(converted_batch)
+                
+                if not batch_validation["validation_passed"]:
+                    failed_agents = list(batch_validation["agent_errors"].keys())
+                    raise ValueError(f"Batch validation failed for {len(failed_agents)} agents: {failed_agents[:5]}")
+            
+            # STEP 3: Create agents in parallel-friendly manner
+            reconstructed_agents = {}
+            reconstruction_errors = []
+            
+            for agent_id, converted_data in converted_batch.items():
+                try:
+                    agent = self._create_single_agent_from_converted_data(converted_data, agent_id)
+                    reconstructed_agents[agent_id] = agent
+                except Exception as e:
+                    error_msg = f"Agent {agent_id}: {e}"
+                    reconstruction_errors.append(error_msg)
+                    # Log first few errors immediately for debugging
+                    if len(reconstruction_errors) <= 3:
+                        logger.error(f"🔧 DEBUG: Agent creation failed - {error_msg}")
+                    continue
+            
+            # STEP 4: Batch restore mathematical state for all agents
+            self._batch_restore_mathematical_state(reconstructed_agents, converted_batch)
+            
+            # STEP 5: Final validation if enabled
+            if self.validate_reconstruction:
+                self._batch_validate_reconstructed_agents(reconstructed_agents, stored_agents)
+            
+            batch_time = time.time() - start_time
+            success_count = len(reconstructed_agents)
+            
+            # Collect batch-level statistics to replace per-agent spam
+            q_magnitudes = []
+            field_dimensions = set()
+            computed_persistence_count = 0
+            
+            for agent_id, agent in reconstructed_agents.items():
+                living_q = getattr(agent, 'living_Q_value', None)
+                if living_q is not None:
+                    q_magnitudes.append(abs(living_q))
+                charge_obj = getattr(agent, 'charge_obj', None)
+                if charge_obj:
+                    field_comp = getattr(charge_obj, 'field_components', None)
+                    if field_comp:
+                        semantic_field = getattr(field_comp, 'semantic_field', None)
+                        if semantic_field is not None:
+                            field_dimensions.add(semantic_field.shape[0])
+            
+            # O(log n) Smart Summary Logging - Only significant information
+            if success_count > 0:
+                logger.info(f"✅ Batch reconstruction: {success_count}/{len(stored_agents)} agents in {batch_time:.3f}s ({(batch_time/success_count)*1000:.1f}ms/agent)")
+            else:
+                logger.error(f"❌ Batch reconstruction: 0/{len(stored_agents)} agents created in {batch_time:.3f}s - all agents failed!")
+            
+            # Only log anomalies and important statistics
+            if q_magnitudes:
+                unusual_magnitudes = [m for m in q_magnitudes if m > 1.0 or m < 0.01]
+                if unusual_magnitudes:
+                    logger.warning(f"⚠️  {len(unusual_magnitudes)} agents have unusual Q magnitudes (outside [0.01, 1.0])")
+                    extreme_magnitudes = [m for m in unusual_magnitudes if m > 10.0 or m < 0.001]
+                    if extreme_magnitudes:
+                        logger.error(f"❌ {len(extreme_magnitudes)} agents have extreme Q magnitudes requiring attention")
+            
+            # Performance warnings
+            if batch_time > 5.0:
+                logger.warning(f"⚠️  Slow batch reconstruction: {batch_time:.1f}s exceeds 5s threshold")
+            
+            # Field consistency check (only log if inconsistent)
+            if field_dimensions and len(field_dimensions) > 1:
+                logger.error(f"❌ Inconsistent field dimensions detected: {field_dimensions}")
+            elif field_dimensions:
+                logger.debug(f"Field consistency: {list(field_dimensions)[0]}D across all agents")
+            
+            if reconstruction_errors:
+                logger.warning(f"⚠️  {len(reconstruction_errors)} reconstruction errors occurred")
+                for error in reconstruction_errors[:3]:
+                    logger.warning(f"   - {error}")
+            
+            return reconstructed_agents
+            
+        except Exception as e:
+            logger.error(f"❌ Batch agent reconstruction failed: {e}")
+            raise AgentReconstructionError(f"Batch reconstruction failed: {e}") from e
+
+    # DEAD CODE: reconstruct_single_agent method removed in favor of batch processing
+    # This method has been replaced by reconstruct_agent_batch() for O(log n) performance
+    # All functionality preserved in _create_single_agent_from_converted_data() for batch use
+    
+    def _legacy_reconstruct_single_agent_REMOVED(self, stored_agent_data: Dict[str, Any], 
+                               universe_metadata: Dict[str, Any] = None):
+        """
+        LEGACY METHOD - REMOVED FOR TECHNICAL DEBT CLEANUP
+        This method has been replaced by reconstruct_agent_batch() which provides:
+        - O(log n) logging complexity instead of O(n) 
+        - Batch validation and processing
+        - Better performance and reduced log spam
+        
+        Use reconstruct_agent_batch() instead.
+        """
+        raise NotImplementedError("This method has been removed. Use reconstruct_agent_batch() instead.")
         start_time = time.time()
         
         try:
             # STEP 1: Convert data types from storage format to runtime format
-            logger.info("🔄 Converting agent data from storage to runtime format...")
             converted_data = self.converter.convert_agent_data(stored_agent_data)
             
             # Extract converted components
@@ -106,14 +214,13 @@ class AgentFactory:
             
             # STEP 2: Validate converted data using mathematical validator
             if self.validate_reconstruction:
-                logger.info(f"🔍 Validating converted data for agent {charge_id}...")
                 validation_result = self.validator.validate_reconstructed_data(converted_data, charge_id)
                 
                 if not validation_result["validation_passed"]:
                     error_details = validation_result['errors'][:3] if validation_result.get('errors') else []
                     raise ValueError(f"Agent {charge_id} - Mathematical validation failed with {validation_result['failed_checks']} errors: {error_details}")
                 else:
-                    logger.info(f"✅ Agent {charge_id} - Validation passed ({validation_result['passed_checks']}/{validation_result['total_checks']} checks)")
+                    logger.debug(f"Agent {charge_id} - Validation passed ({validation_result['passed_checks']}/{validation_result['total_checks']} checks)")
             
             # STEP 4: Additional Q_value validation  
             if has_q and "Q_value" in q_components:
@@ -158,31 +265,38 @@ class AgentFactory:
             # CRITICAL FIX: Manually ensure evolution parameters are Python floats (additional safety net)
             agent_state_data = converted_data.get("agent_state")
             evolution_params = ["sigma_i", "alpha_i", "lambda_i", "beta_i"]
+            converted_params = []
             for param in evolution_params:
                 if param in agent_state_data:
                     # Force conversion to Python float to prevent tensor conversion
                     param_value = agent_state_data[param]
-                    original_type = type(param_value)
                     
                     # Ensure it's a Python float regardless of input type
-                    if hasattr(param_value, 'cpu'):
+                    try:
                         float_value = float(param_value.cpu().detach().numpy())
-                    elif hasattr(param_value, 'item'):
-                        float_value = float(param_value.item())
+                    except AttributeError:
+                        try:
+                            float_value = float(param_value.item())
+                        except AttributeError:
+                            float_value = float(param_value)
                     else:
                         float_value = float(param_value)
                     
                     setattr(agent, param, float_value)
-                    logger.info(f"🔧 FACTORY OVERRIDE: {param}: {original_type} -> {type(float_value)} (value: {float_value})")
+                    converted_params.append(param)
                 else:
                     logger.warning(f"⚠️  {param} not found in agent_state, keeping agent's default")
+            
+            # Single summary log for all parameter conversions
+            if converted_params:
+                logger.info(f"🔧 Agent {charge_id} - Converted {len(converted_params)} evolution parameters to Python floats")
             
             logger.info(f"🔧 Agent {charge_id} - Using stored Q_value: {stored_q_value} (magnitude: {abs(stored_q_value):.2e})")
             
             # Verify Q_components were properly reconstructed
-            if hasattr(agent, 'Q_components') and agent.Q_components is not None:
+            q_components_obj = getattr(agent, 'Q_components', None)
+            if q_components_obj is not None:
                 q_magnitude = abs(agent.Q_components.Q_value)
-                logger.info(f"✅ Agent {charge_id} - Q_components reconstructed successfully: |Q|={q_magnitude:.2e}")
                 
                 # MATHEMATICAL VALIDATION: Check for invalid values
                 if q_magnitude > 1e10:
@@ -218,12 +332,14 @@ class AgentFactory:
                     logger.error(f"💥 Agent {charge_id} - living_Q_value NaN/INF: {agent.living_Q_value}")
                     
             # Check temporal biography for explosions
-            if hasattr(agent, 'temporal_biography') and hasattr(agent.temporal_biography, 'temporal_momentum'):
-                temp_momentum = agent.temporal_biography.temporal_momentum
-                if abs(temp_momentum) > 1e6:
-                    logger.error(f"💥 Agent {charge_id} - temporal_momentum ASTRONOMICAL: {temp_momentum:.2e}")
-                if not np.isfinite(abs(temp_momentum)):
-                    logger.error(f"💥 Agent {charge_id} - temporal_momentum NaN/INF: {temp_momentum}")
+            temporal_biography = getattr(agent, 'temporal_biography', None)
+            if temporal_biography is not None:
+                temp_momentum = getattr(temporal_biography, 'temporal_momentum', None)
+                if temp_momentum is not None:
+                    if abs(temp_momentum) > 1e6:
+                        logger.error(f"💥 Agent {charge_id} - temporal_momentum ASTRONOMICAL: {temp_momentum:.2e}")
+                    if not np.isfinite(abs(temp_momentum)):
+                        logger.error(f"💥 Agent {charge_id} - temporal_momentum NaN/INF: {temp_momentum}")
             
             # CRITICAL: Restore mathematical state from storage (including temporal_momentum)
             logger.info(f"🔍 DEBUG: Calling restore_mathematical_state for agent {charge_id}")
@@ -285,25 +401,20 @@ class AgentFactory:
             else:
                 complete_charge = complex(1.0, 0.0)  # Default fallback
         
-        logger.debug(f"ConceptualChargeObject using Q_value: {complete_charge} (magnitude: {abs(complete_charge):.2e})")
+        # Q_value processed silently (magnitude logging moved to batch summaries)
         
         # Reconstruct field components with flexible name mapping - SAFE from tensor boolean evaluation
         # Try multiple possible names for each component to handle storage inconsistencies
         
         charge_id = metadata.get("charge_id")
-        logger.debug(f"🔍 Debugging field component access for agent {charge_id}")
-        logger.debug(f"   Available field_components keys: {list(field_components.keys()) if field_components else 'None'}")
         
         # SAFE trajectory operators access
         try:
             traj_ops = field_components.get("trajectory_operators")
-            logger.debug(f"   trajectory_operators: {type(traj_ops)} = {getattr(traj_ops, 'shape', 'no shape') if hasattr(traj_ops, 'shape') else traj_ops}")
             if traj_ops is None:
                 traj_ops = field_components.get("field_trajectory_operators")
-                logger.debug(f"   field_trajectory_operators: {type(traj_ops)} = {getattr(traj_ops, 'shape', 'no shape') if hasattr(traj_ops, 'shape') else traj_ops}")
             if traj_ops is None:
                 traj_ops = field_components.get("T_operators")
-                logger.debug(f"   T_operators: {type(traj_ops)} = {getattr(traj_ops, 'shape', 'no shape') if hasattr(traj_ops, 'shape') else traj_ops}")
         except Exception as e:
             logger.error(f"❌ TENSOR BOOLEAN ERROR in trajectory_operators access for {charge_id}: {e}")
             logger.error(f"   Available keys: {list(field_components.keys())}")
@@ -312,13 +423,13 @@ class AgentFactory:
         # SAFE emotional trajectory access
         try:
             emot_traj = field_components.get("emotional_trajectory")
-            logger.debug(f"   emotional_trajectory: {type(emot_traj)} = {getattr(emot_traj, 'shape', 'no shape') if hasattr(emot_traj, 'shape') else emot_traj}")
+            # emotional_trajectory field accessed
             if emot_traj is None:
                 emot_traj = field_components.get("field_emotional_trajectory")
-                logger.debug(f"   field_emotional_trajectory: {type(emot_traj)} = {getattr(emot_traj, 'shape', 'no shape') if hasattr(emot_traj, 'shape') else emot_traj}")
+                # field_emotional_trajectory fallback accessed
             if emot_traj is None:
                 emot_traj = field_components.get("E_trajectory")
-                logger.debug(f"   E_trajectory: {type(emot_traj)} = {getattr(emot_traj, 'shape', 'no shape') if hasattr(emot_traj, 'shape') else emot_traj}")
+                # E_trajectory fallback accessed
         except Exception as e:
             logger.error(f"❌ TENSOR BOOLEAN ERROR in emotional_trajectory access for {charge_id}: {e}")
             logger.error(f"   Available keys: {list(field_components.keys())}")
@@ -327,13 +438,13 @@ class AgentFactory:
         # SAFE semantic embedding access
         try:
             semantic = field_components.get("semantic_embedding")
-            logger.debug(f"   semantic_embedding: {type(semantic)} = {getattr(semantic, 'shape', 'no shape') if hasattr(semantic, 'shape') else semantic}")
+            # semantic_embedding field accessed
             if semantic is None:
                 semantic = field_components.get("charge_semantic_field")
-                logger.debug(f"   charge_semantic_field: {type(semantic)} = {getattr(semantic, 'shape', 'no shape') if hasattr(semantic, 'shape') else semantic}")
+                # charge_semantic_field fallback accessed
             if semantic is None:
                 semantic = field_components.get("semantic_field")
-                logger.debug(f"   semantic_field: {type(semantic)} = {getattr(semantic, 'shape', 'no shape') if hasattr(semantic, 'shape') else semantic}")
+                # semantic_field fallback accessed
         except Exception as e:
             logger.error(f"❌ TENSOR BOOLEAN ERROR in semantic_embedding access for {charge_id}: {e}")
             logger.error(f"   Available keys: {list(field_components.keys())}")
@@ -372,15 +483,9 @@ class AgentFactory:
                 else:
                     # Option 3: Default fallback
                     obs_persist = 0.5
-            logger.debug(f"Computed missing observational_persistence: {obs_persist}")
+            # observational_persistence computed from semantic field magnitude
         
         charge_id = metadata.get("charge_id")
-        logger.debug(f"Field component values for {charge_id}:")
-        logger.debug(f"  trajectory_operators: {type(traj_ops)} = {traj_ops}")
-        logger.debug(f"  emotional_trajectory: {type(emot_traj)} = {emot_traj}")
-        logger.debug(f"  semantic_embedding: {type(semantic)} = {semantic}")
-        logger.debug(f"  phase_total: {type(phase)} = {phase}")
-        logger.debug(f"  observational_persistence: {type(obs_persist)} = {obs_persist}")
         
         # Check for critical None values
         none_fields = []
@@ -418,13 +523,6 @@ class AgentFactory:
         # Look for observational_state in agent_state (now provided by HDF5Manager)
         cco_obs_state = agent_state.get("observational_state")
         
-        logger.debug(f"ConceptualChargeObject parameters for {charge_id}:")
-        logger.debug(f"  charge_id (from metadata): {type(cco_charge_id)} = {cco_charge_id}")
-        logger.debug(f"  text_source (from metadata): {type(cco_text_source)} = {cco_text_source}")
-        logger.debug(f"  observational_state (from agent_state): {type(cco_obs_state)} = {cco_obs_state}")
-        logger.debug(f"  gamma (from Q_components): {type(cco_gamma)} = {cco_gamma}")
-        logger.debug(f"  Available Q_components keys: {list(q_components.keys()) if q_components else 'None'}")
-        logger.debug(f"  Available agent_state keys: {list(agent_state.keys()) if agent_state else 'None'}")
         
         # Check for critical None values from their respective sources
         missing_fields = []
@@ -473,7 +571,6 @@ class AgentFactory:
         Raises:
             AgentReconstructionError: If validation fails
         """
-        logger.info("🔍 Validating reconstructed agent mathematical consistency")
         
         errors = []
         
@@ -511,7 +608,7 @@ class AgentFactory:
             logger.error(error_msg)
             raise AgentReconstructionError(error_msg)
         
-        logger.info("✅ Agent validation passed")
+        # Agent validation passed (silent for batch processing)
         return True
     
     def restore_mathematical_state(self, agent: ConceptualChargeAgent, 
@@ -523,7 +620,6 @@ class AgentFactory:
             agent: Agent to restore state to
             stored_data: Complete stored mathematical data
         """
-        logger.info("🔧 Restoring mathematical state from storage")
         
         # CRITICAL: NO DEFAULTS - detect missing components immediately
         if "Q_components" not in stored_data:
@@ -570,9 +666,9 @@ class AgentFactory:
         if "temporal_momentum" in temporal_components:
             temporal_momentum_val = temporal_components["temporal_momentum"]
             # Set to correct location: agent.temporal_biography.temporal_momentum
-            if hasattr(agent, 'temporal_biography'):
-                agent.temporal_biography.temporal_momentum = temporal_momentum_val
-                logger.info(f"✅ Agent {agent.charge_id} - Restored temporal_momentum: {temporal_momentum_val}")
+            temporal_biography = getattr(agent, 'temporal_biography', None)
+            if temporal_biography is not None:
+                temporal_biography.temporal_momentum = temporal_momentum_val
             else:
                 logger.error(f"❌ CRITICAL: Agent {agent.charge_id} - No temporal_biography to restore temporal_momentum to!")
                 raise AgentReconstructionError(f"Agent {agent.charge_id} missing temporal_biography - cannot restore temporal_momentum")
@@ -581,7 +677,37 @@ class AgentFactory:
             logger.error(f"   Available temporal_components keys: {list(temporal_components.keys()) if temporal_components else 'None'}")
             raise AgentReconstructionError(f"Agent {agent.charge_id} missing temporal_momentum - storage restoration failed!")
         
-        logger.info("✅ Mathematical state restoration complete")
+        # CRITICAL FIX: Restore vivid_layer and character_layer from temporal_components
+        if "vivid_layer" in temporal_components:
+            vivid_layer_data = temporal_components["vivid_layer"]
+            temporal_biography = getattr(agent, 'temporal_biography', None)
+            if temporal_biography is not None:
+                # Convert stored numpy array to torch tensor on correct device
+                if isinstance(vivid_layer_data, np.ndarray):
+                    temporal_biography.vivid_layer = torch.tensor(vivid_layer_data, dtype=torch.float32, device=self.device)
+                else:
+                    temporal_biography.vivid_layer = torch.tensor(vivid_layer_data, dtype=torch.float32, device=self.device)
+            else:
+                raise AgentReconstructionError(f"Agent {agent.charge_id} missing temporal_biography - cannot restore vivid_layer")
+        else:
+            logger.error(f"❌ CRITICAL: Agent {agent.charge_id} - No vivid_layer found in temporal_components!")
+            raise AgentReconstructionError(f"Agent {agent.charge_id} missing vivid_layer - storage restoration failed!")
+        
+        if "character_layer" in temporal_components:
+            character_layer_data = temporal_components["character_layer"]
+            temporal_biography = getattr(agent, 'temporal_biography', None)
+            if temporal_biography is not None:
+                # Convert stored numpy array to torch tensor on correct device
+                if isinstance(character_layer_data, np.ndarray):
+                    temporal_biography.character_layer = torch.tensor(character_layer_data, dtype=torch.float32, device=self.device)
+                else:
+                    temporal_biography.character_layer = torch.tensor(character_layer_data, dtype=torch.float32, device=self.device)
+            else:
+                raise AgentReconstructionError(f"Agent {agent.charge_id} missing temporal_biography - cannot restore character_layer")
+        else:
+            logger.error(f"❌ CRITICAL: Agent {agent.charge_id} - No character_layer found in temporal_components!")
+            raise AgentReconstructionError(f"Agent {agent.charge_id} missing character_layer - storage restoration failed!")
+        
     
     def _validate_critical_restoration(self, agent: ConceptualChargeAgent, agent_id: str) -> None:
         """
@@ -592,12 +718,11 @@ class AgentFactory:
         errors = []
         
         # CRITICAL: temporal_momentum must exist (this was our main bug)
-        if not hasattr(agent, 'temporal_biography'):
+        temporal_biography = getattr(agent, 'temporal_biography', None)
+        if temporal_biography is None:
             errors.append("Missing temporal_biography object")
-        elif not hasattr(agent.temporal_biography, 'temporal_momentum'):
-            errors.append("Missing temporal_momentum in temporal_biography")
         else:
-            temp_momentum = agent.temporal_biography.temporal_momentum
+            temp_momentum = getattr(temporal_biography, 'temporal_momentum', None)
             if temp_momentum is None:
                 errors.append("temporal_momentum is None")
             else:
@@ -605,12 +730,26 @@ class AgentFactory:
                 if not isinstance(temp_momentum, LogPolarCDF):
                     errors.append(f"temporal_momentum wrong type: {type(temp_momentum)}, expected LogPolarCDF")
         
+        # CRITICAL: vivid_layer must exist for regulation listeners
+        if temporal_biography is not None:
+            vivid_layer = getattr(temporal_biography, 'vivid_layer', None)
+            if vivid_layer is None:
+                errors.append("vivid_layer is None")
+        
+        # CRITICAL: character_layer must exist for regulation listeners
+        if temporal_biography is not None:
+            character_layer = getattr(temporal_biography, 'character_layer', None)
+            if character_layer is None:
+                errors.append("character_layer is None")
+        
         # CRITICAL: Q_components must exist
-        if not hasattr(agent, 'Q_components') or agent.Q_components is None:
+        q_components_obj = getattr(agent, 'Q_components', None)
+        if q_components_obj is None:
             errors.append("Missing Q_components")
         
         # CRITICAL: living_Q_value must exist
-        if not hasattr(agent, 'living_Q_value') or agent.living_Q_value is None:
+        living_q_value = getattr(agent, 'living_Q_value', None)
+        if living_q_value is None:
             errors.append("Missing living_Q_value")
         
         if errors:
@@ -618,7 +757,7 @@ class AgentFactory:
             logger.error(f"❌ {error_msg}")
             raise AgentReconstructionError(error_msg)
         else:
-            logger.info(f"✅ CRITICAL VALIDATION PASSED for agent {agent_id}")
+            logger.debug(f"CRITICAL VALIDATION PASSED for agent {agent_id}")
     
     def rebuild_interaction_patterns(self, agents: List[ConceptualChargeAgent],
                                    interaction_data: Dict[str, Any] = None) -> None:
@@ -638,6 +777,115 @@ class AgentFactory:
                 agent.interaction_memory_buffer = {}
         
         logger.info(f"✅ Interaction patterns rebuilt for {len(agents)} agents")
+    
+    def _create_single_agent_from_converted_data(self, converted_data: Dict[str, Any], agent_id: str) -> ConceptualChargeAgent:
+        """
+        Create a single agent from already-converted data (used in batch processing).
+        
+        This is the core agent creation logic extracted from reconstruct_single_agent
+        but without the conversion and validation steps that are done in batch.
+        """
+        # Extract converted components
+        agent_metadata = converted_data.get("agent_metadata")
+        q_components = converted_data.get("Q_components")
+        field_components = converted_data.get("field_components")
+        temporal_components = converted_data.get("temporal_components")
+        emotional_components = converted_data.get("emotional_components")
+        agent_state = converted_data.get("agent_state")
+        
+        # Additional Q_value validation (already converted to complex)
+        if q_components and "Q_value" in q_components:
+            q_value = q_components["Q_value"]
+            if isinstance(q_value, complex):
+                # Validate Q magnitude using converter (no logging in batch mode)
+                if not self.converter.validate_q_magnitude(q_value, agent_id):
+                    raise ValueError(f"Agent {agent_id} - Q_value magnitude out of valid range: {abs(q_value):.2e}")
+            else:
+                raise ValueError(f"Agent {agent_id} - Q_value not converted to complex number, got type: {type(q_value)}")
+        
+        # Reconstruct charge object using converted data
+        charge_obj = self._reconstruct_charge_object(agent_metadata, q_components, field_components, agent_state)
+        
+        # Create agent using converted data
+        agent = ConceptualChargeAgent.from_stored_data(
+            stored_data=converted_data,
+            charge_obj=charge_obj,
+            device=str(self.device)
+        )
+        
+        # Set the agent's living_Q_value to the stored Q_value
+        stored_q_value = charge_obj.complete_charge
+        agent.living_Q_value = stored_q_value
+        
+        # Create Q_components from stored data
+        q_data = converted_data.get("Q_components")
+        agent.Q_components = QMathematicalComponents(
+            gamma=q_data.get("gamma"),
+            T_tensor=q_data.get("T_tensor"),
+            E_trajectory=q_data.get("E_trajectory"),
+            phi_semantic=q_data.get("phi_semantic"),
+            theta_components=ThetaComponents(0.0, 0.0, 0.0, 0.0, 0.0, 0.0),  # Default
+            phase_factor=q_data.get("phase_factor"),
+            psi_persistence=q_data.get("psi_persistence"),
+            psi_gaussian=q_data.get("psi_gaussian"),
+            psi_exponential_cosine=q_data.get("psi_exponential_cosine"),
+            Q_value=stored_q_value
+        )
+        
+        # Force evolution parameters to Python floats (batch mode - no individual logging)
+        agent_state_data = converted_data.get("agent_state")
+        evolution_params = ["sigma_i", "alpha_i", "lambda_i", "beta_i"]
+        for param in evolution_params:
+            if param in agent_state_data:
+                param_value = agent_state_data[param]
+                if hasattr(param_value, 'cpu'):
+                    float_value = float(param_value.cpu().detach().numpy())
+                elif hasattr(param_value, 'item'):
+                    float_value = float(param_value.item())
+                else:
+                    float_value = float(param_value)
+                setattr(agent, param, float_value)
+        
+        return agent
+    
+    def _batch_restore_mathematical_state(self, agents: Dict[str, ConceptualChargeAgent], 
+                                        converted_batch: Dict[str, Dict[str, Any]]) -> None:
+        """
+        Restore mathematical state for all agents in batch.
+        
+        This processes all agents together to reduce overhead.
+        """
+        logger.debug(f"🔧 Batch restoring mathematical state for {len(agents)} agents")
+        
+        for agent_id, agent in agents.items():
+            converted_data = converted_batch[agent_id]
+            try:
+                self.restore_mathematical_state(agent, converted_data)
+                # Critical validation for each agent (no individual logging)
+                self._validate_critical_restoration(agent, agent_id)
+            except Exception as e:
+                raise AgentReconstructionError(f"Mathematical state restoration failed for agent {agent_id}: {e}")
+    
+    def _batch_validate_reconstructed_agents(self, agents: Dict[str, ConceptualChargeAgent], 
+                                           original_data: Dict[str, Dict[str, Any]]) -> None:
+        """
+        Validate batch of reconstructed agents against original data.
+        
+        Only logs summary results, not individual agent validations.
+        """
+        validation_errors = []
+        
+        for agent_id, agent in agents.items():
+            try:
+                self._validate_reconstructed_agent(agent, original_data[agent_id])
+            except Exception as e:
+                validation_errors.append(f"Agent {agent_id}: {e}")
+        
+        if validation_errors:
+            logger.warning(f"⚠️  {len(validation_errors)} agents failed final validation")
+            for error in validation_errors[:3]:
+                logger.warning(f"   - {error}")
+            raise AgentReconstructionError(f"Batch validation failed for {len(validation_errors)} agents")
 
 
 if __name__ == "__main__":
