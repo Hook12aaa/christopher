@@ -342,20 +342,35 @@ class FoundationManifoldBuilder:
         project_root = Path(__file__).resolve().parent.parent.parent
 
         # Create dump function
-        def dump_object(obj, indent=0):
-            """Recursively dump object structure to readable text."""
+        def dump_object(obj, indent=0, max_depth=5):
+            """Recursively dump object structure to readable text with depth limit."""
+            if indent > max_depth:
+                return f"<max_depth_reached: {type(obj).__name__}>"
+                
             spaces = "  " * indent
             if isinstance(obj, dict):
-                lines = [f"{spaces}{k}: {dump_object(v, indent+1)}" for k, v in obj.items()]
+                lines = []
+                for k, v in obj.items():
+                    # Skip heavy objects that cause hangs
+                    if k == "orchestrator":
+                        lines.append(f"{spaces}{k}: <LiquidOrchestrator instance skipped>")
+                    elif k == "agent_pool" and isinstance(v, dict) and len(v) > 10:
+                        lines.append(f"{spaces}{k}: <{len(v)} agents skipped>")
+                    else:
+                        lines.append(f"{spaces}{k}: {dump_object(v, indent+1, max_depth)}")
                 return "{\n" + "\n".join(lines) + f"\n{spaces}" + "}"
             elif isinstance(obj, list):
                 if len(obj) > 3:  # Truncate long lists
-                    items = [dump_object(item, indent + 1) for item in obj[:3]]
+                    items = [dump_object(item, indent + 1, max_depth) for item in obj[:3]]
                     return f"[{len(obj)} items: " + ", ".join(items) + ", ...]"
                 else:
-                    items = [dump_object(item, indent + 1) for item in obj]
+                    items = [dump_object(item, indent + 1, max_depth) for item in obj]
                     return "[" + ", ".join(items) + "]"
             elif hasattr(obj, "__dict__"):  # Custom objects
+                # Skip complex objects that can cause infinite recursion
+                if "torch" in str(type(obj)) or "sage" in str(type(obj)).lower():
+                    return f"<{type(obj).__name__} instance skipped>"
+                    
                 attrs = {k: v for k, v in obj.__dict__.items() if not k.startswith("_")}
                 obj_info = f"{obj.__class__.__name__}("
                 attr_strs = []
@@ -369,7 +384,7 @@ class FoundationManifoldBuilder:
                             else:
                                 attr_strs.append(f"{k}=<{type(v).__name__}>")
                     else:
-                        attr_strs.append(f"{k}={dump_object(v, indent+1)}")
+                        attr_strs.append(f"{k}={dump_object(v, indent+1, max_depth)}")
                 return obj_info + ", ".join(attr_strs) + ")"
             elif hasattr(obj, "__len__") and len(str(obj)) > 200:  # Long strings/arrays
                 try:
