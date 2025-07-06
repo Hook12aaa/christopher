@@ -477,7 +477,17 @@ class LiquidProcessor:
                         temporal_data[f"{attr}_real"] = float(value.real)
                         temporal_data[f"{attr}_imag"] = float(value.imag)
                     elif isinstance(value, np.ndarray):
-                        temporal_data[attr] = value
+                        # Convert SAGE object arrays to validation-compatible primitives
+                        if value.dtype == object and hasattr(value.flat[0], '__module__') and 'sage' in str(value.flat[0].__module__):
+                            # Vectorized conversion preserving mathematical precision
+                            if hasattr(value.flat[0], 'real') and hasattr(value.flat[0], 'imag'):
+                                temporal_data[attr] = np.array([complex(float(x.real()), float(x.imag())) for x in value.flat]).reshape(value.shape)
+                            elif hasattr(value.flat[0], '__float__'):
+                                temporal_data[attr] = np.array([float(x) for x in value.flat], dtype=np.float64).reshape(value.shape)
+                            else:
+                                temporal_data[attr] = value
+                        else:
+                            temporal_data[attr] = value
                     else:
                         temporal_data[attr] = value
 
