@@ -15,11 +15,27 @@ sys.path.insert(0, str(project_root))
 import os
 
 os.environ["JAX_LOG_COMPILE"] = "0"
+# Prevent multiprocessing resource leaks
+os.environ["PYTORCH_MULTIPROCESSING_SHARING_STRATEGY"] = "file_descriptor"
 
-# MPS MEMORY OPTIMIZATION: Set high watermark ratio for better memory management
+# BLAS OPTIMIZATION: Fix OpenBLAS threading and memory issues
+os.environ["OPENBLAS_NUM_THREADS"] = "8"  # Conservative thread count for stability
+os.environ["MKL_NUM_THREADS"] = "8"       # Intel MKL threading control
+os.environ["NUMEXPR_NUM_THREADS"] = "8"   # NumExpr threading control
+os.environ["OMP_NUM_THREADS"] = "8"       # OpenMP threading control
+# Prevent OpenBLAS memory corruption on Apple Silicon
+os.environ["OPENBLAS_CORETYPE"] = "ARMV8"
+os.environ["BLAS_NUM_THREADS"] = "8"
+# Additional numerical stability for field theory computations
+os.environ["VECLIB_MAXIMUM_THREADS"] = "8"  # Apple's Accelerate framework
+os.environ["PYTORCH_MPS_ALLOCATOR_POLICY"] = "garbage_collection"  # Aggressive cleanup
+
+# MPS MEMORY OPTIMIZATION: Set both watermark ratios for proper memory management
 # This allows more aggressive memory allocation for large field theory computations
 if not os.environ.get("PYTORCH_MPS_HIGH_WATERMARK_RATIO"):
-    os.environ["PYTORCH_MPS_HIGH_WATERMARK_RATIO"] = "0.0"  # Disable upper limit for large computations
+    os.environ["PYTORCH_MPS_HIGH_WATERMARK_RATIO"] = "0.7"  # Conservative limit to prevent memory corruption
+if not os.environ.get("PYTORCH_MPS_LOW_WATERMARK_RATIO"):
+    os.environ["PYTORCH_MPS_LOW_WATERMARK_RATIO"] = "0.5"   # Must be lower than high watermark
 
 # Model that are supported, these are our helper classes that will extract our key information from the model.
 from Sysnpire.model.intial.bge_ingestion import BGEIngestion
@@ -345,12 +361,24 @@ class FoundationManifoldBuilder:
                 attr_strs = []
                 for k, v in attrs.items():
                     if hasattr(v, "__len__") and len(str(v)) > 100:  # Long values
-                        attr_strs.append(f"{k}=<{type(v).__name__} len={len(v)}>")
+                        try:
+                            attr_strs.append(f"{k}=<{type(v).__name__} len={len(v)}>")
+                        except TypeError:
+                            if hasattr(v, 'shape'):
+                                attr_strs.append(f"{k}=<{type(v).__name__} shape={v.shape}>")
+                            else:
+                                attr_strs.append(f"{k}=<{type(v).__name__}>")
                     else:
                         attr_strs.append(f"{k}={dump_object(v, indent+1)}")
                 return obj_info + ", ".join(attr_strs) + ")"
             elif hasattr(obj, "__len__") and len(str(obj)) > 200:  # Long strings/arrays
-                return f"<{type(obj).__name__} len={len(obj)}>"
+                try:
+                    return f"<{type(obj).__name__} len={len(obj)}>"
+                except TypeError:
+                    if hasattr(obj, 'shape'):
+                        return f"<{type(obj).__name__} shape={obj.shape}>"
+                    else:
+                        return f"<{type(obj).__name__}>"
             else:
                 return str(obj)
 
@@ -402,6 +430,13 @@ class FoundationManifoldBuilder:
             logger.error("   💡 Check storage path permissions and disk space")
             raise RuntimeError(f"Mandatory database burning failed: {e}")
 
+        # Memory cleanup to prevent leaks
+        try:
+            if hasattr(self.model, '_embedding_data'):
+                del self.model._embedding_data
+        except:
+            pass
+        
         return complete_results
 
 
@@ -457,5 +492,13 @@ if __name__ == "__main__":
         logger.info("🎉 Foundation manifold build completed successfully!")
 
     except Exception as e:
-        logger.error(f"❌ Foundation manifold build failed: {e}")
-        sys.exit(1)
+        # Handle potential memory corruption issues
+        import gc
+        gc.collect()
+        
+        # Check if it's a memory corruption issue
+        if "malloc" in str(e) or "checksum" in str(e) or "freed object" in str(e):
+            logger.error("❌ Memory corruption detected - try reducing batch size or using CPU-only mode")
+            logger.error("💡 Consider setting PYTORCH_MPS_HIGH_WATERMARK_RATIO to a lower value")
+        
+        raise ValueError(f"Foundation manifold build failed: {e}") from e

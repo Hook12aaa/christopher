@@ -86,10 +86,23 @@ class TensorPool:
         
         # Common sizes based on typical agent counts
         common_sizes = [10, 25, 50, 100, 200, 500]
-        for size in common_sizes:
-            self.phase_tensors[size] = torch.zeros(size, dtype=torch.float32, device=device)
-            self.complex_tensors[size] = torch.zeros(size, dtype=torch.complex64, device=device)
-            self.float_tensors[size] = torch.zeros(size, dtype=torch.float32, device=device)
+        try:
+            for size in common_sizes:
+                self.phase_tensors[size] = torch.zeros(size, dtype=torch.float32, device=device)
+                self.complex_tensors[size] = torch.zeros(size, dtype=torch.complex64, device=device)
+                self.float_tensors[size] = torch.zeros(size, dtype=torch.float32, device=device)
+        except RuntimeError as e:
+            if "watermark ratio" in str(e):
+                logger.warning(f"MPS watermark configuration issue: {e}")
+                logger.warning("Falling back to CPU for tensor pool")
+                self.device = torch.device('cpu')
+                # Retry with CPU
+                for size in common_sizes:
+                    self.phase_tensors[size] = torch.zeros(size, dtype=torch.float32, device=self.device)
+                    self.complex_tensors[size] = torch.zeros(size, dtype=torch.complex64, device=self.device) 
+                    self.float_tensors[size] = torch.zeros(size, dtype=torch.float32, device=self.device)
+            else:
+                raise
     
     def get_phase_tensor(self, size: int) -> torch.Tensor:
         """Get pre-allocated phase tensor of appropriate size."""
@@ -2370,10 +2383,7 @@ class LiquidOrchestrator:
                 self.emotional_conductor.s_t_coupling_strength
             ),
             # GPU-native S-value analysis using PyTorch
-            "s_values_array": float(
-                torch.logsumexp(self.observational_state.current_s_values, dim=0)
-                / len(self.observational_state.current_s_values)
-            ),
+            "s_values_array": float(torch.mean(self.observational_state.current_s_values)),
             "current_tau": self.current_tau,
             "simulation_time": self.simulation_time,
         }

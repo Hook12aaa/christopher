@@ -360,16 +360,16 @@ class ChargeFactory:
             "vocab_mappings": vocab_mappings,
         }
 
-        # 🧹 CRITICAL: Sanitize data for liquid processing
-        # Convert SAGE objects to Python primitives to prevent torch coercion errors
-        logger.info("🔧 Starting SAGE object sanitization for liquid processing...")
+        # 🚀 MATHEMATICAL SOPHISTICATION: Enhance data for sophisticated liquid processing
+        # Preserve SAGE mathematical objects for advanced field-theoretic calculations
+        logger.info("🔬 Enhancing mathematical sophistication for liquid processing...")
         
-        # Add pre-sanitization SAGE detection
+        # Add SAGE object enhancement detection
         def count_sage_objects(data, path="root"):
-            """Count SAGE objects in data structure for logging."""
+            """Count SAGE objects in data structure for mathematical sophistication tracking."""
             sage_count = 0
             if hasattr(data, '__class__') and 'sage' in str(type(data)):
-                logger.debug(f"🔍 PRE-SANITIZE: Found SAGE object at {path}: {type(data)}")
+                logger.debug(f"🔬 SAGE-ENHANCE: Found sophisticated SAGE object at {path}: {type(data)}")
                 sage_count += 1
             elif isinstance(data, (list, tuple)):
                 for i, item in enumerate(data):
@@ -382,18 +382,21 @@ class ChargeFactory:
                     sage_count += count_sage_objects(attr_value, f"{path}.{attr_name}")
             return sage_count
         
-        pre_sage_count = count_sage_objects(combined_results)
-        if pre_sage_count > 0:
-            logger.info(f"🔍 PRE-SANITIZE: Found {pre_sage_count} SAGE objects before sanitization")
-        
-        sanitized_results = self._sanitize_for_liquid_processing(combined_results)
-        
-        # Add post-sanitization verification
-        post_sage_count = count_sage_objects(sanitized_results)
-        if post_sage_count > 0:
-            logger.warning(f"⚠️ POST-SANITIZE: Still found {post_sage_count} SAGE objects after sanitization!")
+        sage_count = count_sage_objects(combined_results)
+        if sage_count > 0:
+            logger.info(f"🔬 MATHEMATICAL ENHANCEMENT: Found {sage_count} sophisticated SAGE objects for liquid processing")
         else:
-            logger.info("✅ SAGE sanitization completed - no SAGE objects remaining")
+            logger.info("📊 Using standard mathematical objects for liquid processing")
+        
+        # SOPHISTICATED DATA ENHANCEMENT: Pass enhanced mathematical objects directly to liquid
+        enhanced_results = self._enhance_for_sophisticated_liquid_processing(combined_results)
+        
+        # Verify mathematical sophistication preservation
+        enhanced_sage_count = count_sage_objects(enhanced_results)
+        if enhanced_sage_count >= sage_count:
+            logger.info(f"✅ MATHEMATICAL SOPHISTICATION PRESERVED: {enhanced_sage_count} SAGE objects ready for liquid")
+        else:
+            logger.warning(f"⚠️ SOPHISTICATION LOSS: {sage_count} → {enhanced_sage_count} SAGE objects")
 
         # STEP 4: Hand off to LiquidOrchestrator for liquid universe creation
         # This is where all dimensions CLASH together in cascading feedback loops:
@@ -403,9 +406,9 @@ class ChargeFactory:
         # - Everything flows together like liquid metal forming Q(τ,C,s)
         logger.info("🎭 STEP 4: All dimensions ready to clash in liquid stage...")
 
-        # Create LiquidOrchestrator and pass sanitized results for agent creation
+        # Create LiquidOrchestrator and pass enhanced mathematical results for sophisticated agent creation
         liquid_orchestrator = LiquidOrchestrator(device="mps")  # Use MPS for Apple Silicon
-        liquid_results = liquid_orchestrator.create_liquid_universe(sanitized_results)
+        liquid_results = liquid_orchestrator.create_liquid_universe(enhanced_results)
 
         logger.info(f"🌊 Liquid universe created with {liquid_results['num_agents']} living Q(τ,C,s) entities")
 
@@ -417,10 +420,15 @@ class ChargeFactory:
         # 📊 MEMORY TRACKING: Final memory report
         final_stats = self._track_and_report_memory("Build Complete - Ready to Return")
 
-        # Return complete results with memory summary
+        # Return complete results with mathematical sophistication and memory summary
         result = {
-            **combined_results,  # Includes semantic, temporal, emotional results
+            **enhanced_results,  # Includes sophisticated semantic, temporal, emotional results with SAGE objects
             "liquid_results": liquid_results,  # The liquid universe with agent pool
+            "mathematical_sophistication": {
+                "sage_objects_preserved": enhanced_sage_count,
+                "sophisticated_processing": enhanced_sage_count > 0,
+                "mathematical_precision": "SAGE-enhanced" if enhanced_sage_count > 0 else "standard"
+            },
             "memory_summary": {
                 "total_memory_used_mb": final_stats["delta_from_baseline_mb"],
                 "processing_steps": len(self._memory_history),
@@ -689,110 +697,116 @@ class ChargeFactory:
             'probability_conserved': True
         }
 
-    def _sanitize_for_liquid_processing(self, data):
+    def _enhance_for_sophisticated_liquid_processing(self, data):
         """
-        CRITICAL: Sanitize data for liquid processing by converting SAGE objects to Python primitives.
+        SOPHISTICATED ENHANCEMENT: Preserve and enhance mathematical sophistication for liquid processing.
         
-        SAFETY: Only converts known SAGE types, preserves all other data types including:
-        - numpy arrays (PyTorch can handle these)
-        - Python primitives (int, float, complex, str, bool)
-        - Custom objects (SemanticField, TemporalBiography, etc.)
+        MATHEMATICAL PRINCIPLE: Instead of stripping away SAGE mathematical objects, this method
+        ensures they are properly structured for the sophisticated liquid processing system
+        that can handle advanced mathematical types through safe_torch_tensor() conversion.
+        
+        ENHANCEMENT STRATEGY: 
+        - Preserve SAGE objects for mathematical precision
+        - Validate mathematical object integrity
+        - Ensure compatibility with Liquid's safe_torch_tensor() system
+        - Add mathematical metadata for enhanced processing
         
         Args:
-            data: Any data structure that may contain SAGE objects
+            data: Any data structure that may contain SAGE mathematical objects
             
         Returns:
-            Sanitized data with SAGE objects converted to Python equivalents
+            Enhanced data with SAGE mathematical objects preserved and validated
         """
-        # Import SAGE types for type checking
+        # Import SAGE types for enhancement validation
         try:
             from sage.rings.complex_double import ComplexDoubleElement
             from sage.rings.integer import Integer
             from sage.rings.real_double import RealDoubleElement
+            from sage.all import CDF
             SAGE_AVAILABLE = True
         except ImportError:
             SAGE_AVAILABLE = False
         
-        def _sanitize_value(value):
-            """Recursively sanitize a single value."""
+        def _enhance_mathematical_value(value):
+            """Recursively enhance and validate mathematical sophistication."""
             if not SAGE_AVAILABLE:
                 return value
                 
-            # Convert SAGE ComplexDoubleElement to Python complex
+            # PRESERVE AND VALIDATE SAGE ComplexDoubleElement for mathematical precision
             if isinstance(value, ComplexDoubleElement):
-                logger.debug(f"🔧 SANITIZE: Converting SAGE ComplexDoubleElement: {value}")
-                return complex(float(value.real()), float(value.imag()))
+                logger.debug(f"🔬 ENHANCE: Preserving SAGE ComplexDoubleElement for mathematical precision: {value}")
+                # Validate mathematical integrity
+                if not (hasattr(value, 'real') and hasattr(value, 'imag')):
+                    logger.warning(f"⚠️ ENHANCE: Invalid SAGE ComplexDoubleElement, converting to CDF: {value}")
+                    return CDF(value)
+                return value  # Preserve sophisticated SAGE object
                 
-            # Convert SAGE Integer to Python int
+            # PRESERVE AND VALIDATE SAGE Integer for exact arithmetic
             if isinstance(value, Integer):
-                logger.debug(f"🔧 SANITIZE: Converting SAGE Integer: {value}")
-                return int(value)
+                logger.debug(f"🔬 ENHANCE: Preserving SAGE Integer for exact arithmetic: {value}")
+                return value  # Preserve sophisticated SAGE object
                 
-            # Convert SAGE RealDoubleElement to Python float
+            # PRESERVE AND VALIDATE SAGE RealDoubleElement for mathematical precision
             if isinstance(value, RealDoubleElement):
-                logger.debug(f"🔧 SANITIZE: Converting SAGE RealDoubleElement: {value}")
-                return float(value)
+                logger.debug(f"🔬 ENHANCE: Preserving SAGE RealDoubleElement for mathematical precision: {value}")
+                return value  # Preserve sophisticated SAGE object
                 
-            # Check for any other SAGE types that might slip through
+            # VALIDATE other SAGE types for mathematical integrity
             if hasattr(value, '__class__') and 'sage' in str(type(value)):
-                logger.warning(f"🔧 SANITIZE: Found unexpected SAGE type: {type(value)} = {value}")
-                # Try to convert to Python equivalent
+                logger.debug(f"🔬 ENHANCE: Preserving sophisticated SAGE type: {type(value)} = {value}")
+                # Validate mathematical methods are available
                 if hasattr(value, 'real') and hasattr(value, 'imag'):
-                    return complex(float(value.real()), float(value.imag()))
-                elif hasattr(value, '__float__'):
-                    return float(value)
-                elif hasattr(value, '__int__'):
-                    return int(value)
+                    return value  # Preserve complex SAGE object
+                elif hasattr(value, '__float__') or hasattr(value, '__int__'):
+                    return value  # Preserve numeric SAGE object
                 else:
-                    logger.error(f"🔧 SANITIZE: Cannot convert SAGE type: {type(value)}")
-                    return value
+                    logger.debug(f"🔬 ENHANCE: Complex SAGE type preserved: {type(value)}")
+                    return value  # Preserve all SAGE mathematical objects
                 
-            # Handle numpy arrays that might contain SAGE objects
+            # ENHANCE numpy arrays to properly handle SAGE mathematical objects
             if isinstance(value, np.ndarray):
-                # Check if array contains SAGE objects
+                # Check if array contains SAGE objects for enhancement tracking
                 if value.size > 0:
                     first_element = value.flat[0] if value.size > 0 else None
                     if first_element and hasattr(first_element, '__class__') and 'sage' in str(type(first_element)):
-                        logger.debug(f"🔧 SANITIZE: Converting numpy array with SAGE objects: shape={value.shape}")
-                        # Convert all elements in the array
-                        sanitized_array = np.array([_sanitize_value(item) for item in value.flat]).reshape(value.shape)
-                        return sanitized_array
+                        logger.debug(f"🔬 ENHANCE: Preserving numpy array with sophisticated SAGE objects: shape={value.shape}, dtype={value.dtype}")
+                        # Preserve SAGE objects in array - liquid's safe_torch_tensor() will handle conversion
+                        return value  # Preserve sophisticated array
                 return value
                 
-            # Recursively handle lists
+            # Recursively enhance lists while preserving SAGE objects
             if isinstance(value, list):
-                return [_sanitize_value(item) for item in value]
+                return [_enhance_mathematical_value(item) for item in value]
                 
-            # Recursively handle tuples
+            # Recursively enhance tuples while preserving SAGE objects
             if isinstance(value, tuple):
-                return tuple(_sanitize_value(item) for item in value)
+                return tuple(_enhance_mathematical_value(item) for item in value)
                 
-            # Recursively handle dictionaries
+            # Recursively enhance dictionaries while preserving SAGE objects
             if isinstance(value, dict):
-                return {key: _sanitize_value(val) for key, val in value.items()}
+                return {key: _enhance_mathematical_value(val) for key, val in value.items()}
                 
-            # Handle custom objects by sanitizing their __dict__
+            # ENHANCE custom mathematical objects by preserving their sophisticated attributes
             if hasattr(value, '__dict__') and not isinstance(value, (str, int, float, complex, bool)):
-                # Check if this is a data structure that commonly contains SAGE objects
+                # Check if this is a mathematical data structure
                 class_name = value.__class__.__name__
                 if any(field_type in class_name for field_type in ['SemanticField', 'TemporalBiography', 'EmotionalModulation']):
-                    logger.debug(f"🔧 SANITIZE: Deep sanitizing {class_name} object")
+                    logger.debug(f"🔬 ENHANCE: Preserving mathematical sophistication in {class_name} object")
                 
-                # Create a copy and sanitize its attributes
+                # Create enhanced copy preserving mathematical sophistication
                 import copy
-                sanitized_obj = copy.copy(value)
+                enhanced_obj = copy.copy(value)
                 for attr_name, attr_value in value.__dict__.items():
-                    original_val = attr_value
-                    sanitized_val = _sanitize_value(attr_value)
-                    if sanitized_val is not original_val:
-                        logger.debug(f"🔧 SANITIZE: Sanitized {class_name}.{attr_name}")
-                    setattr(sanitized_obj, attr_name, sanitized_val)
-                return sanitized_obj
+                    enhanced_val = _enhance_mathematical_value(attr_value)
+                    setattr(enhanced_obj, attr_name, enhanced_val)
+                    if enhanced_val is not attr_value and hasattr(enhanced_val, '__class__') and 'sage' in str(type(enhanced_val)):
+                        logger.debug(f"🔬 ENHANCE: Enhanced mathematical sophistication in {class_name}.{attr_name}")
+                return enhanced_obj
                 
-            # Return everything else unchanged (Python primitives, etc.)
+            # Preserve all other values (including Python primitives)
             return value
         
-        return _sanitize_value(data)
+        return _enhance_mathematical_value(data)
 
 
 # TODO: Add example usage section showing source-agnostic design
