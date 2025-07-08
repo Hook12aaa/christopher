@@ -1401,17 +1401,7 @@ class ConceptualChargeAgent:
         source_token = semantic_data["field_metadata"]["source_token"]
         # Agent creation for token (debug info moved to batch summaries)
 
-        # 📚 VOCAB RESOLUTION: Simple direct lookup
-        if vocab_mappings and "id_to_token" in vocab_mappings:
-            id_to_token = vocab_mappings["id_to_token"]
-            # Direct lookup - source_token is already the correct key
-            vocab_token_string = id_to_token.get(source_token)
-        else:
-            vocab_token_string = str(source_token)
-
-        logger.debug(
-            f"🧬 Agent {charge_index} vocab resolution: {source_token} → {vocab_token_string}"
-        )
+        vocab_token_string = source_token
 
         # Create field components for ConceptualChargeObject using ACTUAL data from combined_results
         field_components = FieldComponents(

@@ -222,23 +222,31 @@ class FoundationManifoldBuilder:
             # Validate total parameter
             if total <= 0:
                 raise ValueError(f"Total must be > 0, got {total}")
-            if total > total_available:
+            
+            # Start from real vocabulary (index 999) instead of unused tokens
+            vocab_start = 999
+            vocab_end = min(vocab_start + total, total_available)
+            
+            if vocab_end > total_available:
                 logger.warning(
-                    f"Requested total ({total}) exceeds available embeddings ({total_available}), using {total_available}"
+                    f"Requested total ({total}) from vocab start ({vocab_start}) exceeds available embeddings, using {total_available - vocab_start}"
                 )
-                total = total_available
+                vocab_end = total_available
+                total = vocab_end - vocab_start
 
-            test_embeddings = all_embeddings[:total]
-            embedding_indices = list(range(total))
-            logger.info(f"🔢 Processing first {total} embeddings")
+            test_embeddings = all_embeddings[vocab_start:vocab_end]
+            embedding_indices = list(range(vocab_start, vocab_end))
+            logger.info(f"🔢 Processing {total} real vocabulary embeddings starting from index {vocab_start}")
 
         else:
-            # Default behavior - first 100 embeddings for safety
-            default_count = min(100, total_available)
-            test_embeddings = all_embeddings[:default_count]
-            embedding_indices = list(range(default_count))
+            # Default behavior - use real vocabulary range starting at 999
+            default_start = 999  # First real vocabulary index
+            default_count = 10   # Process 10 real vocabulary tokens
+            default_end = min(default_start + default_count, total_available)
+            test_embeddings = all_embeddings[default_start:default_end]
+            embedding_indices = list(range(default_start, default_end))
             logger.info(
-                f"🧪 Default mode: Processing first {default_count} embeddings (use --total or --range for more)"
+                f"🧪 Default mode: Processing real vocabulary indices {default_start}-{default_end-1} (use --total or --range for more)"
             )
 
         logger.info(f"📊 Selected {len(test_embeddings)} embeddings from {total_available} available")
@@ -291,12 +299,15 @@ class FoundationManifoldBuilder:
         logger.info(f"🎉 Sequential BGE search completed: {len(enriched_e)} results processed")
 
         # 🧬 EXTRACT VOCAB MAPPINGS: Get actual vocabulary words for our embeddings
-        id_to_token = model_loaded.get("id_to_token")
-        token_to_id = model_loaded.get("token_to_id")
+        id_to_token = model_loaded["id_to_token"]
+        token_to_id = model_loaded["token_to_id"]
         # embedding_indices already defined above based on range/total parameters
-
-        # 🔍 Extract actual vocabulary words for our embedding indices (optimized)
-        vocab_words = [id_to_token.get(idx) for idx in embedding_indices]
+        
+        # Extract actual vocabulary words for our embedding indices
+        vocab_words = []
+        for idx in embedding_indices:
+            token = id_to_token.get(idx)
+            vocab_words.append(token)
 
         # Display range information
         start_idx_display = embedding_indices[0] if embedding_indices else 0
