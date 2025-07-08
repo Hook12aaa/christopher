@@ -1159,7 +1159,9 @@ class BGEIngestion():
         
         # Use subset for analysis if specified
         if num_samples is not None and num_samples < len(embeddings):
-            sample_indices = np.random.choice(len(embeddings), num_samples, replace=False)
+            # DETERMINISTIC SYSTEMATIC SAMPLING: Replace random with evenly distributed selection
+            step = len(embeddings) // num_samples
+            sample_indices = [i * step for i in range(num_samples)]
             sample_embeddings = embeddings[sample_indices]
         else:
             sample_embeddings = embeddings

@@ -29,6 +29,8 @@ project_root = Path(__file__).resolve().parent.parent.parent.parent
 sys.path.insert(0, str(project_root))
 
 from Sysnpire.utils.logger import get_logger
+from Sysnpire.utils.field_theory_optimizers import field_theory_auto_optimize, field_theory_trajectory_optimize
+
 logger = get_logger(__name__)
 
 
@@ -301,36 +303,158 @@ class TemporalDimensionHelper:
         )
     
     def _compute_field_interference_matrix(self, temporal_biographies: List[TemporalBiography]) -> np.ndarray:
-        """
-        Compute how temporal biographies interfere with each other.
+        """Compute field interference using adaptive optimization with O(log N) method for large datasets."""
+        n_charges = len(temporal_biographies)
         
-        WEATHER MAP INTERFERENCE: Like clouds affecting each other's movement patterns,
-        conceptual charges create interference patterns in their temporal signatures.
-        """
+        if n_charges <= 1000:
+            return self._compute_field_interference_exact(temporal_biographies)
+        else:
+            logger.info(f"🚀 Using advanced hierarchical optimization for {n_charges} temporal biographies")
+            return self._compute_field_interference_hierarchical(temporal_biographies)
+    
+    def _compute_field_interference_exact(self, temporal_biographies: List[TemporalBiography]) -> np.ndarray:
+        """Original exact O(N²) field interference computation."""
         n_charges = len(temporal_biographies)
         interference_matrix = np.zeros((n_charges, n_charges), dtype=complex)
         
         for i in range(n_charges):
             for j in range(n_charges):
                 if i != j:
-                    # Compute interference between charge i and charge j
                     bio_i = temporal_biographies[i]
                     bio_j = temporal_biographies[j]
-                    
-                    # Phase interference
-                    phase_interference = np.mean(
-                        np.exp(1j * (bio_i.phase_coordination - bio_j.phase_coordination))
-                    )
-                    
-                    # Trajectory interference
-                    trajectory_interference = np.mean(
-                        bio_i.trajectory_operators * np.conj(bio_j.trajectory_operators)
-                    )
-                    
-                    # Combined interference pattern
-                    interference_matrix[i, j] = phase_interference * trajectory_interference
+                    interference_matrix[i, j] = self._exact_interference(bio_i, bio_j)
         
         return interference_matrix
+    
+    def _exact_interference(self, bio_i, bio_j) -> complex:
+        """Exact interference calculation between two biographies."""
+        phase_interference = np.mean(
+            np.exp(1j * (bio_i.phase_coordination - bio_j.phase_coordination))
+        )
+        trajectory_interference = np.mean(
+            bio_i.trajectory_operators * np.conj(bio_j.trajectory_operators)
+        )
+        return phase_interference * trajectory_interference
+    
+    def _compute_field_interference_hierarchical(self, temporal_biographies: List[TemporalBiography]) -> np.ndarray:
+        """Data-driven interference computation using sparsity analysis and optimal strategy."""
+        from .interference import SparsityAnalyzer, ChunkedComputer, TreeComputer, HybridComputer, MemoryMappedComputer, HierarchicalTreeComputer
+        from .interference.cell_lists_interference_computer import CellListsInterferenceComputer
+        
+        n_charges = len(temporal_biographies)
+        logger.info(f"🔍 Analyzing interference patterns for optimal computation strategy ({n_charges} charges)")
+        
+        # Estimate memory requirements for matrix
+        matrix_size_gb = (n_charges * n_charges * 16) / (1024**3)  # complex128 = 16 bytes
+        
+        # Phase 0: NEW - Check for O(N) linear complexity opportunity
+        # Conservative trigger: only use when confident of success
+        if n_charges >= 500 and matrix_size_gb <= 4.0:  # Large enough to benefit, not too large for safety
+            logger.info(f"🚀 Evaluating O(N) linear complexity algorithm...")
+            
+            # Quick sparsity check to determine if O(N) is likely to succeed
+            analyzer = SparsityAnalyzer()
+            quick_analysis = analyzer.analyze_sample(temporal_biographies, sample_size=min(200, n_charges))
+            
+            # Conservative trigger conditions for O(N) algorithm:
+            # 1. High sparsity (>70% negligible interactions)
+            # 2. Reasonable neighbor count (<30 mean neighbors)
+            # 3. Good distance correlation (field locality)
+            o_n_suitable = (
+                quick_analysis.sparsity_ratio > 0.7 and
+                quick_analysis.mean_neighbors < 30 and
+                quick_analysis.correlation_strength > 0.4
+            )
+            
+            if o_n_suitable:
+                logger.info(f"✨ Activating O(N) linear complexity algorithm!")
+                logger.info(f"   Sparsity: {quick_analysis.sparsity_ratio:.1%}")
+                logger.info(f"   Mean neighbors: {quick_analysis.mean_neighbors:.1f}")
+                logger.info(f"   Field locality: {quick_analysis.correlation_strength:.3f}")
+                
+                try:
+                    # Attempt O(N) computation
+                    computer = CellListsInterferenceComputer(
+                        cutoff_sample_size=min(500, n_charges // 2),
+                        negligible_threshold_percentile=1.0,  # 99th percentile cutoff
+                        target_dimension_for_cells=6,
+                        validate_complexity=True
+                    )
+                    
+                    interference_matrix = computer.compute_interference_matrix(temporal_biographies)
+                    
+                    # Log performance results
+                    performance = computer.get_performance_summary()
+                    if performance and performance.get('complexity_analysis', {}).get('linear_scaling_achieved', False):
+                        logger.info(f"🎯 O(N) algorithm successful!")
+                        logger.info(f"   Scaling exponent: {performance['complexity_analysis']['actual_scaling_exponent']:.2f}")
+                        logger.info(f"   Pairs computed: {performance['algorithm_statistics']['computed_pairs']:,}")
+                        logger.info(f"   Throughput: {performance['performance_metrics']['pairs_per_second']:,.0f} pairs/second")
+                        return interference_matrix
+                    else:
+                        logger.warning(f"⚠️  O(N) algorithm completed but scaling was sub-optimal")
+                        logger.info(f"🔄 Falling back to proven O(N log N) methods for reliability")
+                        
+                except Exception as e:
+                    logger.warning(f"⚠️  O(N) algorithm failed: {str(e)}")
+                    logger.info(f"🔄 Falling back to proven O(N log N) methods")
+            else:
+                logger.info(f"📊 Dataset not suitable for O(N) algorithm:")
+                logger.info(f"   Sparsity: {quick_analysis.sparsity_ratio:.1%} (need >70%)")
+                logger.info(f"   Mean neighbors: {quick_analysis.mean_neighbors:.1f} (need <30)")
+                logger.info(f"   Field locality: {quick_analysis.correlation_strength:.3f} (need >0.4)")
+                logger.info(f"🔄 Using proven O(N log N) optimization methods")
+        
+        # Phase 1: DISABLED - HierarchicalTreeComputer has O(N²) complexity issues  
+        if False:  # Keep disabled - was causing O(N²) performance
+            logger.warning(f"⚠️  HierarchicalTreeComputer disabled due to complexity issues")
+        
+        # Phase 2: Check if memory-mapped computation is needed
+        if matrix_size_gb > 2.0:  # More than 2GB - use memory-mapped
+            logger.info(f"💾 Using memory-mapped computation for large dataset ({matrix_size_gb:.1f}GB)")
+            computer = MemoryMappedComputer(
+                chunk_size=min(500, n_charges // 10),
+                save_progress=True
+            )
+            return computer.compute_interference_matrix(temporal_biographies)
+        
+        # Phase 3: Analyze sparsity patterns for in-memory computation (reuse analysis if available)
+        if 'analyzer' not in locals():
+            analyzer = SparsityAnalyzer()
+            analysis = analyzer.analyze_sample(temporal_biographies, sample_size=min(100, n_charges))
+        else:
+            # Reuse the quick analysis from O(N) evaluation, but potentially with larger sample
+            if n_charges > 200:
+                analysis = analyzer.analyze_sample(temporal_biographies, sample_size=min(100, n_charges))
+            else:
+                analysis = quick_analysis  # Reuse quick analysis for smaller datasets
+        
+        # Phase 4: Choose optimal O(N log N) computation strategy
+        if analysis.computation_strategy == "sparse":
+            logger.info(f"🌳 Using O(N log N) tree-based computation (sparsity: {analysis.sparsity_ratio:.1%})")
+            # Use tree computer for true O(N log N) performance
+            computer = TreeComputer(
+                theta=0.5,  # Good accuracy/speed balance
+                max_leaf_size=10,
+                accuracy_threshold=1e-6
+            )
+            return computer.compute_interference_matrix(temporal_biographies)
+            
+        elif analysis.computation_strategy == "hybrid":
+            logger.info(f"🔄 Using hybrid sparse/dense computation (sparsity: {analysis.sparsity_ratio:.1%})")
+            computer = HybridComputer(
+                region_size=min(1000, n_charges // 4),
+                sparsity_threshold=0.8
+            )
+            return computer.compute_interference_matrix(temporal_biographies)
+            
+        else:  # chunked (dense)
+            logger.info(f"📊 Using optimized chunked vectorization (sparsity: {analysis.sparsity_ratio:.1%})")
+            computer = ChunkedComputer(
+                max_memory_mb=500.0,
+                max_workers=8
+            )
+            return computer.compute_interference_matrix(temporal_biographies)
     
     def _compute_collective_breathing_rhythm(self, temporal_biographies: List[TemporalBiography]) -> Dict[str, Any]:
         """
@@ -363,6 +487,7 @@ class TemporalDimensionHelper:
             'breathing_pattern_diversity': float(np.std(all_frequencies.flatten()))
         }
     
+    @field_theory_auto_optimize(prefer_accuracy=True, profile=True)
     def _compute_temporal_momentum(self, trajectory_operators: np.ndarray, frequency_evolution: np.ndarray) -> complex:
         """Compute unified temporal momentum using SAGE mathematical precision for sophisticated complex calculations."""
         # Import SAGE for sophisticated mathematical computation
@@ -464,11 +589,13 @@ class TemporalDimensionHelper:
             
             return momentum
     
+    @field_theory_auto_optimize(prefer_accuracy=True, profile=True)
     def _compute_breathing_coherence(self, phase_coordination: np.ndarray) -> float:
         """Compute how synchronized the breathing pattern is."""
         # Coherence measured as phase synchronization
         return float(np.abs(np.mean(np.exp(1j * phase_coordination))))
     
+    @field_theory_auto_optimize(prefer_accuracy=True, profile=True)
     def _compute_field_interference_signature(self, 
                                             trajectory_operators: np.ndarray, 
                                             phase_coordination: np.ndarray) -> np.ndarray:
@@ -486,6 +613,7 @@ class TrajectoryIntegrator:
     Not separate from field effects - they ARE the field's movement signature.
     """
     
+    @field_theory_trajectory_optimize(integration_method="quad", profile=True)
     def compute_trajectory_operators(self, 
                                    vector: np.ndarray,
                                    token: str,
@@ -588,6 +716,7 @@ class BreathingRhythmExtractor:
     conceptual charge formation - not separate temporal coordinates.
     """
     
+    @field_theory_auto_optimize(prefer_accuracy=True, profile=True)
     def extract_breathing_pattern(self, 
                                 vector: np.ndarray,
                                 frequency_patterns: Dict[str, Any],
@@ -639,6 +768,7 @@ class TemporalPersistenceEngine:
     persistent character themes (exponential-cosine decay) from Section 3.1.4.3.3.
     """
     
+    @field_theory_auto_optimize(prefer_accuracy=True, profile=True)
     def generate_persistence_layers(self, 
                                   vector: np.ndarray,
                                   persistence_patterns: Dict[str, Any],

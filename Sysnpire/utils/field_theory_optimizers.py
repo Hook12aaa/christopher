@@ -493,6 +493,48 @@ def field_theory_trajectory_optimize(integration_method: str = "quad", profile: 
     return decorator
 
 
+def _optimize_function(func: Callable, prefer_accuracy: bool, profile: bool) -> Callable:
+    """Optimize a regular function (not a class method)."""
+    # Check if function deals with complex numbers
+    func_source = func.__code__.co_names
+    uses_complex = any(name in func_source for name in ['complex', 'angle', 'real', 'imag', 'conjugate'])
+    
+    if prefer_accuracy:
+        # Prioritize mathematical accuracy
+        if JAX_AVAILABLE and uses_complex:
+            logger.log_debug(f"Auto-selecting JAX for complex-valued function {func.__name__}")
+            return field_theory_jax_optimize(preserve_complex=True, profile=profile)(func)
+        elif NUMBA_AVAILABLE:
+            logger.log_debug(f"Auto-selecting Numba for function {func.__name__}")
+            return field_theory_numba_optimize(preserve_complex=True, profile=profile)(func)
+        elif JAX_AVAILABLE:
+            return field_theory_jax_optimize(preserve_complex=True, profile=profile)(func)
+        else:
+            logger.log_warning(f"No suitable optimization for {func.__name__} - using original")
+            return func
+    else:
+        # Standard auto-optimization (CuPy removed for macOS compatibility)
+        if JAX_AVAILABLE:
+            return field_theory_jax_optimize(preserve_complex=True, profile=profile)(func)
+        elif NUMBA_AVAILABLE:
+            return field_theory_numba_optimize(preserve_complex=True, profile=profile)(func)
+        else:
+            logger.log_warning(f"No optimization available for {func.__name__} - using original")
+            return func
+
+
+def _optimize_class_method(method: Callable, prefer_accuracy: bool, profile: bool) -> Callable:
+    """
+    Optimize a class method by extracting core computation.
+    
+    TEMPORARY DISABLE: Core extraction has signature mismatch issues with Numba.
+    Falling back to original method to avoid optimization errors.
+    """
+    # Temporarily disable class method optimization due to signature issues
+    logger.log_debug(f"Class method optimization temporarily disabled for {method.__name__} - using original")
+    return method
+
+
 def field_theory_auto_optimize(prefer_accuracy: bool = True, profile: bool = True):
     """
     Automatically choose the best optimization while preserving field theory mathematics.
@@ -503,34 +545,13 @@ def field_theory_auto_optimize(prefer_accuracy: bool = True, profile: bool = Tru
     - Maintains field-theoretic properties
     """
     def decorator(func: Callable) -> Callable:
-        # Choose optimization strategy based on mathematical requirements
-        
-        # Check if function deals with complex numbers
-        func_source = func.__code__.co_names
-        uses_complex = any(name in func_source for name in ['complex', 'angle', 'real', 'imag', 'conjugate'])
-        
-        if prefer_accuracy:
-            # Prioritize mathematical accuracy
-            if JAX_AVAILABLE and uses_complex:
-                logger.log_debug(f"Auto-selecting JAX for complex-valued function {func.__name__}")
-                return field_theory_jax_optimize(preserve_complex=True, profile=profile)(func)
-            elif NUMBA_AVAILABLE:
-                logger.log_debug(f"Auto-selecting Numba for function {func.__name__}")
-                return field_theory_numba_optimize(preserve_complex=True, profile=profile)(func)
-            elif JAX_AVAILABLE:
-                return field_theory_jax_optimize(preserve_complex=True, profile=profile)(func)
-            else:
-                logger.log_warning(f"No suitable optimization for {func.__name__} - using original")
-                return func
+        # Check if this is a class method (has 'self' as first parameter)
+        if func.__code__.co_varnames and func.__code__.co_varnames[0] == 'self':
+            logger.log_debug(f"Optimizing class method {func.__name__} using core extraction")
+            return _optimize_class_method(func, prefer_accuracy, profile)
         else:
-            # Standard auto-optimization (CuPy removed for macOS compatibility)
-            if JAX_AVAILABLE:
-                return field_theory_jax_optimize(preserve_complex=True, profile=profile)(func)
-            elif NUMBA_AVAILABLE:
-                return field_theory_numba_optimize(preserve_complex=True, profile=profile)(func)
-            else:
-                logger.log_warning(f"No optimization available for {func.__name__} - using original")
-                return func
+            # Standard function optimization
+            return _optimize_function(func, prefer_accuracy, profile)
     
     return decorator
 

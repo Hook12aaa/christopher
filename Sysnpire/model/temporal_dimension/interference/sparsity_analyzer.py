@@ -38,9 +38,16 @@ class SparsityAnalyzer:
         Initialize sparsity analyzer.
         
         Args:
-            sparsity_threshold: Interference values below this fraction of max are considered sparse
+            sparsity_threshold: Deprecated. Now uses percentile-based thresholding.
+                               Kept for backward compatibility but not used.
+        
+        Note:
+            The analyzer now uses the 20th percentile of interference values
+            as the sparsity threshold, which adapts to the actual distribution
+            and avoids issues with relative thresholds on small-magnitude data.
         """
-        self.sparsity_threshold = sparsity_threshold
+        self.sparsity_threshold = sparsity_threshold  # Kept for compatibility
+        self.percentile_threshold = 20.0  # Bottom 20% considered negligible
     
     def analyze_sample(self, temporal_biographies: List, sample_size: int = 100) -> SparsityAnalysis:
         """
@@ -136,20 +143,43 @@ class SparsityAnalyzer:
         return distances
     
     def _compute_sparsity_ratio(self, interference_matrix: np.ndarray) -> float:
-        """Compute fraction of interference values that are negligible."""
+        """Compute fraction of interference values that are negligible.
+        
+        Uses percentile-based thresholding to detect natural sparsity patterns
+        in the interference distribution, avoiding the issue where relative
+        thresholds fail for small-magnitude datasets.
+        """
         # Get non-diagonal values
         mask = ~np.eye(interference_matrix.shape[0], dtype=bool)
         interference_values = np.abs(interference_matrix[mask])
         
-        # Find threshold based on maximum value
-        max_interference = np.max(interference_values)
-        threshold = max_interference * self.sparsity_threshold
+        if len(interference_values) == 0:
+            return 0.0
+        
+        # Use percentile-based threshold for robustness
+        # The 20th percentile means bottom 20% are considered negligible
+        # This adapts to the actual distribution of values
+        threshold = np.percentile(interference_values, self.percentile_threshold)
+        
+        # Also enforce a minimum absolute threshold to catch truly zero values
+        # This prevents numerical noise from being considered significant
+        min_absolute_threshold = 1e-10
+        threshold = max(threshold, min_absolute_threshold)
         
         # Count sparse values
         sparse_count = np.sum(interference_values < threshold)
         total_count = len(interference_values)
         
-        return sparse_count / total_count
+        # The sparsity ratio is actually the fraction above the percentile
+        # since we used bottom 20%, sparsity should be ~0.2 for uniform distribution
+        # For truly sparse data, many more values will be below threshold
+        sparsity_ratio = sparse_count / total_count
+        
+        # Log threshold information for debugging
+        logger.debug(f"Sparsity threshold: {threshold:.2e} (percentile: {self.percentile_threshold}%, min: {min_absolute_threshold})")
+        logger.debug(f"Interference range: [{np.min(interference_values):.2e}, {np.max(interference_values):.2e}]")
+        
+        return sparsity_ratio
     
     def _compute_distance_correlation(self, distances: np.ndarray, interference_matrix: np.ndarray) -> float:
         """Compute correlation between semantic distance and interference strength."""
@@ -166,33 +196,60 @@ class SparsityAnalyzer:
             return 0.0
     
     def _estimate_mean_neighbors(self, interference_matrix: np.ndarray) -> float:
-        """Estimate average number of meaningful neighbors per charge."""
+        """Estimate average number of meaningful neighbors per charge.
+        
+        Uses the same percentile-based approach as sparsity detection to ensure
+        consistency in determining which interactions are meaningful.
+        """
         # Get non-diagonal values
         interference_magnitudes = np.abs(interference_matrix)
         np.fill_diagonal(interference_magnitudes, 0)
         
-        # Find threshold for meaningful interactions
-        max_interference = np.max(interference_magnitudes)
-        meaningful_threshold = max_interference * self.sparsity_threshold
+        # Get all non-zero values for threshold calculation
+        mask = ~np.eye(interference_matrix.shape[0], dtype=bool)
+        all_values = interference_magnitudes[mask]
         
-        # Count meaningful neighbors per charge
-        meaningful_neighbors = np.sum(interference_magnitudes > meaningful_threshold, axis=1)
+        if len(all_values) == 0:
+            return 0.0
+        
+        # Use same percentile threshold as sparsity calculation for consistency
+        threshold = np.percentile(all_values, self.percentile_threshold)
+        
+        # Enforce minimum threshold
+        min_absolute_threshold = 1e-10
+        threshold = max(threshold, min_absolute_threshold)
+        
+        # Count meaningful neighbors per charge (those above threshold)
+        meaningful_neighbors = np.sum(interference_magnitudes > threshold, axis=1)
         
         return np.mean(meaningful_neighbors)
     
     def _recommend_strategy(self, sparsity_ratio: float, correlation_strength: float, 
                            mean_neighbors: float) -> str:
-        """Recommend computation strategy based on analysis results."""
+        """Recommend computation strategy based on analysis results.
         
-        # Strong sparsity indicators
-        if sparsity_ratio > 0.8 and correlation_strength > 0.5:
+        With percentile-based thresholding:
+        - Baseline sparsity is ~0.2 (bottom 20%)
+        - True sparsity shows >0.5 (majority of values negligible)
+        - Dense patterns show <0.3 (close to baseline)
+        """
+        
+        # Strong sparsity indicators:
+        # - More than 50% of values are negligible (well above 20% baseline)
+        # - Strong correlation between distance and interference
+        # - Few meaningful neighbors per charge
+        if sparsity_ratio > 0.5 and (correlation_strength > 0.5 or mean_neighbors < 10):
             return "sparse"
         
-        # Weak sparsity - dense computation needed
-        elif sparsity_ratio < 0.5:
+        # Dense computation needed:
+        # - Close to baseline 20% sparsity (uniformly distributed values)
+        # - Many meaningful neighbors per charge
+        elif sparsity_ratio < 0.3 or mean_neighbors > 50:
             return "chunked"
         
-        # Mixed case - adaptive approach
+        # Mixed case - adaptive approach:
+        # - Moderate sparsity (30-50%)
+        # - Benefits from both sparse and dense optimizations
         else:
             return "hybrid"
 
